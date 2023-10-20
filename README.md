@@ -1,3 +1,3 @@
 # panthera bot
 Conversational telegram bot docker server  
-![Structure](assets/structure.png)
+![Structure](assets/structure_v1.png)
