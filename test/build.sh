@@ -1,1 +1,1 @@
-docker build -t fastapi-test-server .
+sudo docker build -t fastapi-test-server .
