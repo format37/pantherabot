@@ -1,10 +1,7 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
-# from pydantic import BaseModel
-# import telebot
 import os
 import logging
-# import ssl
 
 # Initialize FastAPI
 app = FastAPI()
@@ -17,4 +14,11 @@ logger.setLevel(logging.INFO)
 @app.get("/test")
 async def call_test():
     logger.info('call_test')
+    return JSONResponse(content={"status": "ok"})
+
+@app.post("/message")
+async def call_message(request: Request):
+    logger.info('call_message')
+    body = await request.json()
+    logger.info(body)
     return JSONResponse(content={"status": "ok"})
