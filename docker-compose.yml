@@ -10,7 +10,12 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    network_mode: "host"
+    networks:
+      - my_custom_network
+    ports:
+      - "4220:4220"
     environment:
       - TZ=America/Los_Angeles
-      - PORT=4220
+networks:
+  my_custom_network:
+    driver: bridge
