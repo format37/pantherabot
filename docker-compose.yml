@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  server:
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    build: server
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"
+    network_mode: "host"
+    environment:
+      - TZ=America/Los_Angeles
+      - PORT=4220
