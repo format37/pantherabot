@@ -45,11 +45,24 @@ def get_user_session(user_id):
     return session
 
 
+def log_message(message):
+    logger.info(f'message: {message}')
+    # Read the chat id from the message
+    chat_id = message['chat']['id']
+    # Prepare a folder
+    path = f'./data/chats/{chat_id}'
+    os.makedirs(path, exist_ok=True)
+    filename = f'{message["date"]}_{message["message_id"]}.json'
+    # Save the user json file
+    file_path = os.path.join(path, filename)
+    json.dump(message, open(file_path, 'w'))
+
+
 @app.post("/message")
 async def call_message(request: Request):
     logger.info('call_message')
-    body = await request.json()
-    logger.info(body)
+    message = await request.json()
+    logger.info(message)
     """
     INFO:server:{
        'message_id': 22,
@@ -71,6 +84,7 @@ async def call_message(request: Request):
         'text': '9'
     }
     """
-    user_session = get_user_session(body['from']['id'])
+    user_session = get_user_session(message['from']['id'])
+    log_message(message)
     logger.info(f'user_session: {user_session}')
     return JSONResponse(content={"status": "ok"})
