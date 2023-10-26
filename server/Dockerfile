@@ -5,4 +5,4 @@ COPY requirements.txt /server
 RUN pip3 install -r requirements.txt --no-cache-dir
 # RUN python3 -m pip install --upgrade openai
 COPY server.py /server
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8443", "--ssl-keyfile=webhook_pkey.pem", "--ssl-certfile=webhook_cert.pem"]
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "4220"]
