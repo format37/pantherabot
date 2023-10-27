@@ -3,13 +3,14 @@ from fastapi.responses import JSONResponse
 import os
 import logging
 import json
-from panthera import (
+"""from panthera import (
     save_user_session, 
     get_user_session, 
     log_message,
     reset_chat,
     llm_request
-    )
+    )"""
+from panthera import Panthera
 
 # Initialize FastAPI
 app = FastAPI()
@@ -52,15 +53,19 @@ async def call_message(request: Request):
         'text': '9'
     }
     """
-    log_message(message)
+
+    panthera = Panthera()
+
+    panthera.log_message(message)
     chat_id = message['chat']['id']
     text = message['text']
-    user_session = get_user_session(message['from']['id'])
+
+    user_session = panthera.get_user_session(message['from']['id'])
     logger.info(f'user_session: {user_session}')
     answer = 'empty'
     # if message text is /reset
     if message['text'] == '/reset':
-        reset_chat(message['chat']['id'])
+        panthera.reset_chat(message['chat']['id'])
         answer = 'Chat messages has been forgotten'
 
     # if message text is /start
@@ -68,7 +73,7 @@ async def call_message(request: Request):
         answer = 'Welcome to the bot'
 
     else:
-        response = llm_request(user_session, chat_id, text)
+        response = panthera.llm_request(user_session, chat_id, text)
         if response.status_code == 200:
             # response.text
             """
