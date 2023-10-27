@@ -83,7 +83,7 @@ class Panthera:
         
         # Fill the prompt
         prompt = [
-            {"role": "system", "content": "You are a helpful assistant. You need to add 'Assistant: ' to the beginning of your message."}
+            {"role": "system", "content": "You are a helpful assistant and a chat member. You need to add 'Assistant: ' to the beginning of your message."}
         ]
 
         for file in files:
