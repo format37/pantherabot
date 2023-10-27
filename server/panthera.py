@@ -83,7 +83,7 @@ class Panthera:
         
         # Fill the prompt
         prompt = [
-            {"role": "system", "content": "You are a helpful assistant."}
+            {"role": "system", "content": "You are a helpful assistant. You need to add 'assistant: ' to the beginning of your message."}
         ]
 
         for file in files:
@@ -116,7 +116,7 @@ class Panthera:
                 role = 'assistant'
             else:
                 role = 'user'
-                
+
             prompt.append({"role": role, "content": user_text})
 
         # Read the last file
