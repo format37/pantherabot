@@ -15,6 +15,7 @@ services:
       - my_custom_network
     ports:
       - "4220:4220"
+      - "4714:4714"
     environment:
       - TZ=America/Los_Angeles
       - LLM_URL=http://localhost:4714/request
