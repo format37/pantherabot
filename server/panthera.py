@@ -1,6 +1,7 @@
 import os
 import logging
 import json
+import requests
 
 
 # Initialize logging
