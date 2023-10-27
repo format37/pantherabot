@@ -67,7 +67,7 @@ async def call_message(request: Request):
     elif message['text'] == '/start':
         answer = 'Welcome to the bot'
 
-    else
+    else:
         answer = llm_request(user_session, chat_id, text)
 
     return JSONResponse(content={
