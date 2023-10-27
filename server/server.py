@@ -6,7 +6,8 @@ import json
 from panthera import (
     save_user_session, 
     get_user_session, 
-    log_message
+    log_message,
+    reset_chat
     )
 
 # Initialize FastAPI
@@ -54,6 +55,11 @@ async def call_message(request: Request):
     log_message(message)
     logger.info(f'user_session: {user_session}')
     answer = 'test answer'
+    # if message text is /reset
+    if message['text'] == '/reset':
+        reset_chat(message['chat']['id'])
+        answer = 'chat messages has been removed'
+
     return JSONResponse(content={
         "status": "ok",
         "message": answer

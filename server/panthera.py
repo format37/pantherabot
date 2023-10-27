@@ -45,3 +45,14 @@ def log_message(message):
     # Save the user json file
     file_path = os.path.join(path, filename)
     json.dump(message, open(file_path, 'w'))
+
+
+def reset_chat(chat_id):
+    logger.info(f'reset_chat: {chat_id}')
+    chat_path = f'./data/chats/{chat_id}'
+    # Remove all files in chat path
+    for f in os.listdir(chat_path):
+        logger.info(f'remove file: {f}')
+        os.remove(os.path.join(chat_path, f))
+
+    return JSONResponse(content={"status": "ok"})
