@@ -70,9 +70,9 @@ async def call_message(request: Request):
     else:
         response = llm_request(user_session, chat_id, text)
         if response.status_code == 200:
-            answer = response.text.json()['answer']
+            answer = response.text
         else:
-            logger.error(f'{response.status_code}: Unable to read response: {response.text}')
+            logger.error(f'{response.status_code}: LLM request unsuccessfull: {response.text}')
             answer = 'unable to read response'
 
     return JSONResponse(content={
