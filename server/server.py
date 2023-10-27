@@ -53,4 +53,8 @@ async def call_message(request: Request):
     user_session = get_user_session(message['from']['id'])
     log_message(message)
     logger.info(f'user_session: {user_session}')
-    return JSONResponse(content={"status": "ok"})
+    answer = 'test answer'
+    return JSONResponse(content={
+        "status": "ok",
+        "message": answer
+        })
