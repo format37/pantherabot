@@ -2,6 +2,7 @@ import os
 import logging
 import json
 import requests
+import time
 
 
 class Panthera:
@@ -59,6 +60,7 @@ class Panthera:
             self.logger.info(f'remove file: {f}')
             os.remove(os.path.join(chat_path, f))
 
+
     def token_counter(self, text, model):
         llm_url = os.environ.get('LLM_URL', '')
         url = f'{llm_url}/token_counter'
@@ -88,7 +90,7 @@ class Panthera:
             # Extract the text from the json file
             message = json.load(open(os.path.join(path, file), 'r'))
             """
-            INFO:server:{
+            {
             'message_id': 22,
             'from': {
                     'id': 106129214, 
@@ -110,7 +112,8 @@ class Panthera:
             """
             # Extract the text from the message
             user_text = message['text']
-            prompt.append({"role": "user", "content": user_text})
+            role = 'user'
+            prompt.append({"role": role, "content": user_text})
 
         # Read the last file
         # last_file = files[-1]
@@ -137,6 +140,32 @@ class Panthera:
         self.logger.info(f'request_data: {request_data}')
         response = requests.post(url, json=request_data)
         self.logger.info(f'response: {str(response)}')
+
+        # Get the current time in Unix timestamp format
+        current_unix_timestamp = int(time.time())
+
+        # Log message
+        bot_message = {
+        'message_id': int(message['message_id']) + 1,
+        'from': {
+                'id': 0, 
+                'is_bot': True, 
+                'first_name': 'assistant', 
+                'username': 'assistant', 
+                'language_code': 'en', 
+                'is_premium': True
+            }, 
+            'chat': {
+                'id': 106129214, 
+                'first_name': 'Alex', 
+                'username': 'format37', 
+                'type': 'private'
+            }, 
+            'date': current_unix_timestamp, 
+            'text': response.json()['choices'][0]['message']['text']
+        }
+        # Log message
+        self.log_message(bot_message)
 
         # Return the response
         return response
