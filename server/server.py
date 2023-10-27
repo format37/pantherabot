@@ -66,7 +66,7 @@ async def call_message(request: Request):
         answer = 'Welcome to the bot'
 
     else:
-        response = panthera.llm_request(user_session, chat_id)
+        answer = panthera.llm_request(user_session, chat_id)
         """if response.status_code == 200:            
             response_json = json.loads(response.text)
             logger.info(f'response_json: {response_json}')
@@ -77,5 +77,5 @@ async def call_message(request: Request):
 
     return JSONResponse(content={
         "status": "ok",
-        "message": str(response)
+        "message": str(answer)
         })
