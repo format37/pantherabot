@@ -156,6 +156,31 @@ class Panthera:
         # Get the current time in Unix timestamp format
         current_unix_timestamp = int(time.time())
 
+        # response.text
+        """
+        {
+            "id":"chatcmpl-8EEabpufU95pSk2tOg29tDP2zOXgN",
+            "object":"chat.completion",
+            "created":1698403365,
+            "model":"gpt-4-0613",
+            "choices":[
+                {
+                    "index":0,"message":
+                    {
+                        "role":"assistant",
+                        "content":"Red is one of the primary colors, along with blue and yellow. It's the color of blood, rubies, and strawberries. Next to orange at the end of the visible light spectrum, it's typically associated with energy, danger, strength, power, determination, as well as passion, desire, and love. It has a wavelength of approximately 625–740 nanometers on the electromagnetic spectrum."
+                    },
+                    "finish_reason":"stop"
+                }
+            ],
+            "usage":
+            {
+                "prompt_tokens":21,
+                "completion_tokens":81,
+                "total_tokens":102
+            }
+        }
+        """
         response_json = json.loads(response.text)
 
         # Log message
@@ -180,8 +205,8 @@ class Panthera:
         }
         # Log message
         self.log_message(bot_message)
-        # Crop "assistant: " from the message
-        bot_message['text'] = bot_message['text'][11:]
+        # Crop "assistant: " from the response
+        response_text = response_json['choices'][0]['message']['content'].replace('assistant: ', '')
 
         # Return the response
-        return response
+        return response_text

@@ -67,40 +67,15 @@ async def call_message(request: Request):
 
     else:
         response = panthera.llm_request(user_session, chat_id)
-        if response.status_code == 200:
-            # response.text
-            """
-            {
-                "id":"chatcmpl-8EEabpufU95pSk2tOg29tDP2zOXgN",
-                "object":"chat.completion",
-                "created":1698403365,
-                "model":"gpt-4-0613",
-                "choices":[
-                    {
-                        "index":0,"message":
-                        {
-                            "role":"assistant",
-                            "content":"Red is one of the primary colors, along with blue and yellow. It's the color of blood, rubies, and strawberries. Next to orange at the end of the visible light spectrum, it's typically associated with energy, danger, strength, power, determination, as well as passion, desire, and love. It has a wavelength of approximately 625–740 nanometers on the electromagnetic spectrum."
-                        },
-                        "finish_reason":"stop"
-                    }
-                ],
-                "usage":
-                {
-                    "prompt_tokens":21,
-                    "completion_tokens":81,
-                    "total_tokens":102
-                }
-            }
-            """
+        """if response.status_code == 200:            
             response_json = json.loads(response.text)
             logger.info(f'response_json: {response_json}')
             answer = response_json['choices'][0]['message']['content']
         else:
             logger.error(f'{response.status_code}: LLM request unsuccessfull: {response.text}')
-            answer = 'unable to read response'
+            answer = 'unable to read response'"""
 
     return JSONResponse(content={
         "status": "ok",
-        "message": str(answer)
+        "message": str(response)
         })
