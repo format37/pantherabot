@@ -68,9 +68,14 @@ async def call_message(request: Request):
         answer = 'Welcome to the bot'
 
     else:
-        answer = llm_request(user_session, chat_id, text)
+        response = llm_request(user_session, chat_id, text)
+        if response.status_code == 200:
+            answer = response.text.json()['answer']
+        else:
+            logger.error(f'{response.status_code}: Unable to read response: {response.text}')
+            answer = 'unable to read response'
 
     return JSONResponse(content={
         "status": "ok",
-        "message": answer
+        "message": str(answer)
         })
