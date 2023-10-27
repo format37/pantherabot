@@ -180,6 +180,8 @@ class Panthera:
         }
         # Log message
         self.log_message(bot_message)
+        # Crop "assistant: " from the message
+        bot_message['text'] = bot_message['text'][11:]
 
         # Return the response
         return response
