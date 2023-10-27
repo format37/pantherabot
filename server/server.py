@@ -7,7 +7,7 @@ from panthera import (
     save_user_session, 
     get_user_session, 
     log_message,
-    reset_chatm,
+    reset_chat,
     llm_request
     )
 
