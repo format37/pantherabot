@@ -3,13 +3,6 @@ from fastapi.responses import JSONResponse
 import os
 import logging
 import json
-"""from panthera import (
-    save_user_session, 
-    get_user_session, 
-    log_message,
-    reset_chat,
-    llm_request
-    )"""
 from panthera import Panthera
 
 # Initialize FastAPI
@@ -66,7 +59,7 @@ async def call_message(request: Request):
     # if message text is /reset
     if message['text'] == '/reset':
         panthera.reset_chat(message['chat']['id'])
-        answer = 'Chat messages has been forgotten'
+        answer = 'Chat messages memory has been cleaned'
 
     # if message text is /start
     elif message['text'] == '/start':

@@ -59,6 +59,17 @@ class Panthera:
             self.logger.info(f'remove file: {f}')
             os.remove(os.path.join(chat_path, f))
 
+    def token_counter(text, model):
+        url = f'{os.environ.get('LLM_URL', '')}/token_counter'
+        data = {
+            "text": text,
+            "model": model
+        }
+
+        response = requests.post(url, json=data)
+        # response = requests.post(url, kwargs=data)
+        return response
+
 
     def llm_request(self, user_session, chat_id, text):
         self.logger.info(f'llm_request: {chat_id}')
@@ -94,7 +105,7 @@ class Panthera:
         # Extract the text from the message
         user_text = message['text']
 
-        url = os.environ.get('LLM_URL', '')
+        url = f'{os.environ.get('LLM_URL', '')}/request'
         prompt = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": user_text}
@@ -106,29 +117,11 @@ class Panthera:
         }
         # Json dumps prompt
         prompt_dumped = json.dumps(prompt)
-        """print(
-            'Token count forecast:', 
-            token_counter(prompt_dumped, model).json()['tokens']
-            )"""
+        tokens_count = self.token_counter(prompt_dumped, user_session['model']).json()['tokens']
+        self.logger.info(f'tokens_count prognose: {tokens_count}')
         self.logger.info(f'request_data: {request_data}')
         response = requests.post(url, json=request_data)
         self.logger.info(f'response: {str(response)}')
-        """
-        # Prepare the request
-        request =  [
-            {
-                "role": "system", 
-                "content": "You are a helpful assistant."
-            },
-            {
-                "role": "user", 
-                "content": text
-            }
-        ]
-        # Send the request
-        self.logger.info(f'request: {request}')
-        response = requests.post('http://localhost:5000/llm', json=request)
-        """
 
         # Return the response
         return response
