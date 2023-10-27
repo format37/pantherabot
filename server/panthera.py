@@ -74,7 +74,7 @@ class Panthera:
         return response
 
 
-    def llm_request(self, user_session, chat_id, text):
+    def llm_request(self, user_session, chat_id):
         self.logger.info(f'llm_request: {chat_id}')
         # Prepare a folder
         path = f'./data/chats/{chat_id}'
@@ -111,13 +111,21 @@ class Panthera:
             }
             """
             # Extract the text from the message
-            user_text = message['text']
+            text = message['text']
             if message['from']['id']==0:
-                role = 'assistant'
+                role = 'assistant'                
             else:
                 role = 'user'
+                user_name = message['from']['first_name']
+                if message['from']['first_name'] == '':
+                    user_name = message['from']['username']
+                    if message['from']['username'] == '':
+                        user_name = 'Unknown'
+                # Add preamble to the message
+                preamble = f'{user_name}: '
+                text = preamble + message['text']
 
-            prompt.append({"role": role, "content": user_text})
+            prompt.append({"role": role, "content": text})
 
         # Read the last file
         # last_file = files[-1]

@@ -66,7 +66,7 @@ async def call_message(request: Request):
         answer = 'Welcome to the bot'
 
     else:
-        response = panthera.llm_request(user_session, chat_id, text)
+        response = panthera.llm_request(user_session, chat_id)
         if response.status_code == 200:
             # response.text
             """
