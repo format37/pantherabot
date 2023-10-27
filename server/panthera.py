@@ -205,8 +205,8 @@ class Panthera:
         }
         # Log message
         self.log_message(bot_message)
-        # Crop "assistant: " from the response
-        response_text = response_json['choices'][0]['message']['content'].replace('assistant: ', '')
+        # Remove left 11 signs: 'assistant: '
+        response_text = response_json['choices'][0]['message']['content'][11:]
 
         # Return the response
         return response_text
