@@ -17,6 +17,8 @@ services:
       - "4220:4220"
     environment:
       - TZ=America/Los_Angeles
+      - LLM_URL=http://localhost:4714/request
+      - LLM_TOKEN=your_llm_token
 networks:
   my_custom_network:
     driver: bridge

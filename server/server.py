@@ -51,14 +51,23 @@ async def call_message(request: Request):
         'text': '9'
     }
     """
-    user_session = get_user_session(message['from']['id'])
     log_message(message)
+    chat_id = message['chat']['id']
+    text = message['text']
+    user_session = get_user_session(message['from']['id'])
     logger.info(f'user_session: {user_session}')
-    answer = 'test answer'
+    answer = 'empty'
     # if message text is /reset
     if message['text'] == '/reset':
         reset_chat(message['chat']['id'])
-        answer = 'chat messages has been removed'
+        answer = 'Chat messages has been forgotten'
+
+    # if message text is /start
+    elif message['text'] == '/start':
+        answer = 'Welcome to the bot'
+
+    else
+        answer = llm_request(user_session, chat_id, text)
 
     return JSONResponse(content={
         "status": "ok",
