@@ -32,7 +32,7 @@ class Panthera:
             default_path = os.path.join(path, 'default.json')
             session = json.load(open(default_path, 'r'))
             # Save the user json file
-            save_user_session(user_id, session)
+            self.save_user_session(user_id, session)
 
         session = json.load(open(user_path, 'r'))
         # Return the user json file as dict
@@ -83,7 +83,7 @@ class Panthera:
         
         # Fill the prompt
         prompt = [
-            {"role": "system", "content": "You are a helpful assistant. You need to add 'assistant: ' to the beginning of your message."}
+            {"role": "system", "content": "You are a helpful assistant. You need to add 'Assistant: ' to the beginning of your message."}
         ]
 
         for file in files:
