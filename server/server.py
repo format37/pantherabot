@@ -7,7 +7,8 @@ from panthera import (
     save_user_session, 
     get_user_session, 
     log_message,
-    reset_chat
+    reset_chatm,
+    llm_request
     )
 
 # Initialize FastAPI
