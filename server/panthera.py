@@ -112,7 +112,11 @@ class Panthera:
             """
             # Extract the text from the message
             user_text = message['text']
-            role = 'user'
+            if message['from']['id']==0:
+                role = 'assistant'
+            else:
+                role = 'user'
+                
             prompt.append({"role": role, "content": user_text})
 
         # Read the last file
