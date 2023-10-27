@@ -78,39 +78,53 @@ class Panthera:
         path = f'./data/chats/{chat_id}'
         # Read files in path, sorted by name ascending
         files = sorted(os.listdir(path), reverse=False)
+        
+        # Fill the prompt
+        prompt = [
+            {"role": "system", "content": "You are a helpful assistant."}
+        ]
+
+        for file in files:
+            # Extract the text from the json file
+            message = json.load(open(os.path.join(path, file), 'r'))
+            """
+            INFO:server:{
+            'message_id': 22,
+            'from': {
+                    'id': 106129214, 
+                    'is_bot': False, 
+                    'first_name': 'Alex', 
+                    'username': 'format37', 
+                    'language_code': 'en', 
+                    'is_premium': True
+                }, 
+                'chat': {
+                    'id': 106129214, 
+                    'first_name': 'Alex', 
+                    'username': 'format37', 
+                    'type': 'private'
+                }, 
+                'date': 1698311200, 
+                'text': '9'
+            }
+            """
+            # Extract the text from the message
+            user_text = message['text']
+            prompt.append({"role": "user", "content": user_text})
+
         # Read the last file
-        last_file = files[-1]
-        """
-        INFO:server:{
-        'message_id': 22,
-        'from': {
-                'id': 106129214, 
-                'is_bot': False, 
-                'first_name': 'Alex', 
-                'username': 'format37', 
-                'language_code': 'en', 
-                'is_premium': True
-            }, 
-            'chat': {
-                'id': 106129214, 
-                'first_name': 'Alex', 
-                'username': 'format37', 
-                'type': 'private'
-            }, 
-            'date': 1698311200, 
-            'text': '9'
-        }
-        """
+        # last_file = files[-1]
+        
         # Extract the text from the last json file
-        message = json.load(open(os.path.join(path, last_file), 'r'))
+        # message = json.load(open(os.path.join(path, last_file), 'r'))
         # Extract the text from the message
-        user_text = message['text']
+        # user_text = message['text']
         llm_url = os.environ.get('LLM_URL', '')
         url = f'{llm_url}/request'
-        prompt = [
+        """prompt = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": user_text}
-        ]
+        ]"""
         request_data = {
             "api_key": os.environ.get('LLM_TOKEN', ''),
             "model": user_session['model'],
