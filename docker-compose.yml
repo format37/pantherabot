@@ -14,5 +14,5 @@ services:
     network_mode: host
     environment:
       - TZ=America/Los_Angeles
-      - LLM_URL=http://localhost:4714/request
+      - LLM_URL=http://localhost:4714
       - LLM_TOKEN=your_llm_token

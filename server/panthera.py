@@ -60,7 +60,8 @@ class Panthera:
             os.remove(os.path.join(chat_path, f))
 
     def token_counter(text, model):
-        url = f'{os.environ.get('LLM_URL', '')}/token_counter'
+        llm_url = os.environ.get('LLM_URL', '')
+        url = f'{llm_url}/token_counter'
         data = {
             "text": text,
             "model": model
@@ -104,8 +105,8 @@ class Panthera:
         message = json.load(open(os.path.join(path, last_file), 'r'))
         # Extract the text from the message
         user_text = message['text']
-
-        url = f'{os.environ.get('LLM_URL', '')}/request'
+        llm_url = os.environ.get('LLM_URL', '')
+        url = f'{llm_url}/request'
         prompt = [
             {"role": "system", "content": "You are a helpful assistant."},
             {"role": "user", "content": user_text}
