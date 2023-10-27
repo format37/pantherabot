@@ -54,5 +54,3 @@ def reset_chat(chat_id):
     for f in os.listdir(chat_path):
         logger.info(f'remove file: {f}')
         os.remove(os.path.join(chat_path, f))
-
-    return JSONResponse(content={"status": "ok"})
