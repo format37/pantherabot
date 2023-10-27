@@ -102,10 +102,10 @@ def llm_request(user_session, chat_id, text):
     }
     # Json dumps prompt
     prompt_dumped = json.dumps(prompt)
-    print(
+    """print(
         'Token count forecast:', 
         token_counter(prompt_dumped, model).json()['tokens']
-        )
+        )"""
     response = requests.post(url, json=request_data)
     logger.info(f'response: {str(response)}')
     """
