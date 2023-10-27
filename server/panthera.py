@@ -144,6 +144,8 @@ class Panthera:
         # Get the current time in Unix timestamp format
         current_unix_timestamp = int(time.time())
 
+        response_json = json.loads(response.text)
+
         # Log message
         bot_message = {
         'message_id': int(message['message_id']) + 1,
@@ -162,7 +164,7 @@ class Panthera:
                 'type': 'private'
             }, 
             'date': current_unix_timestamp, 
-            'text': response['choices'][0]['message']['content']
+            'text': response_json['choices'][0]['message']['content']
         }
         # Log message
         self.log_message(bot_message)
