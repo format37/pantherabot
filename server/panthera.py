@@ -162,7 +162,7 @@ class Panthera:
                 'type': 'private'
             }, 
             'date': current_unix_timestamp, 
-            'text': response.json()['choices'][0]['message']['text']
+            'text': response['choices'][0]['message']['content']
         }
         # Log message
         self.log_message(bot_message)
