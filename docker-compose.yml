@@ -11,15 +11,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-    networks:
-      - my_custom_network
-    ports:
-      - "4220:4220"
-      - "4714:4714"
+    network_mode: host
     environment:
       - TZ=America/Los_Angeles
       - LLM_URL=http://localhost:4714/request
       - LLM_TOKEN=your_llm_token
-networks:
-  my_custom_network:
-    driver: bridge
