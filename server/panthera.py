@@ -59,7 +59,7 @@ class Panthera:
             self.logger.info(f'remove file: {f}')
             os.remove(os.path.join(chat_path, f))
 
-    def token_counter(text, model):
+    def token_counter(self, text, model):
         llm_url = os.environ.get('LLM_URL', '')
         url = f'{llm_url}/token_counter'
         data = {
