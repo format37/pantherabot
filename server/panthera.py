@@ -74,7 +74,8 @@ class Panthera:
         return response
 
 
-    def llm_request(self, user_session, chat_id):
+    def llm_request(self, user_session, message):
+        chat_id = message['chat']['id']
         self.logger.info(f'llm_request: {chat_id}')
         # Prepare a folder
         path = f'./data/chats/{chat_id}'
@@ -192,12 +193,12 @@ class Panthera:
                 'first_name': 'assistant', 
                 'username': 'assistant', 
                 'language_code': 'en', 
-                'is_premium': True
+                'is_premium': False
             }, 
             'chat': {
                 'id': chat_id, 
-                'first_name': 'assistant', 
-                'username': 'assistant', 
+                'first_name': message['chat']['first_name'], 
+                'username': message['chat']['username'], 
                 'type': 'private'
             }, 
             'date': current_unix_timestamp, 
