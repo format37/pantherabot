@@ -66,13 +66,8 @@ async def call_message(request: Request):
         answer = 'Welcome to the bot'
 
     elif message['text'] == '/configure': # TODO: account the non-private chats
-        # Keyboard initialization
-        """keyboard = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-        # Keyboard button initialization
-        button_model = types.KeyboardButton(text="Model",request_contact=False)
-        keyboard.add(button_model)"""
-
         keyboard_dict = {
+            'message': 'Configuration',
             'row_width': 1,
             'resize_keyboard': True,
             'butons': [
