@@ -70,7 +70,7 @@ async def call_message(request: Request):
             'message': 'Configuration',
             'row_width': 1,
             'resize_keyboard': True,
-            'butons': [
+            'buttons': [
                     {
                     'text': "Model",
                     'request_contact': False
