@@ -195,9 +195,9 @@ class Panthera:
                 'is_premium': True
             }, 
             'chat': {
-                'id': 106129214, 
-                'first_name': 'Alex', 
-                'username': 'format37', 
+                'id': chat_id, 
+                'first_name': 'assistant', 
+                'username': 'assistant', 
                 'type': 'private'
             }, 
             'date': current_unix_timestamp, 
