@@ -1,13 +1,14 @@
 {
-    "openai": {
-        "gpt-3.5-turbo": {
-            "token_limit": 4096
-        },
-        "gpt-3.5-turbo-16k": {
-            "token_limit": 16384
-        },
-        "gpt-4": {
-            "token_limit": 8191
-        }
-    }
+	"gpt-3.5-turbo": {
+	    "token_limit": 4096,
+	    "engine": "openai"
+	},
+	"gpt-3.5-turbo-16k": {
+	    "token_limit": 16384,
+	    "engine": "openai"
+	},
+	"gpt-4": {
+	    "token_limit": 8191,
+	    "engine": "openai"
+	}
 }
