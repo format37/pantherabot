@@ -78,6 +78,13 @@ async def call_message(request: Request):
                 ]
         }
 
+        # Get user session
+        user_session = panthera.get_user_session(message['from']['id'])
+        # Update user session
+        user_session['last_cmd'] = 'configure'
+        # Save user session
+        panthera.save_user_session(message['from']['id'], user_session)
+
         return JSONResponse(content={
             "type": "keyboard",
             "body": keyboard_dict
