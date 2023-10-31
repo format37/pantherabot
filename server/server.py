@@ -93,13 +93,6 @@ async def call_message(request: Request):
 
     else:
         answer = panthera.llm_request(user_session, message)
-        """if response.status_code == 200:            
-            response_json = json.loads(response.text)
-            logger.info(f'response_json: {response_json}')
-            answer = response_json['choices'][0]['message']['content']
-        else:
-            logger.error(f'{response.status_code}: LLM request unsuccessfull: {response.text}')
-            answer = 'unable to read response'"""
 
     return JSONResponse(content={
         "type": "text",
