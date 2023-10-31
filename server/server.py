@@ -74,7 +74,7 @@ async def call_message(request: Request):
                     {
                     'text': "Model",
                     'request_contact': False,
-                    'callback_data'='choose_model'
+                    'callback_data': 'choose_model'
                     }
                 ]
         }
