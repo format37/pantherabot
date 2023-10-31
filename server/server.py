@@ -73,7 +73,8 @@ async def call_message(request: Request):
             'buttons': [
                     {
                     'text': "Model",
-                    'request_contact': False
+                    'request_contact': False,
+                    'callback_data'='choose_model'
                     }
                 ]
         }
