@@ -53,7 +53,7 @@ def get_keyboard(user_session, current_screen):
         return menu['Default']
     
 
-def message_type(user_session, text):
+def get_message_type(user_session, text):
     if text == '/start':
         return 'cmd'
     elif text == '/configure':
@@ -108,6 +108,8 @@ async def call_message(request: Request):
     user_session = panthera.get_user_session(message['from']['id'])
     logger.info(f'user_session: {user_session}')
     answer = 'empty'
+    message_type = get_message_type(user_session, text)
+    logger.info(f'message_type: {message_type}')
     # if message text is /reset
     if message['text'] == '/reset':
         panthera.reset_chat(message['chat']['id'])
@@ -120,7 +122,7 @@ async def call_message(request: Request):
     # elif message['text'] == '/configure': # TODO: account the non-private chats
     # elif user_session['last_cmd'] != 'start':
     
-    elif message_type(user_session, text) == 'button':
+    elif message_type == 'button':
         
         # Model
         if user_session['last_cmd'] == 'Model' and text != 'Back':
@@ -141,7 +143,8 @@ async def call_message(request: Request):
             })
 
     else:
-        answer = panthera.llm_request(user_session, message)
+        # answer = panthera.llm_request(user_session, message)
+        answer = 'llm_request'
 
     return JSONResponse(content={
         "type": "text",
