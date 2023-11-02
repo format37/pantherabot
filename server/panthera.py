@@ -72,6 +72,28 @@ class Panthera:
         response = requests.post(url, json=data)
         # response = requests.post(url, kwargs=data)
         return response
+    
+    def default_bot_message(self, message, text):
+        current_unix_timestamp = int(time.time())
+        return {
+        'message_id': int(message['message_id']) + 1,
+        'from': {
+                'id': 0, 
+                'is_bot': True, 
+                'first_name': 'assistant', 
+                'username': 'assistant', 
+                'language_code': 'en', 
+                'is_premium': False
+            }, 
+            'chat': {
+                'id': message['chat']['id'], 
+                'first_name': message['chat']['first_name'], 
+                'username': message['chat']['username'], 
+                'type': 'private'
+            }, 
+            'date': current_unix_timestamp, 
+            'text': text
+        }
 
 
     def llm_request(self, user_session, message, system_content=None):
@@ -157,7 +179,6 @@ class Panthera:
         self.logger.info(f'response: {str(response)}')
 
         # Get the current time in Unix timestamp format
-        current_unix_timestamp = int(time.time())
 
         # response.text
         """
@@ -186,26 +207,10 @@ class Panthera:
         """
         response_json = json.loads(response.text)
 
-        # Log message
-        bot_message = {
-        'message_id': int(message['message_id']) + 1,
-        'from': {
-                'id': 0, 
-                'is_bot': True, 
-                'first_name': 'assistant', 
-                'username': 'assistant', 
-                'language_code': 'en', 
-                'is_premium': False
-            }, 
-            'chat': {
-                'id': chat_id, 
-                'first_name': message['chat']['first_name'], 
-                'username': message['chat']['username'], 
-                'type': 'private'
-            }, 
-            'date': current_unix_timestamp, 
-            'text': response_json['choices'][0]['message']['content']
-        }
+        bot_message = self.default_bot_message(
+            message,
+            response_json['choices'][0]['message']['content']
+            )
         # Log message
         self.log_message(bot_message)
         # Remove left 11 signs: 'assistant: '

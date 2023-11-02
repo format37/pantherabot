@@ -160,7 +160,16 @@ async def call_message(request: Request):
                         user_session['topic'] = key
                         panthera.reset_chat(message['chat']['id'])
                         system_content = value['system']
-                        assistant_message = value['assistant']                        
+                        assistant_message = value['assistant']
+                        
+                        # Log assistant's message
+                        bot_message = panthera.default_bot_message(
+                            message,
+                            assistant_message
+                            )
+                        # Log message
+                        panthera.log_message(bot_message)
+
                         keyboard_dict["message"] = f'Topic has been set to {key}\n{assistant_message}'
                         break
 
@@ -177,6 +186,11 @@ async def call_message(request: Request):
             })
 
     else:
+        # Read the system_content from the topics by user_session['topic'] if it is set
+        if 'topic' in user_session:
+            with open ('data/topics.json') as f:
+                topics = json.load(f)
+            system_content = topics[user_session['topic']]['system']
         answer = panthera.llm_request(user_session, message, system_content=system_content)
         # answer = 'llm_request'
 
