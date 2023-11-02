@@ -22,6 +22,7 @@ async def call_test():
 
 def get_keyboard(user_session, current_screen):
 
+
     with open('data/menu.json') as f:
         menu = json.load(f)
 
