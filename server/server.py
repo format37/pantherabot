@@ -20,35 +20,32 @@ async def call_test():
     return JSONResponse(content={"status": "ok"})
 
 
-def get_keyboard(user_session, current_screen):
+def keyboard_modificator(current_screen, user_session, menu, message):
+    # Format message with current values if needed
+    if '%s' in message:  
+        if current_screen == 'Model':
+            model = user_session['model']
+        elif current_screen == 'Language':
+            language = user_session['language']
+        elif current_screen == 'Topic':
+            if 'topic' in user_session:
+                topic = user_session['topic']
+            else:
+                topic = 'None'
+        message = message % model if 'model' in locals() else message
+        message = message % language if 'language' in locals() else message
+        message = message % topic if 'topic' in locals() else message
+        menu[current_screen]['message'] = message
 
+
+def get_keyboard(user_session, current_screen):
 
     with open('data/menu.json') as f:
         menu = json.load(f)
 
-    # current_screen = user_session['last_cmd']
-
     if current_screen in menu:
-        # buttons = menu[current_screen]['buttons']
         message = menu[current_screen]['message']
-
-        # Format message with current values if needed
-        if '%s' in message:  
-            if current_screen == 'Model':
-                model = user_session['model']
-            elif current_screen == 'Language':
-                lang = user_session['language']
-            elif current_screen == 'Topic':
-                if 'topic' in user_session:
-                    topic = user_session['topic']
-                else:
-                    topic = 'None'
-            message = message % model if 'model' in locals() else message
-            message = message % lang if 'language' in locals() else message
-            message = message % topic if 'topic' in locals() else message
-            menu[current_screen]['message'] = message
-
-        # return {'message': message, 'buttons': buttons}
+        keyboard_modificator(current_screen, user_session, menu, message)        
         return menu[current_screen]
 
     else:
@@ -116,6 +113,9 @@ async def call_message(request: Request):
     answer = 'empty'
     message_type = get_message_type(user_session, text)
     logger.info(f'message_type: {message_type}')
+
+    system_content = None
+
     # if message text is /reset
     if message['text'] == '/reset':
         panthera.reset_chat(message['chat']['id'])
@@ -151,6 +151,18 @@ async def call_message(request: Request):
                         user_session['language'] = key
                         keyboard_dict["message"] = f'Language has been set to {key}'
                         break
+            # Topic
+            elif user_session['last_cmd'] == 'Topic':
+                with open ('data/topics.json') as f:
+                    topics = json.load(f)
+                for key, value in topics.items():
+                    if text == key:
+                        user_session['topic'] = key
+                        panthera.reset_chat(message['chat']['id'])
+                        system_content = value['system']
+                        assistant_message = value['assistant']                        
+                        keyboard_dict["message"] = f'Topic has been set to {key}\n{assistant_message}'
+                        break
 
         logger.info(f'keyboard_dict: {keyboard_dict}')
 
@@ -165,8 +177,8 @@ async def call_message(request: Request):
             })
 
     else:
-        # answer = panthera.llm_request(user_session, message)
-        answer = 'llm_request'
+        answer = panthera.llm_request(user_session, message, system_content=system_content)
+        # answer = 'llm_request'
 
     return JSONResponse(content={
         "type": "text",

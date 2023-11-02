@@ -74,7 +74,7 @@ class Panthera:
         return response
 
 
-    def llm_request(self, user_session, message):
+    def llm_request(self, user_session, message, system_content=None):
         chat_id = message['chat']['id']
         self.logger.info(f'llm_request: {chat_id}')
         # Prepare a folder
@@ -83,8 +83,10 @@ class Panthera:
         files = sorted(os.listdir(path), reverse=False)
         
         # Fill the prompt
+        if system_content is None:
+            system_content = "You are the chat member. Your username is assistant. You need to start with 'Assistant:' before each of your messages."
         prompt = [
-            {"role": "system", "content": "You are the chat member. Your username is assistant. You need to start with 'Assistant:' before each of your messages."}
+            {"role": "system", "content": system_content}
         ]
 
         for file in files:
