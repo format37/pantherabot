@@ -136,7 +136,7 @@ async def call_message(request: Request):
             for key, value in models.items():
                 if text == key:
                     user_session['model'] = key
-                    keyboard_dict["Default"]["message"] = f'Model has been set to {key}'
+                    keyboard_dict["message"] = f'Model has been set to {key}'
                     break        
 
         logger.info(f'keyboard_dict: {keyboard_dict}')
