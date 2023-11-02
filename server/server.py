@@ -29,7 +29,7 @@ def get_keyboard(user_session, current_screen):
 
     if current_screen in menu:
         # buttons = menu[current_screen]['buttons']
-        # message = menu[current_screen]['message']
+        message = menu[current_screen]['message']
 
         # Format message with current values if needed
         if '%s' in message:  
@@ -37,8 +37,9 @@ def get_keyboard(user_session, current_screen):
                 model = user_session['model']
             elif current_screen == 'Language':
                 lang = user_session['language']
-        message = message % model if 'model' in locals() else message
-        message = message % lang if 'language' in locals() else message
+            message = message % model if 'model' in locals() else message
+            message = message % lang if 'language' in locals() else message
+            menu[current_screen]['message'] = message
 
         # return {'message': message, 'buttons': buttons}
         return menu[current_screen]
