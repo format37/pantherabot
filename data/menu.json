@@ -2,57 +2,57 @@
   "Default": {
       "message": "Configuration",
       "row_width": 1,
-      "resize_keyboard": True,
+      "resize_keyboard": true,
       "buttons": [
               {
               "text": "Model",
-              "request_contact": False
+              "request_contact": false
               },
               {
                 "text": "Language",
-                "request_contact": False
+                "request_contact": false
               }
           ]
   },
   "Model": {
     "message": "Current model: %s",
     "row_width": 1,
-    "resize_keyboard": True,
+    "resize_keyboard": true,
     "buttons": [
             {
             "text": "gpt-3.5-turbo",
-            "request_contact": False
+            "request_contact": false
             },
             {
               "text": "gpt-3.5-turbo-16k",
-              "request_contact": False
+              "request_contact": false
             },
             {
               "text": "gpt-4",
-              "request_contact": False
+              "request_contact": false
             },
             {
               "text": "Cancel",
-              "request_contact": False
+              "request_contact": false
             }
         ]
   },
   "Language": {
     "message": "Current language: %s",
     "row_width": 1,
-    "resize_keyboard": True,
+    "resize_keyboard": true,
     "buttons": [
             {
             "text": "English",
-            "request_contact": False
+            "request_contact": false
             },
             {
               "text": "Russian",
-              "request_contact": False
+              "request_contact": false
             },
             {
               "text": "Cancel",
-              "request_contact": False
+              "request_contact": false
             }
         ]
   }
