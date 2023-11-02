@@ -207,7 +207,6 @@ class Panthera:
         tokens_count = self.token_counter(prompt_dumped, user_session['model']).json()['tokens']
         self.logger.info(f'tokens_count prognose: {tokens_count}')
         self.logger.info(f'request_data: {request_data}')
-        logger.info(f'sending llm request..')
         response = requests.post(url, json=request_data)
         self.logger.info(f'response: {str(response)}')
 
@@ -247,7 +246,10 @@ class Panthera:
         # Log message
         self.log_message(bot_message)
         # Remove left 11 signs: 'assistant: '
-        response_text = response_json['choices'][0]['message']['content'][11:]
+        if response_json['choices'][0]['message']['content'].startswith('assistant: '):
+            response_text = response_json['choices'][0]['message']['content'][11:]
+        else:
+            response_text = response_json['choices'][0]['message']['content']
 
         # Return the response
         return response_text
