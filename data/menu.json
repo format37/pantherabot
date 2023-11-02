@@ -11,6 +11,14 @@
               {
                 "text": "Language",
                 "request_contact": false
+              },
+              {
+                "text": "Topic",
+                "request_contact": false
+              },
+              {
+                "text": "Reports",
+                "request_contact": false
               }
           ]
   },
