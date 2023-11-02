@@ -4,6 +4,7 @@ import os
 import logging
 import json
 from panthera import Panthera
+import re
 
 # Initialize FastAPI
 app = FastAPI()
@@ -194,13 +195,14 @@ async def call_message(request: Request):
         answer = panthera.llm_request(user_session, message, system_content=system_content)
         
         # Evaluation log: If [num] in the answer, extract the num and set the evaluation
-        if '[num]' in answer:
-            num = answer.split(' ')[-1]
+        match = re.search(r'\[(10|[0-9])\]', answer)
+        if match:
+            num = match.group(1)
             panthera.add_evaluation_to_topic(
                 user_session,
                 topic_name=user_session['topic'],
                 value=int(num)
-                )
+            )
             # Save user session
             panthera.save_user_session(message['from']['id'], user_session)
 
