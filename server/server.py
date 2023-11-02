@@ -132,15 +132,25 @@ async def call_message(request: Request):
         
         keyboard_dict = get_keyboard(user_session, message['text'])
 
-        # Model
-        if user_session['last_cmd'] == 'Model' and text != 'Back':
-            with open ('data/models.json') as f:
-                models = json.load(f)
-            for key, value in models.items():
-                if text == key:
-                    user_session['model'] = key
-                    keyboard_dict["message"] = f'Model has been set to {key}'
-                    break        
+        if message['text'] != 'Back':
+            # Model
+            if user_session['last_cmd'] == 'Model':
+                with open ('data/models.json') as f:
+                    models = json.load(f)
+                for key, value in models.items():
+                    if text == key:
+                        user_session['model'] = key
+                        keyboard_dict["message"] = f'Model has been set to {key}'
+                        break
+            # Language
+            elif user_session['last_cmd'] == 'Language':
+                with open ('data/languages.json') as f:
+                    languages = json.load(f)
+                for key, value in languages.items():
+                    if text == key:
+                        user_session['language'] = key
+                        keyboard_dict["message"] = f'Language has been set to {key}'
+                        break
 
         logger.info(f'keyboard_dict: {keyboard_dict}')
 
