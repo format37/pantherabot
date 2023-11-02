@@ -39,7 +39,10 @@ def get_keyboard(user_session, current_screen):
             elif current_screen == 'Language':
                 lang = user_session['language']
             elif current_screen == 'Topic':
-                topic = user_session['topic']
+                if 'topic' in user_session:
+                    topic = user_session['topic']
+                else:
+                    topic = 'None'
             message = message % model if 'model' in locals() else message
             message = message % lang if 'language' in locals() else message
             message = message % topic if 'topic' in locals() else message
