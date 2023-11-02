@@ -94,6 +94,38 @@ class Panthera:
             'date': current_unix_timestamp, 
             'text': text
         }
+    
+
+    def add_evaluation_to_topic(self, session, topic_name, value=10):
+        """
+        Function to add an evaluation to a specified topic in a session dictionary.
+        
+        Args:
+        - session (dict): The session dictionary to modify.
+        - topic_name (str): The name of the topic to add or modify.
+        - date (str): The date for the evaluation. If None, use the current date.
+        - value (int): The integer value for the evaluation.
+        
+        Returns:
+        - dict: The modified session dictionary.
+        """
+        # Ensure "topics" is a dictionary
+        if "topics" not in session:
+            session["topics"] = {}
+        
+        # If the topic doesn't exist, add it
+        if topic_name not in session["topics"]:
+            session["topics"][topic_name] = {"evaluations": []}
+        
+        # Unix timestamp
+        date = int(time.time())
+        # Create evaluation dictionary
+        evaluation_dict = {"date": date, "value": value}
+        
+        # Add evaluation to topic
+        session["topics"][topic_name]["evaluations"].append(evaluation_dict)
+        
+        return session
 
 
     def llm_request(self, user_session, message, system_content=None):
