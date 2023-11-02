@@ -65,6 +65,7 @@ def get_message_type(user_session, text):
     with open('data/menu.json') as f:
         menu = json.load(f)
     for key, value in menu.items():
+        logger.info(f'key: {key}, value: {value}')
         if text == key:
             return 'button'
         if text in value['buttons']:
