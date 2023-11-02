@@ -15,7 +15,7 @@ class Panthera:
 
 
     def save_user_session(self, user_id, session):
-        self.logger.info(f'save_user_session: {user_id}')
+        self.logger.info(f'save_user_session: {user_id} with cmd: {session["cmd"]}')
         # Save the user json file
         path = './data/users'
         user_path = os.path.join(path, f'{user_id}.json')

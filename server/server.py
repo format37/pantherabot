@@ -20,6 +20,33 @@ async def call_test():
     return JSONResponse(content={"status": "ok"})
 
 
+def get_keyboard(current_screen):
+
+    with open('data/menu.json') as f:
+        menu = json.load(f)
+
+    # current_screen = user_session['last_cmd']
+
+    if current_screen in menu:
+        buttons = menu[current_screen]['buttons']
+        message = menu[current_screen]['message']
+
+        # Format message with current values if needed
+        """if '%s' in message:  
+            if current_screen == 'Model':
+                model = user_session['model']
+            elif current_screen == 'Language':
+                lang = user_session['language']
+        message = message % model if 'model' in locals() else message
+        message = message % lang if 'language' in locals() else message"""
+
+        return {'message': message, 'buttons': buttons}
+
+    else:
+        # Default to start screen
+        return menu['Default']
+
+
 @app.post("/message")
 async def call_message(request: Request):
     logger.info('call_message')
@@ -65,24 +92,25 @@ async def call_message(request: Request):
     elif message['text'] == '/start':
         answer = 'Welcome to the bot'
 
-    elif message['text'] == '/configure': # TODO: account the non-private chats
-        keyboard_dict = {
+    # elif message['text'] == '/configure': # TODO: account the non-private chats
+    elif user_session['last_cmd'] != 'start':
+        """keyboard_dict = {
             'message': 'Configuration',
             'row_width': 1,
             'resize_keyboard': True,
             'buttons': [
                     {
                     'text': "Model",
-                    'request_contact': False,
-                    'callback_data': 'choose_model'
+                    'request_contact': False
                     }
                 ]
-        }
+        }"""
+        keyboard_dict = get_keyboard('Configure')
 
         # Get user session
-        user_session = panthera.get_user_session(message['from']['id'])
+        # user_session = panthera.get_user_session(message['from']['id'])
         # Update user session
-        user_session['last_cmd'] = 'configure'
+        user_session['last_cmd'] = message['text']
         # Save user session
         panthera.save_user_session(message['from']['id'], user_session)
 
