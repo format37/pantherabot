@@ -20,7 +20,7 @@ async def call_test():
     return JSONResponse(content={"status": "ok"})
 
 
-def get_keyboard(current_screen):
+def get_keyboard(user_session, current_screen):
 
     with open('data/menu.json') as f:
         menu = json.load(f)
@@ -28,8 +28,8 @@ def get_keyboard(current_screen):
     # current_screen = user_session['last_cmd']
 
     if current_screen in menu:
-        buttons = menu[current_screen]['buttons']
-        message = menu[current_screen]['message']
+        # buttons = menu[current_screen]['buttons']
+        # message = menu[current_screen]['message']
 
         # Format message with current values if needed
         """if '%s' in message:  
@@ -40,7 +40,8 @@ def get_keyboard(current_screen):
         message = message % model if 'model' in locals() else message
         message = message % lang if 'language' in locals() else message"""
 
-        return {'message': message, 'buttons': buttons}
+        # return {'message': message, 'buttons': buttons}
+        return menu[current_screen]
 
     else:
         # Default to start screen
@@ -105,7 +106,9 @@ async def call_message(request: Request):
                     }
                 ]
         }"""
-        keyboard_dict = get_keyboard('Configure')
+        keyboard_dict = get_keyboard(user_session, message['text'])
+
+        logger.info(f'keyboard_dict: {keyboard_dict}')
 
         # Get user session
         # user_session = panthera.get_user_session(message['from']['id'])
