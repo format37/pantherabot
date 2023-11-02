@@ -55,5 +55,43 @@
               "request_contact": false
             }
         ]
+  },
+  "Topic": {
+    "message": "Current topic: %s",
+    "row_width": 1,
+    "resize_keyboard": true,
+    "buttons": [
+            {
+            "text": "Master's instruction",
+            "request_contact": false
+            },
+            {
+              "text": "Refilling the refrigerator",
+              "request_contact": false
+            },
+            {
+              "text": "Cancel",
+              "request_contact": false
+            }
+        ]
+  },
+  "Reports": {
+    "message": "Please, choose the report",
+    "row_width": 1,
+    "resize_keyboard": true,
+    "buttons": [
+            {
+            "text": "Progress report",
+            "request_contact": false
+            },
+            {
+              "text": "Evaluation report",
+              "request_contact": false
+            },
+            {
+              "text": "Cancel",
+              "request_contact": false
+            }
+        ]
   }
 }

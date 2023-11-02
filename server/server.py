@@ -38,8 +38,11 @@ def get_keyboard(user_session, current_screen):
                 model = user_session['model']
             elif current_screen == 'Language':
                 lang = user_session['language']
+            elif current_screen == 'Topic':
+                topic = user_session['topic']
             message = message % model if 'model' in locals() else message
             message = message % lang if 'language' in locals() else message
+            message = message % topic if 'topic' in locals() else message
             menu[current_screen]['message'] = message
 
         # return {'message': message, 'buttons': buttons}
@@ -48,6 +51,25 @@ def get_keyboard(user_session, current_screen):
     else:
         # Default to start screen
         return menu['Default']
+    
+
+def message_type(user_session, text):
+    if text == '/start':
+        return 'cmd'
+    elif text == '/configure':
+        return 'cmd'
+    elif text == '/reset':
+        return 'cmd'
+    # if user_session['last_cmd'] != 'text':
+    # Check the buttons
+    with open('data/menu.json') as f:
+        menu = json.load(f)
+    for key, value in menu.items():
+        if text == key:
+            return 'button'
+        if text in value['buttons']:
+            return 'button'
+    return 'text'
 
 
 @app.post("/message")
@@ -96,24 +118,18 @@ async def call_message(request: Request):
         answer = 'Welcome to the bot'
 
     # elif message['text'] == '/configure': # TODO: account the non-private chats
-    elif user_session['last_cmd'] != 'start':
-        """keyboard_dict = {
-            'message': 'Configuration',
-            'row_width': 1,
-            'resize_keyboard': True,
-            'buttons': [
-                    {
-                    'text': "Model",
-                    'request_contact': False
-                    }
-                ]
-        }"""
+    # elif user_session['last_cmd'] != 'start':
+    
+    elif message_type(user_session, text) == 'button':
+        
+        # Model
+        if user_session['last_cmd'] == 'Model' and text != 'Back':
+            user_session['model'] = text
+
         keyboard_dict = get_keyboard(user_session, message['text'])
 
         logger.info(f'keyboard_dict: {keyboard_dict}')
 
-        # Get user session
-        # user_session = panthera.get_user_session(message['from']['id'])
         # Update user session
         user_session['last_cmd'] = message['text']
         # Save user session
