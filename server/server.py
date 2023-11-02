@@ -127,11 +127,17 @@ async def call_message(request: Request):
     
     elif message_type == 'button':
         
+        keyboard_dict = get_keyboard(user_session, message['text'])
+
         # Model
         if user_session['last_cmd'] == 'Model' and text != 'Back':
-            user_session['model'] = text
-
-        keyboard_dict = get_keyboard(user_session, message['text'])
+            with open ('data/models.json') as f:
+                models = json.load(f)
+            for key, value in models.items():
+                if text == key:
+                    user_session['model'] = key
+                    keyboard_dict["Default"]["message"] = f'Model has been set to {key}'
+                    break        
 
         logger.info(f'keyboard_dict: {keyboard_dict}')
 
