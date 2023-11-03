@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 import os
 import logging
 import json
@@ -8,7 +8,6 @@ import re
 import pandas as pd
 import matplotlib.pyplot as plt
 # import base64
-from fastapi.responses import FileResponse
 
 # Initialize FastAPI
 app = FastAPI()
@@ -191,20 +190,24 @@ async def call_message(request: Request):
                 plt.savefig(filename)
                 # Close the plot
                 plt.close()
+
+                response = FileResponse(filename, media_type="image/png")
+
                 # Return the image data
-                with open(filename, 'rb') as f:
-                    image_data = f.read()
+                """with open(filename, 'rb') as f:
+                    image_data = f.read()"""
+                logger.info(f'image_data filename: {filename}')
                 # Remove the file
                 os.remove(filename)
-                # Return the image data
-                logger.info(f'image_data length: {len(image_data)}')
+                # Return the image data                
                 # Encode image to base64 
                 # image_data = base64.b64encode(image_data)
                 """return JSONResponse(content={
                     "type": "image",
                     "body": image_data
                     })"""
-                return FileResponse(image_data, media_type="image/png")
+                # return FileResponse(image_data, media_type="image/png")
+                return response
             else:
                 logger.info(f'Button has not reacted. last_cmd: {user_session["last_cmd"]}. text is: {text}')
 
