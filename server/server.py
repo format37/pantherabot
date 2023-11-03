@@ -186,7 +186,7 @@ async def call_message(request: Request):
                 # Create data/plots folder if it doesn't exist
                 if not os.path.exists('data/plots'):
                     os.makedirs('data/plots')
-                filename = f'data/evaluation_plot_{chat_id}.png'
+                filename = f'data/plots/{chat_id}_evaluation_plot.png'
                 plt.savefig(filename)
                 # Close the plot
                 plt.close()
@@ -198,7 +198,7 @@ async def call_message(request: Request):
                     image_data = f.read()"""
                 logger.info(f'image_data filename: {filename}')
                 # Remove the file
-                os.remove(filename)
+                # os.remove(filename)
                 # Return the image data                
                 # Encode image to base64 
                 # image_data = base64.b64encode(image_data)
