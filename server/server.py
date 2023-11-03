@@ -52,28 +52,6 @@ def get_keyboard(user_session, current_screen):
     else:
         # Default to start screen
         return menu['Default']
-    
-
-def get_message_type(user_session, text):
-    if text == '/start':
-        return 'cmd'
-    elif text == '/configure':
-        return 'cmd'
-    elif text == '/reset':
-        return 'cmd'
-    # if user_session['last_cmd'] != 'text':
-    # Check the buttons
-    with open('data/menu.json') as f:
-        menu = json.load(f)
-    for key, value in menu.items():
-        # logger.info(f'key: {key}, value: {value}')
-        if text == key:
-            return 'button'
-        for button in value['buttons']:
-            # logger.info(f'button: {button}')
-            if text == button['text']:
-                return 'button'
-    return 'text'
 
 
 @app.post("/message")
@@ -112,7 +90,7 @@ async def call_message(request: Request):
     user_session = panthera.get_user_session(message['from']['id'])
     logger.info(f'user_session: {user_session}')
     answer = 'empty'
-    message_type = get_message_type(user_session, text)
+    message_type = panthera.get_message_type(user_session, text)
     logger.info(f'message_type: {message_type}')
 
     system_content = None

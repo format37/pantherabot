@@ -13,6 +13,27 @@ class Panthera:
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
 
+    def get_message_type(self, user_session, text):
+        if text == '/start':
+            return 'cmd'
+        elif text == '/configure':
+            return 'cmd'
+        elif text == '/reset':
+            return 'cmd'
+        # if user_session['last_cmd'] != 'text':
+        # Check the buttons
+        with open('data/menu.json') as f:
+            menu = json.load(f)
+        for key, value in menu.items():
+            # logger.info(f'key: {key}, value: {value}')
+            if text == key:
+                return 'button'
+            for button in value['buttons']:
+                # logger.info(f'button: {button}')
+                if text == button['text']:
+                    return 'button'
+        return 'text'
+
 
     def save_user_session(self, user_id, session):
         self.logger.info(f'save_user_session: {user_id} with cmd: {session["last_cmd"]}')
