@@ -116,6 +116,7 @@ async def call_message(request: Request):
         if message['text'] != 'Back':
             # Model
             if user_session['last_cmd'] == 'Model':
+                logger.info(f'Button last_cmd: Model. text is: {text}')
                 with open ('data/models.json') as f:
                     models = json.load(f)
                 for key, value in models.items():
@@ -125,6 +126,7 @@ async def call_message(request: Request):
                         break
             # Language
             elif user_session['last_cmd'] == 'Language':
+                logger.info(f'Button last_cmd: Language. text is: {text}')
                 with open ('data/languages.json') as f:
                     languages = json.load(f)
                 for key, value in languages.items():
@@ -134,6 +136,7 @@ async def call_message(request: Request):
                         break
             # Topic
             elif user_session['last_cmd'] == 'Topic':
+                logger.info(f'Button last_cmd: Topic. text is: {text}')
                 with open ('data/topics.json') as f:
                     topics = json.load(f)
                 for key, value in topics.items():
@@ -155,7 +158,7 @@ async def call_message(request: Request):
                         break
             # Report
             elif user_session['last_cmd'] == 'Reports' and text == 'Progress report':
-                logger.info(f'Report for topic: {text}')
+                logger.info(f'Button last_cmd: Reports. text is: {text}')
                 # Convert to pandas DataFrame
                 topic = user_session['topic']
                 evaluations = user_session['topics'][topic]['evaluations']
@@ -196,7 +199,9 @@ async def call_message(request: Request):
                 return JSONResponse(content={
                     "type": "image",
                     "body": image_data
-                    })
+                    })            
+            else:
+                logger.info(f'Button has not reacted. last_cmd: {user_session["last_cmd"]}. text is: {text}')
 
         logger.info(f'keyboard_dict: {keyboard_dict}')
 
