@@ -30,7 +30,7 @@ def keyboard_modificator(current_screen, user_session, menu, message):
             model = user_session['model']
         elif current_screen == 'Language':
             language = user_session['language']
-        elif current_screen == 'Topic' or current_screen == 'Report':
+        elif current_screen == 'Topic' or current_screen == 'Reports':
             if 'topic' in user_session:
                 topic = user_session['topic']
             else:
