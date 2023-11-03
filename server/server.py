@@ -7,6 +7,8 @@ from panthera import Panthera
 import re
 import pandas as pd
 import matplotlib.pyplot as plt
+# import base64
+from fastapi import FileResponse
 
 # Initialize FastAPI
 app = FastAPI()
@@ -196,10 +198,13 @@ async def call_message(request: Request):
                 os.remove(filename)
                 # Return the image data
                 logger.info(f'image_data length: {len(image_data)}')
-                return JSONResponse(content={
+                # Encode image to base64 
+                # image_data = base64.b64encode(image_data)
+                """return JSONResponse(content={
                     "type": "image",
                     "body": image_data
-                    })            
+                    })"""
+                return FileResponse(image_data, media_type="image/png")
             else:
                 logger.info(f'Button has not reacted. last_cmd: {user_session["last_cmd"]}. text is: {text}')
 
