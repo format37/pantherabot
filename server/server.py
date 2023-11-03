@@ -154,7 +154,7 @@ async def call_message(request: Request):
                         keyboard_dict["message"] = f'Topic has been set to {key}\n{assistant_message}'
                         break
             # Report
-            elif user_session['last_cmd'] == 'Report' and text in user_session['topics']:
+            elif user_session['last_cmd'] == 'Report' and text == 'Progress report':
                 logger.info(f'Report for topic: {text}')
                 # Convert to pandas DataFrame
                 topic = user_session['topic']
