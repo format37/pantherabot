@@ -154,14 +154,8 @@ async def call_message(request: Request):
                         keyboard_dict["message"] = f'Topic has been set to {key}\n{assistant_message}'
                         break
             # Report
-            elif user_session['last_cmd'] == 'Report':
-                """with open ('data/reports.json') as f:
-                    reports = json.load(f)
-                for key, value in reports.items():
-                    if text == key:
-                        user_session['report'] = key
-                        keyboard_dict["message"] = f'Report has been set to {key}'
-                        break"""
+            elif user_session['last_cmd'] == 'Report' and text in user_session['topics']:
+                logger.info(f'Report for topic: {text}')
                 # Convert to pandas DataFrame
                 topic = user_session['topic']
                 evaluations = user_session['topics'][topic]['evaluations']
