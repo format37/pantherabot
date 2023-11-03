@@ -84,7 +84,7 @@
         ]
   },
   "Reports": {
-    "message": "Please, choose the report",
+    "message": "Current topic: %s",
     "row_width": 1,
     "resize_keyboard": true,
     "buttons": [

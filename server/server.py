@@ -5,6 +5,8 @@ import logging
 import json
 from panthera import Panthera
 import re
+import pandas as pd
+import matplotlib.pyplot as plt
 
 # Initialize FastAPI
 app = FastAPI()
@@ -28,7 +30,7 @@ def keyboard_modificator(current_screen, user_session, menu, message):
             model = user_session['model']
         elif current_screen == 'Language':
             language = user_session['language']
-        elif current_screen == 'Topic':
+        elif current_screen == 'Topic' or current_screen == 'Report':
             if 'topic' in user_session:
                 topic = user_session['topic']
             else:
@@ -151,6 +153,56 @@ async def call_message(request: Request):
 
                         keyboard_dict["message"] = f'Topic has been set to {key}\n{assistant_message}'
                         break
+            # Report
+            elif user_session['last_cmd'] == 'Report':
+                """with open ('data/reports.json') as f:
+                    reports = json.load(f)
+                for key, value in reports.items():
+                    if text == key:
+                        user_session['report'] = key
+                        keyboard_dict["message"] = f'Report has been set to {key}'
+                        break"""
+                # Convert to pandas DataFrame
+                topic = user_session['topic']
+                evaluations = user_session['topics'][topic]['evaluations']
+                # Creating a DataFrame
+                df = pd.DataFrame(evaluations)
+                df['date'] = pd.to_datetime(df['date'], unit='s')  # Converting Unix timestamp to datetime
+                df['topic'] = topic  # Adding topic as a column
+                # Set the x-axis to only include the dates we have data for
+                plt.figure(figsize=(10, 6))
+                # Calculate the width of each bar dynamically based on the number of evaluations
+                # This is to ensure that bars don't merge into each other
+                # We divide by the number of evaluations to ensure that the total width of all bars is less than 1
+                bar_width = (df['date'].max() - df['date'].min()) / len(df) / pd.Timedelta(days=1)
+                # Plot the bars with a fixed width
+                plt.bar(df['date'], df['value'], color='lightblue', width=bar_width)
+                # Set x-axis ticks to be exactly the dates from the dataset
+                plt.xticks(df['date'])
+                # Rotate the x-axis labels for better readability
+                plt.xticks(rotation=70)
+                plt.title(f"Progress of the Topic: {topic}")
+                plt.xlabel('Date')
+                plt.ylabel('Value')
+                # Save to file with unique name
+                # Create data/plots folder if it doesn't exist
+                if not os.path.exists('data/plots'):
+                    os.makedirs('data/plots')
+                filename = f'data/evaluation_plot_{chat_id}.png'
+                plt.savefig(filename)
+                # Close the plot
+                plt.close()
+                # Return the image data
+                with open(filename, 'rb') as f:
+                    image_data = f.read()
+                # Remove the file
+                os.remove(filename)
+                # Return the image data
+                logger.info(f'image_data length: {len(image_data)}')
+                return JSONResponse(content={
+                    "type": "image",
+                    "body": image_data
+                    })
 
         logger.info(f'keyboard_dict: {keyboard_dict}')
 
