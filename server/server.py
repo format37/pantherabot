@@ -247,6 +247,11 @@ async def call_message(request: Request):
             )
             # Save user session
             panthera.save_user_session(message['from']['id'], user_session)
+    else:
+        return JSONResponse(content={
+            "type": "empty",
+            "body": ''
+            })
 
     return JSONResponse(content={
         "type": "text",
