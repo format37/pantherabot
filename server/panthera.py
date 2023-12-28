@@ -219,5 +219,9 @@ class Panthera:
         else:
             response_text = response_json['choices'][0]['message']['content']
 
+        # Remove 'Assistant: ' from response if it is there
+        if response_text.startswith('Assistant: '):
+            response_text = response_text[11:]
+
         # Return the response
         return response_text
