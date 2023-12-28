@@ -96,6 +96,7 @@ class Panthera:
     
     def default_bot_message(self, message, text):
         current_unix_timestamp = int(time.time())
+        self.logger.info(f'default_bot_message: {message}')
         if 'first_name' in message['chat']:
             first_name = message['chat']['first_name']
         else:
