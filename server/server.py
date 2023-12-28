@@ -99,7 +99,12 @@ async def call_message(request: Request):
     system_content = None
 
     # if message text is /reset
-    if message['text'] == '/reset':
+    # if chat type private
+    if message['text'] == '/reset' and message['chat']['type'] == 'private':
+        panthera.reset_chat(message['chat']['id'])
+        answer = 'Chat messages memory has been cleaned'
+    # if chat type not private
+    elif message['text'] == '/reset@gpticebot' and message['chat']['type'] != 'private':
         panthera.reset_chat(message['chat']['id'])
         answer = 'Chat messages memory has been cleaned'
 
