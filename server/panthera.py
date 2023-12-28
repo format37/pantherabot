@@ -167,27 +167,6 @@ class Panthera:
         for file in files:
             # Extract the text from the json file
             message = json.load(open(os.path.join(path, file), 'r'))
-            """
-            {
-            'message_id': 22,
-            'from': {
-                    'id': 106129214, 
-                    'is_bot': False, 
-                    'first_name': 'Alex', 
-                    'username': 'format37', 
-                    'language_code': 'en', 
-                    'is_premium': True
-                }, 
-                'chat': {
-                    'id': 106129214, 
-                    'first_name': 'Alex', 
-                    'username': 'format37', 
-                    'type': 'private'
-                }, 
-                'date': 1698311200, 
-                'text': '9'
-            }
-            """
             # Extract the text from the message
             text = message['text']
             if message['from']['id']==0:
@@ -205,19 +184,8 @@ class Panthera:
 
             prompt.append({"role": role, "content": text})
 
-        # Read the last file
-        # last_file = files[-1]
-        
-        # Extract the text from the last json file
-        # message = json.load(open(os.path.join(path, last_file), 'r'))
-        # Extract the text from the message
-        # user_text = message['text']
         llm_url = os.environ.get('LLM_URL', '')
         url = f'{llm_url}/request'
-        """prompt = [
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": user_text}
-        ]"""
         request_data = {
             "api_key": os.environ.get('LLM_TOKEN', ''),
             "model": user_session['model'],
@@ -230,44 +198,9 @@ class Panthera:
         self.logger.info(f'request_data: {request_data}')
         response = requests.post(url, json=request_data)
         self.logger.info(f'response: {str(response)}')
-
-        # Get the current time in Unix timestamp format
-
-        # response.text
-        """
-        {
-            "id":"chatcmpl-8EEabpufU95pSk2tOg29tDP2zOXgN",
-            "object":"chat.completion",
-            "created":1698403365,
-            "model":"gpt-4-0613",
-            "choices":[
-                {
-                    "index":0,"message":
-                    {
-                        "role":"assistant",
-                        "content":"Red is one of the primary colors, along with blue and yellow. It's the color of blood, rubies, and strawberries. Next to orange at the end of the visible light spectrum, it's typically associated with energy, danger, strength, power, determination, as well as passion, desire, and love. It has a wavelength of approximately 625–740 nanometers on the electromagnetic spectrum."
-                    },
-                    "finish_reason":"stop"
-                }
-            ],
-            "usage":
-            {
-                "prompt_tokens":21,
-                "completion_tokens":81,
-                "total_tokens":102
-            }
-        }
-        """
         response_json = json.loads(response.text)
         # Now, response_json is a string. Let's parse it into a json
-        self.logger.info('parsing response_json')
         response_json = json.loads(response_json)
-
-        self.logger.info(f'response_json: {response_json}')
-        self.logger.info(f'response_json["choices"]: {response_json["choices"]}')
-        self.logger.info(f'response_json["choices"][0]: {response_json["choices"][0]}')
-        self.logger.info(f'response_json["choices"][0]["message"]: {response_json["choices"][0]["message"]}')
-        self.logger.info(f'response_json["choices"][0]["message"]["content"]: {response_json["choices"][0]["message"]["content"]}')
 
         bot_message = self.default_bot_message(
             message,
