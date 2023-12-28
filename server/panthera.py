@@ -260,6 +260,10 @@ class Panthera:
         """
         response_json = json.loads(response.text)
         self.logger.info(f'response_json: {response_json}')
+        self.logger.info(f'response_json["choices"]: {response_json["choices"]}')
+        self.logger.info(f'response_json["choices"][0]: {response_json["choices"][0]}')
+        self.logger.info(f'response_json["choices"][0]["message"]: {response_json["choices"][0]["message"]}')
+        self.logger.info(f'response_json["choices"][0]["message"]["content"]: {response_json["choices"][0]["message"]["content"]}')
 
         bot_message = self.default_bot_message(
             message,
