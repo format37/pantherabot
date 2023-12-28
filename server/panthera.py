@@ -259,6 +259,10 @@ class Panthera:
         }
         """
         response_json = json.loads(response.text)
+        # Now, response_json is a string. Let's parse it into a json
+        self.logger.info('parsing response_json')
+        response_json = json.loads(response_json)
+
         self.logger.info(f'response_json: {response_json}')
         self.logger.info(f'response_json["choices"]: {response_json["choices"]}')
         self.logger.info(f'response_json["choices"][0]: {response_json["choices"][0]}')
