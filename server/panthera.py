@@ -259,6 +259,7 @@ class Panthera:
         }
         """
         response_json = json.loads(response.text)
+        self.logger.info(f'response_json: {response_json}')
 
         bot_message = self.default_bot_message(
             message,
