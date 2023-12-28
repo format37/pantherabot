@@ -96,6 +96,10 @@ class Panthera:
     
     def default_bot_message(self, message, text):
         current_unix_timestamp = int(time.time())
+        if 'first_name' in message['chat']:
+            first_name = message['chat']['first_name']
+        else:
+            first_name = ['chat']['username']
         return {
         'message_id': int(message['message_id']) + 1,
         'from': {
@@ -108,7 +112,7 @@ class Panthera:
             }, 
             'chat': {
                 'id': message['chat']['id'], 
-                'first_name': message['chat']['first_name'], 
+                'first_name': first_name, 
                 'username': message['chat']['username'], 
                 'type': 'private'
             }, 

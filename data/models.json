@@ -10,5 +10,9 @@
 	"gpt-4": {
 	    "token_limit": 8191,
 	    "engine": "openai"
+	},
+	"gpt-4-1106-preview": {
+	    "token_limit": 16384,
+	    "engine": "openai"
 	}
 }
