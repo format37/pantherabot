@@ -228,7 +228,7 @@ async def call_message(request: Request):
             "body": keyboard_dict
             })
 
-    else:
+    elif message['chat']['type'] == 'private' or message['text'].startswith('/*'):
         # Read the system_content from the topics by user_session['topic'] if it is set
         if 'topic' in user_session:
             with open ('data/topics.json') as f:
