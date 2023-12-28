@@ -90,8 +90,8 @@ class Panthera:
             "model": model
         }
 
-        # response = requests.post(url, json=data)
-        response = requests.post(url, kwargs=data)
+        response = requests.post(url, json=data)
+        # response = requests.post(url, kwargs=data)
         return response
     
     def default_bot_message(self, message, text):
