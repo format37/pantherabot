@@ -100,7 +100,7 @@ class Panthera:
         if 'first_name' in message['chat']:
             first_name = message['chat']['first_name']
         else:
-            first_name = ['chat']['username']
+            first_name = message['chat']['username']
         return {
         'message_id': int(message['message_id']) + 1,
         'from': {
