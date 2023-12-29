@@ -105,7 +105,9 @@ async def call_message(request: Request, authorization: str = Header(None)):
 
     if not user_access(message, token):
         if message['chat']['type'] == 'private':
-            answer = 'Access denied. Please contact the administrator.'
+            answer = "You are not authorized to use this bot.\n"
+            answer += "Please forward this message to the administrator.\n"
+            answer += f'User id: {message["from"]["id"]}'
             return JSONResponse(content={
                 "type": "text",
                 "body": str(answer)
@@ -126,7 +128,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
     # Read user_list from ./data/users.txt
     with open(data_path + 'users.txt', 'r') as f:
         user_list = f.read().splitlines()
-        
+
     # Add user CMD
     if message['text'].startswith('/add'):
         # Check is current user in atdmins.txt
