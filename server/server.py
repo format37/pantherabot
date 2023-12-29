@@ -131,6 +131,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
 
     # Add user CMD
     if message['text'].startswith('/add'):
+        logger.info(f'Add user CMD: {message["text"]}')
         # Check is current user in atdmins.txt
         admins = []
         with open(data_path + 'admins.txt', 'r') as f:
