@@ -73,11 +73,12 @@ def user_access(message, token):
             # Get chat member
             member = bot.get_chat_member(message['chat']['id'], user)
             if member.status in ["member", "administrator", "creator"]:
-                logger.info(f'user_access: {user} is in the {message["chat"]["id"]} group with status {member.status}')
+                # logger.info(f'user_access: {user} is in the {message["chat"]["id"]} group with status {member.status}')
                 return True
-        logger.info(f'user_access: {message["from"]["id"]} is not in the {message["chat"]["id"]} group')
+        # logger.info(f'user_access: {message["from"]["id"]} is not in the {message["chat"]["id"]} group')
     else:
-        logger.info(f'user_access: {message["from"]["id"]} is not in the users list')
+        # logger.info(f'user_access: {message["from"]["id"]} is not in the users list')
+        pass
     return False
 
 
@@ -100,28 +101,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
         })
     
     message = await request.json()
-    logger.info(message)
-    """
-    INFO:server:{
-       'message_id': 22,
-       'from': {
-            'id': 106129214, 
-            'is_bot': False, 
-            'first_name': 'Alex', 
-            'username': 'format37', 
-            'language_code': 'en', 
-            'is_premium': True
-         }, 
-        'chat': {
-            'id': 106129214, 
-            'first_name': 'Alex', 
-            'username': 'format37', 
-            'type': 'private'
-        }, 
-        'date': 1698311200, 
-        'text': '9'
-    }
-    """
+    # logger.info(message)
+
     if not user_access(message, token):
         if message['chat']['type'] == 'private':
             answer = 'Access denied. Please contact the administrator.'
@@ -134,6 +115,73 @@ async def call_message(request: Request, authorization: str = Header(None)):
                 "type": "empty",
                 "body": ''
             })
+
+    if 'text' not in message:
+        return JSONResponse(content={
+            "type": "empty",
+            "body": ''
+            })
+    
+    data_path = 'data/'
+    # Read user_list from ./data/users.txt
+    with open(data_path + 'users.txt', 'r') as f:
+        user_list = f.read().splitlines()
+        
+    # Add user CMD
+    if message['text'].startswith('/add'):
+        # Check is current user in atdmins.txt
+        admins = []
+        with open(data_path + 'admins.txt', 'r') as f:
+            admins = f.read().splitlines()
+        if str(message['from']['id']) not in admins:
+            answer = "You are not authorized to use this command."
+            return JSONResponse(content={
+                "type": "text",
+                "body": str(answer)
+                })
+        # split cmd from format /add <user_id>
+        cmd = message['text'].split(' ')
+        if len(cmd) != 2:
+            answer = "Invalid command format. Please use /add <user_id>."
+            return JSONResponse(content={
+                "type": "text",
+                "body": str(answer)
+                })
+        # add user_id to user_list
+        user_id = cmd[1]
+        user_list.append(user_id)
+        # write user_list to ./data/users.txt
+        with open(data_path + 'users.txt', 'w') as f:
+            f.write('\n'.join(user_list))
+        answer = f'User {user_id} added successfully.'        
+
+    # Remove user CMD
+    elif message['text'].startswith('/remove'):
+        # Check is current user in atdmins.txt
+        admins = []
+        with open(data_path + 'admins.txt', 'r') as f:
+            admins = f.read().splitlines()
+        if str(message['from']['id']) not in admins:
+            answer = "You are not authorized to use this command."
+            return JSONResponse(content={
+                "type": "text",
+                "body": str(answer)
+                })
+        # split cmd from format /remove <user_id>
+        cmd = message['text'].split(' ')
+        if len(cmd) != 2:
+            answer = "Invalid command format. Please use /remove <user_id>."
+            return JSONResponse(content={
+                "type": "text",
+                "body": str(answer)
+                })
+        # remove user_id from user_list
+        user_id = cmd[1]
+        user_list.remove(user_id)
+        # write user_list to ./data/users.txt
+        with open(data_path + 'users.txt', 'w') as f:
+            f.write('\n'.join(user_list))
+        answer = f'User {user_id} removed successfully.'
 
     panthera = Panthera()
 
@@ -161,7 +209,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
 
     # if message text is /start
     elif message['text'] == '/start':
-        answer = 'Welcome to the bot'
+        answer = 'Welcome to the conversational gpt-4 bot.\nPlease, send me a regular message in private chat, or use /* prefix in a group chat to call me.'
 
     # elif message['text'] == '/configure': # TODO: account the non-private chats
     # elif user_session['last_cmd'] != 'start':
