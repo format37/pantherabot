@@ -164,6 +164,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
 
     # Remove user CMD
     elif message['text'].startswith('/remove'):
+        logger.info(f'Remove user CMD: {message["text"]}')
         # Check is current user in atdmins.txt
         admins = []
         with open(data_path + 'admins.txt', 'r') as f:
