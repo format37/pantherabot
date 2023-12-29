@@ -156,7 +156,11 @@ async def call_message(request: Request, authorization: str = Header(None)):
         # write user_list to ./data/users.txt
         with open(data_path + 'users.txt', 'w') as f:
             f.write('\n'.join(user_list))
-        answer = f'User {user_id} added successfully.'        
+        answer = f'User {user_id} added successfully.'
+        return JSONResponse(content={
+            "type": "text",
+            "body": str(answer)
+            })
 
     # Remove user CMD
     elif message['text'].startswith('/remove'):
@@ -185,6 +189,10 @@ async def call_message(request: Request, authorization: str = Header(None)):
         with open(data_path + 'users.txt', 'w') as f:
             f.write('\n'.join(user_list))
         answer = f'User {user_id} removed successfully.'
+        return JSONResponse(content={
+            "type": "text",
+            "body": str(answer)
+            })
 
     panthera = Panthera()
 
