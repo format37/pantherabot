@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Header
 from fastapi.responses import JSONResponse, FileResponse
 import os
 import logging
@@ -7,7 +7,7 @@ from panthera import Panthera
 import re
 import pandas as pd
 import matplotlib.pyplot as plt
-# import base64
+from telebot import TeleBot
 
 # Initialize FastAPI
 app = FastAPI()
@@ -57,9 +57,48 @@ def get_keyboard(user_session, current_screen):
         return menu['Default']
 
 
+def user_access(message, token):
+    # Initialize the bot
+    bot = TeleBot(token)
+    # Get list of users from ./data/users.txt
+    with open('data/users.txt') as f:
+        users = f.read().splitlines()
+    # Check if user is in the list
+    if str(message['from']['id']) in users:
+        return True
+    # If chat is not private
+    elif message['chat']['type'] != 'private':
+        # Utilize get_chat_member to check is user from list in group
+        for user in users:
+            # Get chat member
+            member = bot.get_chat_member(message['chat']['id'], user)
+            if member.status in ["member", "administrator", "creator"]:
+                logger.info(f'user_access: {user} is in the {message["chat"]["id"]} group with status {member.status}')
+                return True
+        logger.info(f'user_access: {message["from"]["id"]} is not in the {message["chat"]["id"]} group')
+    else:
+        logger.info(f'user_access: {message["from"]["id"]} is not in the users list')
+    return False
+
+
 @app.post("/message")
-async def call_message(request: Request):
+async def call_message(request: Request, authorization: str = Header(None)):
     logger.info('call_message')
+
+    token = None
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization.split(" ")[1]
+    
+    if token:
+        logger.info(f'Bot token: {token}')
+        pass
+    else:
+        answer = 'Bot token not found. Please contact the administrator.'
+        return JSONResponse(content={
+            "type": "text",
+            "body": str(answer)
+        })
+    
     message = await request.json()
     logger.info(message)
     """
@@ -83,6 +122,18 @@ async def call_message(request: Request):
         'text': '9'
     }
     """
+    if not user_access(message, token):
+        if message['chat']['type'] == 'private':
+            answer = 'Access denied. Please contact the administrator.'
+            return JSONResponse(content={
+                "type": "text",
+                "body": str(answer)
+            })
+        else:
+            return JSONResponse(content={
+                "type": "empty",
+                "body": ''
+            })
 
     panthera = Panthera()
 
