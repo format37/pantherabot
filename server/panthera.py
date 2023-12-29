@@ -200,6 +200,7 @@ class Panthera:
         prompt_dumped = json.dumps(prompt)
         tokens_count = self.token_counter(prompt_dumped, user_session['model']).json()['tokens']
         self.logger.info(f'tokens_count prognose: {tokens_count}')
+        self.logger.info(f'url: {url}')
         self.logger.info(f'request_data: {request_data}')
         response = requests.post(url, json=request_data)
         self.logger.info(f'response: {str(response)}')
