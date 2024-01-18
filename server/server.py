@@ -68,17 +68,43 @@ def user_access(message, token):
         return True
     # If chat is not private
     elif message['chat']['type'] != 'private':
+        # Create folder ./data/granted_groups if it doesn't exist
+        if not os.path.exists('data/granted_groups'):
+            os.makedirs('data/granted_groups')
+        # Check if group is in the ./data/granted_groups/<chat_id>.txt
+        if os.path.exists(f'data/granted_groups/{message["chat"]["id"]}.txt'):
+            return True
+        # Create folder ./data/denied_groups if it doesn't exist
+        if not os.path.exists('data/denied_groups'):
+            os.makedirs('data/denied_groups')
+        # Check if group is in the ./data/denied_groups/<chat_id>.txt
+        if os.path.exists(f'data/denied_groups/{message["chat"]["id"]}.txt'):
+            return False
         # Utilize get_chat_member to check is user from list in group
         for user in users:
             # Get chat member
-            member = bot.get_chat_member(message['chat']['id'], user)
-            if member.status in ["member", "administrator", "creator"]:
-                # logger.info(f'user_access: {user} is in the {message["chat"]["id"]} group with status {member.status}')
-                return True
+            try:
+                member = bot.get_chat_member(message['chat']['id'], user)
+                if member.status in ["member", "administrator", "creator"]:
+                    # logger.info(f'user_access: {user} is in the {message["chat"]["id"]} group with status {member.status}')
+                    # Write group to the ./data/granted_groups/<chat_id>.txt
+                    with open(f'data/granted_groups/{message["chat"]["id"]}.txt', 'w') as f:
+                        f.write(str(message["chat"]["id"]))
+                    return True
+            except Exception as e:
+                # logger.info(f'user_access: {user} is not in the {message["chat"]["id"]} group')
+                pass
         # logger.info(f'user_access: {message["from"]["id"]} is not in the {message["chat"]["id"]} group')
     else:
         # logger.info(f'user_access: {message["from"]["id"]} is not in the users list')
         pass
+    
+    # Write group to the ./data/denied_groups/<chat_id>.txt
+    if not os.path.exists('data/denied_groups'):
+        os.makedirs('data/denied_groups')
+    with open(f'data/denied_groups/{message["chat"]["id"]}.txt', 'w') as f:
+        f.write(str(message["chat"]["id"]))
+    
     return False
 
 
