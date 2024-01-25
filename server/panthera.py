@@ -3,6 +3,7 @@ import logging
 import json
 import requests
 import time
+import glob
 
 
 class Panthera:
@@ -152,6 +153,88 @@ class Panthera:
         session["topics"][topic_name]["evaluations"].append(evaluation_dict)
         
         return session
+    
+    def read_latest_messages(self, user_session, message, system_content=None):
+        model = user_session['model']
+        chat_id = message['chat']['id']
+        user_id = message['from']['id']
+        token_limit = 3000
+        chat_gpt_prompt = []
+        # Fill the prompt
+        if system_content is None:
+            system_content = "You are the chat member. Your username is assistant. You need to start with 'Assistant:' before each of your messages."
+        chat_gpt_prompt_original = [
+            {"role": "system", "content": system_content}
+        ]
+        # if chat_type == 'group' or chat_type == 'supergroup':
+        if message['chat']['type'] != 'private':
+            self.logger.info("read group chat")
+            # Create group id folder in the data path if not exist
+            path = os.path.join("data", "chats", str(chat_id))
+            # Get all files in folder
+            list_of_files = glob.glob(path + "/*.json")
+        else:
+            self.logger.info("read private chat")
+            # Create user id folder in the data path if not exist
+            path = os.path.join("data", "chats", str(user_id))
+            # Get all files in folder
+            list_of_files = glob.glob(path + "/*.json")
+
+        # Sort files by creation time ascending
+        list_of_files.sort(key=os.path.getctime, reverse=True)
+
+        # Iterate over sorted files and append message to messages list
+        limit_reached = False
+        for file_name in list_of_files:
+            self.logger.info("reading file: "+file_name)
+            if limit_reached == False and \
+                self.token_counter(chat_gpt_prompt, model).json()['tokens']<token_limit:
+                
+                with open(file_name, "r") as f:
+                    
+                    """data = json.load(f)
+                    if data["user_name"] == "assistant":
+                        role = "assistant"
+                        chat_gpt_prompt.append({"role": role, "content": data["message"]})
+                    else:
+                        role = "user"
+                        user_name = data["user_name"]
+                        user_name = user_name if user_name else "Unknown"
+                        chat_gpt_prompt.append({"role": role, "content": user_name +': '+ data["message"]})"""
+            
+                    # Extract the text from the json file
+                    # message = json.load(open(os.path.join(path, file), 'r'))
+                    message = json.load(f)
+                    # Extract the text from the message
+                    text = message['text']
+                    if message['from']['id']==0:
+                        role = 'assistant'                
+                    else:
+                        role = 'user'
+                        user_name = message['from']['first_name']
+                        if message['from']['first_name'] == '':
+                            user_name = message['from']['username']
+                            if message['from']['username'] == '':
+                                user_name = 'Unknown'
+                        # Add preamble to the message
+                        preamble = f'{user_name}: '
+                        text = preamble + message['text']
+
+                    chat_gpt_prompt.append({"role": role, "content": text})
+            else:
+                limit_reached = True
+                self.logger.info("token limit reached. removing file: "+file_name)
+                os.remove(file_name)
+
+        # Sort chat_gpt_prompt reversed
+        chat_gpt_prompt.reverse()
+        # Now add all values of chat_gpt_prompt to chat_gpt_prompt_original
+        for item in chat_gpt_prompt:
+            chat_gpt_prompt_original.append(item)
+
+        # logger.info("chat_gpt_prompt_original: "+str(chat_gpt_prompt_original))
+
+        return chat_gpt_prompt_original
 
 
     def llm_request(self, user_session, message, system_content=None):
