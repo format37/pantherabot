@@ -239,7 +239,7 @@ class Panthera:
     def llm_request(self, user_session, message, system_content=None):
         chat_id = message['chat']['id']
         self.logger.info(f'llm_request: {chat_id}')
-        # Prepare a folder
+        """# Prepare a folder
         path = f'./data/chats/{chat_id}'
         # Read files in path, sorted by name ascending
         files = sorted(os.listdir(path), reverse=False)
@@ -269,7 +269,9 @@ class Panthera:
                 preamble = f'{user_name}: '
                 text = preamble + message['text']
 
-            prompt.append({"role": role, "content": text})
+            prompt.append({"role": role, "content": text})"""
+        
+        prompt = self.read_latest_messages(user_session, message, system_content)
 
         llm_url = os.environ.get('LLM_URL', '')
         url = f'{llm_url}/request'
