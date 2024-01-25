@@ -241,7 +241,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         panthera.reset_chat(message['chat']['id'])
         answer = 'Chat messages memory has been cleaned'
     # if chat type not private
-    elif message['text'] == '/reset@gpticebot' and message['chat']['type'] != 'private':
+    elif message['text'].startswith('/reset@') and message['chat']['type'] != 'private':
         panthera.reset_chat(message['chat']['id'])
         answer = 'Chat messages memory has been cleaned'
 

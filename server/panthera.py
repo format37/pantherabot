@@ -121,7 +121,6 @@ class Panthera:
             'date': current_unix_timestamp, 
             'text': text
         }
-    
 
     def add_evaluation_to_topic(self, session, topic_name, value=10):
         """
