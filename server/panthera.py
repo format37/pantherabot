@@ -186,8 +186,9 @@ class Panthera:
         limit_reached = False
         for file_name in list_of_files:
             self.logger.info("reading file: "+file_name)
+            prompt_dumped = json.dumps(chat_gpt_prompt)
             if limit_reached == False and \
-                self.token_counter(chat_gpt_prompt, model).json()['tokens']<token_limit:
+                self.token_counter(prompt_dumped, model).json()['tokens']<token_limit:
                 
                 with open(file_name, "r") as f:
                     
