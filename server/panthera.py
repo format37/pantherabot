@@ -86,7 +86,7 @@ class Panthera:
         return session
 
 
-    def log_message(self, message):
+    """def log_message(self, message):
         self.logger.info(f'message: {message}')
         # Read the chat id from the message
         chat_id = message['chat']['id']
@@ -96,7 +96,7 @@ class Panthera:
         filename = f'{message["date"]}_{message["message_id"]}.json'
         # Save the user json file
         file_path = os.path.join(path, filename)
-        json.dump(message, open(file_path, 'w'))
+        json.dump(message, open(file_path, 'w'))"""
 
 
     def reset_chat(self, chat_id):
@@ -251,8 +251,16 @@ class Panthera:
 
         return chat_gpt_prompt_original
     
-    def log_message(self, chat_id: str, message_text: str):
+    # def log_message(self, chat_id: str, message_text: str):
+    def log_message(self, message):
         '''Logs a single message to a file, structured by chat_id.'''
+        chat_id = message['chat']['id']
+        message_text = message['text']
+        # Prepare a folder
+        path = f'./data/chats/{chat_id}'
+        os.makedirs(path, exist_ok=True)
+        filename = f'{message["date"]}_{message["message_id"]}.json'
+
         chat_log_path = os.path.join(self.data_dir, str(chat_id))
         Path(chat_log_path).mkdir(parents=True, exist_ok=True)
         timestamp = int(time.time())
