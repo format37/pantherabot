@@ -1,6 +1,8 @@
 version: '3.8'
 services:
   server:
+    # Container name
+    container_name: panthera
     restart: always
     volumes:
       - /etc/localtime:/etc/localtime:ro
@@ -14,8 +16,6 @@ services:
     network_mode: host
     environment:
       - TZ=America/Los_Angeles
-      # - LLM_URL=https://rtlm.info:4714
-      - LLM_TOKEN=your_llm_token
       - LANGCHAIN_TRACING_V2=true
       - LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
       - LANGCHAIN_API_KEY=<your-api-key>
