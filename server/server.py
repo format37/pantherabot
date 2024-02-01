@@ -243,7 +243,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         "body": str(answer)
         })
     
-    panthera.log_message(message)
+    # panthera.log_message(message)
     # chat_id = message['chat']['id']
     text = message['text']
 
