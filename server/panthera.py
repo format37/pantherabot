@@ -5,6 +5,23 @@ import requests
 import time
 import glob
 
+import json
+import logging
+from pydantic import BaseModel, Field
+from langchain.agents import Tool, initialize_agent
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_community.document_loaders import TextLoader, DirectoryLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.vectorstores import DocArrayInMemorySearch
+from langchain_community.tools import StructuredTool
+from langchain.schema import HumanMessage, SystemMessage, AIMessage
+from langchain_community.tools import DuckDuckGoSearchRun
+from langchain.tools import WikipediaQueryRun
+from langchain_community.utilities import WikipediaAPIWrapper
+from langchain.chains import RetrievalQA
+import time as py_time
+from pathlib import Path
+
 
 class Panthera:
     
@@ -13,6 +30,14 @@ class Panthera:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
+        # Initialize Llama with your API key and preferred model
+        self.llm = ChatOpenAI(
+            openai_api_key=os.environ.get('LLM_TOKEN', ''),
+            model="gpt-4-0125-preview",
+            temperature=0.8
+        )
+        self.data_dir = './data/chats'
+        Path(self.data_dir).mkdir(parents=True, exist_ok=True)  # Ensure data directory exists
 
     def get_message_type(self, user_session, text):
         if text == '/start':
@@ -191,17 +216,7 @@ class Panthera:
                 self.token_counter(prompt_dumped, model).json()['tokens']<token_limit:
                 
                 with open(file_name, "r") as f:
-                    
-                    """data = json.load(f)
-                    if data["user_name"] == "assistant":
-                        role = "assistant"
-                        chat_gpt_prompt.append({"role": role, "content": data["message"]})
-                    else:
-                        role = "user"
-                        user_name = data["user_name"]
-                        user_name = user_name if user_name else "Unknown"
-                        chat_gpt_prompt.append({"role": role, "content": user_name +': '+ data["message"]})"""
-            
+                               
                     # Extract the text from the json file
                     # message = json.load(open(os.path.join(path, file), 'r'))
                     message = json.load(f)
@@ -235,42 +250,54 @@ class Panthera:
         # logger.info("chat_gpt_prompt_original: "+str(chat_gpt_prompt_original))
 
         return chat_gpt_prompt_original
+    
+    def log_message(self, chat_id: str, message_text: str):
+        '''Logs a single message to a file, structured by chat_id.'''
+        chat_log_path = os.path.join(self.data_dir, str(chat_id))
+        Path(chat_log_path).mkdir(parents=True, exist_ok=True)
+        timestamp = int(time.time())
+        log_file_name = f"{timestamp}.json"
+        with open(os.path.join(chat_log_path, log_file_name), 'w') as log_file:
+            json.dump({"text": message_text}, log_file)
 
+    def construct_prompt(self, chat_id: str):
+        '''Constructs a chat history prompt from logged messages.'''
+        chat_history = []
+        chat_log_path = os.path.join(self.data_dir, str(chat_id))
+        for log_file in sorted(os.listdir(chat_log_path)):
+            with open(os.path.join(chat_log_path, log_file), 'r') as file:
+                message_log = json.load(file)
+                chat_history.append(HumanMessage(content=message_log['text']))
+        return chat_history
 
+    # The original llm_request function now refactored with Langchain's conversational agent
+    # def llm_request(chat_id: str, message_text: str, user_session) -> str:
     def llm_request(self, user_session, message, system_content=None):
         chat_id = message['chat']['id']
         self.logger.info(f'llm_request: {chat_id}')
-        """# Prepare a folder
-        path = f'./data/chats/{chat_id}'
-        # Read files in path, sorted by name ascending
-        files = sorted(os.listdir(path), reverse=False)
-        
-        # Fill the prompt
-        if system_content is None:
-            system_content = "You are the chat member. Your username is assistant. You need to start with 'Assistant:' before each of your messages."
-        prompt = [
-            {"role": "system", "content": system_content}
-        ]
 
-        for file in files:
-            # Extract the text from the json file
-            message = json.load(open(os.path.join(path, file), 'r'))
-            # Extract the text from the message
-            text = message['text']
-            if message['from']['id']==0:
-                role = 'assistant'                
-            else:
-                role = 'user'
-                user_name = message['from']['first_name']
-                if message['from']['first_name'] == '':
-                    user_name = message['from']['username']
-                    if message['from']['username'] == '':
-                        user_name = 'Unknown'
-                # Add preamble to the message
-                preamble = f'{user_name}: '
-                text = preamble + message['text']
+        # Construct the prompt from chat history
+        prompt_messages = self.construct_prompt(chat_id=chat_id)
 
-            prompt.append({"role": role, "content": text})"""
+        message_text = message['text']
+
+        # Append the current message to history for the response
+        prompt_messages.append(HumanMessage(content=message_text))
+
+        # Run the agent with the constructed history
+        response = self.llm.run(input=prompt_messages, chat_history=prompt_messages, model=user_session['model'])
+
+        # Log the new message
+        self.log_message(chat_id=chat_id, message_text=message_text)
+
+        # Assuming response is AIMessage object, extracting the text content
+        response_text = response.content.strip() if isinstance(response, AIMessage) else "Sorry, I couldn't understand."
+
+        return response_text
+
+    """def llm_request_v0(self, user_session, message, system_content=None):
+        chat_id = message['chat']['id']
+        self.logger.info(f'llm_request: {chat_id}')
         
         prompt = self.read_latest_messages(user_session, message, system_content)
 
@@ -310,4 +337,4 @@ class Panthera:
             response_text = response_text[11:]
 
         # Return the response
-        return response_text
+        return response_text"""
