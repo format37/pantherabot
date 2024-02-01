@@ -211,7 +211,7 @@ class Panthera:
         
         return session
     
-    def crop_queue(self, chat_id, token_limit=3000):
+    def crop_queue(self, chat_id, token_limit=2000):
         """
         Function to remove the oldest messages from the chat queue until the token limit is reached.
         
@@ -224,7 +224,9 @@ class Panthera:
         # Get all files in folder
         list_of_files = glob.glob(chat_path + "/*.json")
         # Sort files by creation time ascending
-        list_of_files.sort(key=os.path.getctime)
+        # list_of_files.sort(key=os.path.getctime)
+        # Sort files by creation time descending
+        list_of_files.sort(key=os.path.getctime, reverse=True)
         tokens = 0
         # Log list of files
         self.logger.info(f"list_of_files: \n{list_of_files}")
