@@ -1,5 +1,4 @@
 {
     "last_cmd": "start",
-    "model": "gpt-4-1106-preview",
-    "language": "English"
+    "model": "gpt-4-0125-preview"
 }

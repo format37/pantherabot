@@ -26,12 +26,12 @@ class BotActionType(BaseModel):
     val: str = Field(description="Tool parameter value")
 
 class ChatAgent:
-    def __init__(self, config, retriever, bot_instance):
+    def __init__(self, retriever, bot_instance):
         # Initialize logging
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
-        self.config = config
+        self.config = bot_instance.config
         self.retriever = retriever
         # self.bot_instance = bot_instance  # Passing the Bot instance to the ChatAgent
         # self.logger.info(f"ChatAgent function: {self.bot_instance.bot_action_come}")
@@ -41,7 +41,8 @@ class ChatAgent:
     def initialize_agent(self):
         llm = ChatOpenAI(
             openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
-            model="gpt-4-0125-preview",
+            # model="gpt-4-0125-preview",
+            model=self.bot_instance.config['model'],
             temperature=0.8
         )
         # llm = Ollama(model="llama2")
@@ -85,7 +86,9 @@ class Panthera:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
-        self.chat_agent = ChatAgent("", None, self)
+        
+        self.config = json.load(open('./data/users/default.json', 'r'))
+        self.chat_agent = ChatAgent(None, self)
         self.data_dir = './data/chats'
         Path(self.data_dir).mkdir(parents=True, exist_ok=True)  # Ensure data directory exists
         self.chat_history = []
@@ -144,12 +147,13 @@ class Panthera:
             self.logger.info(f'remove file: {f}')
             os.remove(os.path.join(chat_path, f))
 
-    def token_counter(self, text, model):
+    def token_counter(self, text):
+
         llm_url = os.environ.get('LLM_URL', '')
         url = f'{llm_url}/token_counter'
         data = {
             "text": text,
-            "model": model
+            "model": self.config['model']
         }
 
         response = requests.post(url, json=data)
@@ -214,8 +218,38 @@ class Panthera:
         
         return session
     
+    def crop_queue(self, chat_id, token_limit=3000):
+        """
+        Function to remove the oldest messages from the chat queue until the token limit is reached.
+        
+        Args:
+        - chat_id (str): The chat ID.
+        - token_limit (int): The maximum number of tokens allowed in the queue.
+        """
+        # Create chat path
+        chat_path = os.path.join("data", "chats", str(chat_id))
+        # Get all files in folder
+        list_of_files = glob.glob(chat_path + "/*.json")
+        # Sort files by creation time ascending
+        list_of_files.sort(key=os.path.getctime)
+        # Iterate over sorted files and append message to messages list
+        for file in list_of_files:
+            # Load file
+            message = json.load(open(file, 'r'))
+            # Extract the text from the message
+            text = message['text']
+            # Get the number of tokens for the message
+            tokens = self.token_counter(text).json()['tokens']
+            # If the token limit is reached, remove the file
+            if tokens > token_limit:
+                os.remove(file)
+            # Otherwise, stop
+            else:
+                break
+    
     def read_latest_messages(self, user_session, message, system_content=None):
-        model = user_session['model']
+        # model = user_session['model']
+        model = self.config['model']
         chat_id = message['chat']['id']
         user_id = message['from']['id']
         token_limit = 3000
@@ -249,7 +283,7 @@ class Panthera:
             self.logger.info("reading file: "+file_name)
             prompt_dumped = json.dumps(chat_gpt_prompt)
             if limit_reached == False and \
-                self.token_counter(prompt_dumped, model).json()['tokens']<token_limit:
+                self.token_counter(prompt_dumped).json()['tokens']<token_limit:
                 
                 with open(file_name, "r") as f:
                                
