@@ -432,13 +432,15 @@ async def call_inline(request: Request, authorization: str = Header(None)):
     data_folder = f"data/{message['from_user']['id']}/"
     if not os.path.exists(data_folder):
         return JSONResponse(content={
-            "result": "no data"
+            "title": "no data",
+            "message_text": "no data"
             })
     # Is path ./data/{user_id}/ have files. If not, return 'no data'
     files = os.listdir(data_folder)
     if not files:
         return JSONResponse(content={
-            "result": "no data"
+            "title": "no data",
+            "message_text": "no data"
             })
     # Reads the latest file, sorted by name
     files.sort()
@@ -448,5 +450,6 @@ async def call_inline(request: Request, authorization: str = Header(None)):
     # Returns the file content
     logger.info(f"inline data: {data}")
     return JSONResponse(content={
-        "result": data['text']
+        "title": data['text'],
+        "message_text": data['text']
         })
