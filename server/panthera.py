@@ -268,15 +268,19 @@ class Panthera:
                 os.remove(file)
                 continue
             # Load file
-            message = json.load(open(file, 'r'))
-            # Extract the text from the message
-            text = message['text']
-            # Get the number of tokens for the message
-            tokens += self.token_counter(text)
-            self.logger.info(f"file: {file} tokens: {tokens}")
-            # If the token limit is reached, remove the file
-            if tokens > self.config['token_limit']:
-                self.logger.info(f"Removing file: {file}")
+            try:
+                message = json.load(open(file, 'r'))
+                # Extract the text from the message
+                text = message['text']
+                # Get the number of tokens for the message
+                tokens += self.token_counter(text)
+                self.logger.info(f"file: {file} tokens: {tokens}")
+                # If the token limit is reached, remove the file
+                if tokens > self.config['token_limit']:
+                    self.logger.info(f"Removing file: {file}")
+                    os.remove(file)
+            except Exception as e:
+                self.logger.error(f"Error loading file: {file} error: {e}")
                 os.remove(file)
     
     '''def read_latest_messages(self, user_session, message, system_content=None):
@@ -390,11 +394,16 @@ class Panthera:
         self.crop_queue(chat_id=chat_id)
         for log_file in sorted(os.listdir(chat_log_path)):
             with open(os.path.join(chat_log_path, log_file), 'r') as file:
-                message = json.load(file)
-                if message['type'] == 'AIMessage':
-                    self.chat_history.append(AIMessage(content=message['text']))
-                elif message['type'] == 'HumanMessage':
-                    self.chat_history.append(HumanMessage(content=message['text']))
+                try:
+                    message = json.load(file)
+                    if message['type'] == 'AIMessage':
+                        self.chat_history.append(AIMessage(content=message['text']))
+                    elif message['type'] == 'HumanMessage':
+                        self.chat_history.append(HumanMessage(content=message['text']))
+                except Exception as e:
+                    self.logger.error(f'Error reading chat history: {e}')
+                    # Remove
+                    os.remove(os.path.join(chat_log_path, log_file))
 
     # The original llm_request function now refactored with Langchain's conversational agent
     # def llm_request(chat_id: str, message_text: str, user_session) -> str:
