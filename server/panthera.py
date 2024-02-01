@@ -14,8 +14,9 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import DocArrayInMemorySearch
 from langchain_community.tools import StructuredTool
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
-from langchain_community.tools import DuckDuckGoSearchRun
-from langchain.tools import WikipediaQueryRun
+# from langchain_community.tools import DuckDuckGoSearchRun
+from langchain_community.tools import DuckDuckGoSearchResults
+# from langchain.tools import WikipediaQueryRun
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain.chains import RetrievalQA
 import time as py_time
@@ -46,9 +47,10 @@ class ChatAgent:
         # llm = Ollama(model="llama2")
         # llm = Ollama(model="mistral")
         tools = []
-        tools.append(DuckDuckGoSearchRun())
-        wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
-        tools.append(wikipedia)
+        # tools.append(DuckDuckGoSearchRun())
+        tools.append(DuckDuckGoSearchResults())
+        # wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
+        # tools.append(wikipedia)
         """tools.append(
             Tool(
                 args_schema=DocumentInput,
