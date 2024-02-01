@@ -425,11 +425,11 @@ async def call_inline(request: Request, authorization: str = Header(None)):
     3. Reads the latest file, sorted by name
     4. Returns the file content
     """
-    content = await request.json()
+    message = await request.json()
     logger.info(f'inlint content: {content}')
-    message = content['inline_query']
+    # message = content['inline_query']
     # Check is path ./data/{user_id}/ exists. If not, return 'no data'
-    data_folder = f"data/{message['from_user']['id']}/"
+    data_folder = f"data/{message['from_user_id']}/"
     if not os.path.exists(data_folder):
         return JSONResponse(content={
             "title": "no data",
