@@ -109,7 +109,7 @@ class Panthera:
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
         # self.agent = self.initialize_agent()
-        self.chat_agent = ChatAgent(self.config, None, self)
+        self.chat_agent = ChatAgent("", None, self)
         self.data_dir = './data/chats'
         Path(self.data_dir).mkdir(parents=True, exist_ok=True)  # Ensure data directory exists
         self.chat_history = []
