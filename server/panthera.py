@@ -33,8 +33,8 @@ class ChatAgent:
         self.logger.setLevel(logging.INFO)
         self.config = config
         self.retriever = retriever
-        self.bot_instance = bot_instance  # Passing the Bot instance to the ChatAgent
-        self.logger.info(f"ChatAgent function: {self.bot_instance.bot_action_come}")
+        # self.bot_instance = bot_instance  # Passing the Bot instance to the ChatAgent
+        # self.logger.info(f"ChatAgent function: {self.bot_instance.bot_action_come}")
         self.agent = self.initialize_agent()
         
 
