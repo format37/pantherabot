@@ -365,7 +365,7 @@ class Panthera:
             message_id,
             type,
             message_date = None,
-            user_name = 'AI'
+            name_of_user = 'AI'
             ):
         # chat_id = message['chat']['id']
         # message_text = message['text']
@@ -375,16 +375,16 @@ class Panthera:
         # filename = f'{message["date"]}_{message["message_id"]}.json'
         if message_date is None:
             message_date = py_time.strftime('%Y-%m-%d-%H-%M-%S', py_time.localtime())
-        filename = f'{message_date}_{message_id}.json'        
+        log_file_name = f'{message_date}_{message_id}.json'        
 
         chat_log_path = os.path.join(self.data_dir, str(chat_id))
         Path(chat_log_path).mkdir(parents=True, exist_ok=True)
-        timestamp = int(time.time())
-        log_file_name = f"{timestamp}.json"
+        # timestamp = int(time.time())
+        # log_file_name = f"{timestamp}.json"
         with open(os.path.join(chat_log_path, log_file_name), 'w') as log_file:
             json.dump({
                 "type": type,
-                "text": f"[{user_name}]: {message_text}"
+                "text": f"{name_of_user}: {message_text}"
                 }, log_file)
 
     def read_chat_history(self, chat_id: str):
