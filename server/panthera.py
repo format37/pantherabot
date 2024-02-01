@@ -19,12 +19,24 @@ from langchain_community.tools import DuckDuckGoSearchResults
 # from langchain.tools import WikipediaQueryRun
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain.chains import RetrievalQA
+from langchain.tools import Tool
 import time as py_time
 from pathlib import Path
 import tiktoken
 
 class BotActionType(BaseModel):
     val: str = Field(description="Tool parameter value")
+
+class SimulatedWebBrowsingTool(Tool):
+    def __init__(self, llm, embeddings, name="Simulated Web Browsing", description="Simulate browsing the web and fetching information"):
+        super().__init__(name=name, description=description)
+        self.llm = llm
+        self.embeddings = embeddings
+
+    def call(self, url, query):
+        combined_query = f"Browsing the web: {url}. Question: {query}"
+        response = self.llm.query(combined_query)
+        return response
 
 class ChatAgent:
     def __init__(self, retriever, bot_instance):
@@ -42,13 +54,15 @@ class ChatAgent:
     def initialize_agent(self):
         llm = ChatOpenAI(
             openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
-            # model="gpt-4-0125-preview",
             model=self.config['model'],
             temperature=self.config['temperature'],
         )
         # llm = Ollama(model="llama2")
         # llm = Ollama(model="mistral")
         tools = []
+        embeddings = OpenAIEmbeddings({})  # Initialize embeddings as per your library's requirements
+        web_browsing_tool = SimulatedWebBrowsingTool(llm, embeddings)
+        tools.append(web_browsing_tool)
         # tools.append(DuckDuckGoSearchRun())
         tools.append(DuckDuckGoSearchResults())
         # wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
