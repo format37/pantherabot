@@ -426,7 +426,7 @@ async def call_inline(request: Request, authorization: str = Header(None)):
     4. Returns the file content
     """
     message = await request.json()
-    logger.info(f'inlint content: {content}')
+    logger.info(f'inlint content: {message}')
     # message = content['inline_query']
     # Check is path ./data/{user_id}/ exists. If not, return 'no data'
     data_folder = f"data/{message['from_user_id']}/"
@@ -449,7 +449,11 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         data = json.load(f)
     # Returns the file content
     logger.info(f"inline data: {data}")
+    if len(data['text']) > 50:
+        title = data['text'][:50] + '...'
+    else:
+        title = data['text']
     return JSONResponse(content={
-        "title": data['text'],
+        "title": title,
         "message_text": data['text']
         })
