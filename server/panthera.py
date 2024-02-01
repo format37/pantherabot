@@ -60,7 +60,7 @@ class ChatAgent:
         # llm = Ollama(model="llama2")
         # llm = Ollama(model="mistral")
         tools = []
-        embeddings = OpenAIEmbeddings({})  # Initialize embeddings as per your library's requirements
+        embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
         web_browsing_tool = SimulatedWebBrowsingTool(llm, embeddings)
         tools.append(web_browsing_tool)
         # tools.append(DuckDuckGoSearchRun())
