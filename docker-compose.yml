@@ -14,5 +14,10 @@ services:
     network_mode: host
     environment:
       - TZ=America/Los_Angeles
-      - LLM_URL=https://rtlm.info:4714
+      # - LLM_URL=https://rtlm.info:4714
       - LLM_TOKEN=your_llm_token
+      - LANGCHAIN_TRACING_V2=true
+      - LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+      - LANGCHAIN_API_KEY=<your-api-key>
+      - LANGCHAIN_PROJECT=<your-project>  # if not specified, defaults to "default"
+      - OPENAI_API_KEY=<your-openai-api-key>
