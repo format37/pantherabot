@@ -21,6 +21,7 @@ from langchain_community.utilities import WikipediaAPIWrapper
 from langchain.chains import RetrievalQA
 import time as py_time
 from pathlib import Path
+import tiktoken
 
 class BotActionType(BaseModel):
     val: str = Field(description="Tool parameter value")
@@ -149,16 +150,18 @@ class Panthera:
 
     def token_counter(self, text):
 
-        llm_url = os.environ.get('LLM_URL', '')
+        """llm_url = os.environ.get('LLM_URL', '')
         url = f'{llm_url}/token_counter'
         data = {
             "text": text,
             "model": self.config['model']
-        }
+        }"""
 
-        response = requests.post(url, json=data)
+        # response = requests.post(url, json=data)
         # response = requests.post(url, kwargs=data)
-        return response
+        enc = tiktoken.encoding_for_model(self.config['model']) 
+        tokens = enc.encode(text)
+        return len(tokens)
     
     def default_bot_message(self, message, text):
         current_unix_timestamp = int(time.time())
