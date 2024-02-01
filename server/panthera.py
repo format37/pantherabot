@@ -369,9 +369,9 @@ class Panthera:
             with open(os.path.join(chat_log_path, log_file), 'r') as file:
                 message = json.load(file)
                 if message['type'] == 'AIMessage':
-                    self.chat_history.append(AIMessage(message['text']))
+                    self.chat_history.append(AIMessage(content=message['text']))
                 elif message['type'] == 'HumanMessage':
-                    self.chat_history.append(HumanMessage(message['text']))
+                    self.chat_history.append(HumanMessage(content=message['text']))
         # return chat_history
 
 
@@ -395,12 +395,12 @@ class Panthera:
         self.read_chat_history(chat_id=chat_id)
 
         # Construct the prompt from chat history
-        prompt_messages = self.construct_prompt(chat_id=chat_id)
+        # prompt_messages = self.construct_prompt(chat_id=chat_id)
 
         message_text = message['text']
 
         # Append the current message to history for the response
-        prompt_messages.append(HumanMessage(content=message_text))
+        # prompt_messages.append(HumanMessage(content=message_text))
 
         # Run the agent with the constructed history
         """response = self.llm.run(
