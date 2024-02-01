@@ -44,7 +44,7 @@ class ChatAgent:
             openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
             # model="gpt-4-0125-preview",
             model=self.config['model'],
-            temperature=0.8
+            temperature=self.config['temperature'],
         )
         # llm = Ollama(model="llama2")
         # llm = Ollama(model="mistral")
@@ -211,7 +211,7 @@ class Panthera:
         
         return session
     
-    def crop_queue(self, chat_id, token_limit=2000):
+    def crop_queue(self, chat_id):
         """
         Function to remove the oldest messages from the chat queue until the token limit is reached.
         
@@ -232,7 +232,7 @@ class Panthera:
         self.logger.info(f"list_of_files: \n{list_of_files}")
         # Iterate over sorted files and append message to messages list
         for file in list_of_files: 
-            if tokens > token_limit:
+            if tokens > self.config['token_limit']:
                 self.logger.info(f"Removing file: {file}")
                 os.remove(file)
                 continue
@@ -244,7 +244,7 @@ class Panthera:
             tokens += self.token_counter(text)
             self.logger.info(f"file: {file} tokens: {tokens}")
             # If the token limit is reached, remove the file
-            if tokens > token_limit:
+            if tokens > self.config['token_limit']:
                 self.logger.info(f"Removing file: {file}")
                 os.remove(file)
     

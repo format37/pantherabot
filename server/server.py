@@ -273,7 +273,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         # elif message['text'] == '/configure': # TODO: account the non-private chats
         # elif user_session['last_cmd'] != 'start':
     
-        """elif message_type == 'button':
+        # elif message_type == 'button':
         
         keyboard_dict = get_keyboard(user_session, message['text'])
 
@@ -380,7 +380,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         return JSONResponse(content={
             "type": "keyboard",
             "body": keyboard_dict
-            })"""
+            })
 
     elif message['chat']['type'] == 'private' \
         or message['text'].startswith('/*') \
@@ -412,4 +412,42 @@ async def call_message(request: Request, authorization: str = Header(None)):
     return JSONResponse(content={
         "type": "text",
         "body": str(answer)
+        })
+
+# Post inline query
+@app.post("/inline")
+async def call_inline(request: Request, authorization: str = Header(None)):
+    logger.info('call_inline')
+
+    """This function:
+    1. Check is path ./data/{user_id}/ exists. If not, return 'no data'
+    2. Is path ./data/{user_id}/ have files. If not, return 'no data'
+    3. Reads the latest file, sorted by name
+    4. Returns the file content
+    """
+    message = await request.json()
+    logger.info(message)
+    # Check is path ./data/{user_id}/ exists. If not, return 'no data'
+    data_folder = f"data/{message['from']['id']}/"
+    if not os.path.exists(data_folder):
+        return JSONResponse(content={
+            "type": "text",
+            "body": 'no data'
+            })
+    # Is path ./data/{user_id}/ have files. If not, return 'no data'
+    files = os.listdir(data_folder)
+    if not files:
+        return JSONResponse(content={
+            "type": "text",
+            "body": 'no data'
+            })
+    # Reads the latest file, sorted by name
+    files.sort()
+    # Latest file is json. Load and read the message['text']
+    with open(data_folder + files[-1]) as f:
+        data = json.load(f)
+    # Returns the file content
+    logger.info(f"inline data: {data}")
+    return JSONResponse(content={
+        "result": data['text']
         })
