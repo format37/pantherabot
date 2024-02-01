@@ -149,17 +149,7 @@ class Panthera:
             os.remove(os.path.join(chat_path, f))
 
     def token_counter(self, text):
-
-        """llm_url = os.environ.get('LLM_URL', '')
-        url = f'{llm_url}/token_counter'
-        data = {
-            "text": text,
-            "model": self.config['model']
-        }"""
-
-        # response = requests.post(url, json=data)
-        # response = requests.post(url, kwargs=data)
-        enc = tiktoken.encoding_for_model(self.config['model']) 
+        enc = tiktoken.encoding_for_model(self.config['model'])
         tokens = enc.encode(text)
         return len(tokens)
     
@@ -246,12 +236,13 @@ class Panthera:
             text = message['text']
             # Get the number of tokens for the message
             tokens += self.token_counter(text)
+            self.logger.info(f"file: {file} tokens: {tokens}")
             # If the token limit is reached, remove the file
             if tokens > token_limit:
                 self.logger.info(f"Removing file: {file}")
                 os.remove(file)
     
-    def read_latest_messages(self, user_session, message, system_content=None):
+    '''def read_latest_messages(self, user_session, message, system_content=None):
         # model = user_session['model']
         model = self.config['model']
         chat_id = message['chat']['id']
@@ -323,7 +314,7 @@ class Panthera:
 
         # logger.info("chat_gpt_prompt_original: "+str(chat_gpt_prompt_original))
 
-        return chat_gpt_prompt_original
+        return chat_gpt_prompt_original'''
     
     # def log_message(self, chat_id: str, message_text: str):
     def save_to_chat_history(
