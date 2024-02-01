@@ -250,6 +250,8 @@ class Panthera:
         """
         # Create chat path
         chat_path = os.path.join("data", "chats", str(chat_id))
+        # Create folder if not exist
+        Path(chat_path).mkdir(parents=True, exist_ok=True)
         # Get all files in folder
         list_of_files = glob.glob(chat_path + "/*.json")
         # Sort files by creation time ascending
