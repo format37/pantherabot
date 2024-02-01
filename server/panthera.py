@@ -231,7 +231,11 @@ class Panthera:
         # Log list of files
         self.logger.info(f"list_of_files: \n{list_of_files}")
         # Iterate over sorted files and append message to messages list
-        for file in list_of_files:
+        for file in list_of_files: 
+            if tokens > token_limit:
+                self.logger.info(f"Removing file: {file}")
+                os.remove(file)
+                continue
             # Load file
             message = json.load(open(file, 'r'))
             # Extract the text from the message
