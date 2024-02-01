@@ -21,10 +21,11 @@ from langchain_community.utilities import WikipediaAPIWrapper
 from langchain.chains import RetrievalQA
 from langchain.tools import Tool
 # from langchain.schema import TextOutput
+from langchain_experimental.utilities import PythonREPL
 import time as py_time
 from pathlib import Path
 import tiktoken
-import webbrowser as wb
+# import webbrowser as wb
 
 class TextOutput(BaseModel):
     text: str = Field(description="Text output")
@@ -53,13 +54,20 @@ class ChatAgent:
         )
         # llm = Ollama(model="llama2")
         # llm = Ollama(model="mistral")
-        # tools = []
-        tools = [self.create_structured_tool(func, name, description, return_direct)
+        tools = []
+        python_repl = PythonREPL()
+        repl_tool = Tool(
+            name="python_repl",
+            description="A Python shell. Use this to execute python commands. Input should be a valid python command. If you want to see the output of a value, you should print it out with `print(...)`.",
+            func=python_repl.run,
+        )
+        tools.append(repl_tool)
+        """tools = [self.create_structured_tool(func, name, description, return_direct)
                  for func, name, description, return_direct in [
                         (self.bot_instance.web_browser_tool, "Web browsing",
                             "Provide a link to request", True)
                       ]
-                 ]
+                 ]"""
         # embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
         # web_browsing_tool = SimulatedWebBrowsingTool(llm, embeddings)
         # tools.append(web_browsing_tool)
@@ -108,10 +116,10 @@ class Panthera:
         Path(self.data_dir).mkdir(parents=True, exist_ok=True)  # Ensure data directory exists
         self.chat_history = []
 
-    def web_browser_tool(self, bot_action_type: BotActionType):
+    """def web_browser_tool(self, bot_action_type: BotActionType):
         self.logger.info(f"web_browser_tool: {bot_action_type}")
         result = wb.open(bot_action_type.val)
-        return TextOutput(text=f"Web browser opened: {result}")
+        return TextOutput(text=f"Web browser opened: {result}")"""
 
     def get_message_type(self, user_session, text):
         if text == '/start':
