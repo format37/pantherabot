@@ -420,26 +420,25 @@ async def call_inline(request: Request, authorization: str = Header(None)):
     logger.info('call_inline')
 
     """This function:
-    1. Check is path ./data/{user_id}/ exists. If not, return 'no data'
-    2. Is path ./data/{user_id}/ have files. If not, return 'no data'
+    1. Check is path ./data/{['from_user']['id']}/ exists. If not, return 'no data'
+    2. Is path ./data/{['from_user']['id']}/ have files. If not, return 'no data'
     3. Reads the latest file, sorted by name
     4. Returns the file content
     """
-    message = await request.json()
-    logger.info(message)
+    content = await request.json()
+    logger.info(f'inlint content: {content}')
+    message = content['inline_query']
     # Check is path ./data/{user_id}/ exists. If not, return 'no data'
-    data_folder = f"data/{message['from']['id']}/"
+    data_folder = f"data/{message['from_user']['id']}/"
     if not os.path.exists(data_folder):
         return JSONResponse(content={
-            "type": "text",
-            "body": 'no data'
+            "result": "no data"
             })
     # Is path ./data/{user_id}/ have files. If not, return 'no data'
     files = os.listdir(data_folder)
     if not files:
         return JSONResponse(content={
-            "type": "text",
-            "body": 'no data'
+            "result": "no data"
             })
     # Reads the latest file, sorted by name
     files.sort()
