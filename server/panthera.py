@@ -232,6 +232,9 @@ class Panthera:
         list_of_files = glob.glob(chat_path + "/*.json")
         # Sort files by creation time ascending
         list_of_files.sort(key=os.path.getctime)
+        tokens = 0
+        # Log list of files
+        self.logger.info(f"list_of_files: \n{list_of_files}")
         # Iterate over sorted files and append message to messages list
         for file in list_of_files:
             # Load file
@@ -239,13 +242,11 @@ class Panthera:
             # Extract the text from the message
             text = message['text']
             # Get the number of tokens for the message
-            tokens = self.token_counter(text).json()['tokens']
+            tokens += self.token_counter(text).json()['tokens']
             # If the token limit is reached, remove the file
             if tokens > token_limit:
+                self.logger.info(f"Removing file: {file}")
                 os.remove(file)
-            # Otherwise, stop
-            else:
-                break
     
     def read_latest_messages(self, user_session, message, system_content=None):
         # model = user_session['model']
@@ -353,6 +354,9 @@ class Panthera:
         '''Reads the chat history from a folder.'''
         self.chat_history = []
         chat_log_path = os.path.join(self.data_dir, str(chat_id))
+        # Create the chat log path if not exist
+        Path(chat_log_path).mkdir(parents=True, exist_ok=True)
+        self.crop_queue(chat_id=chat_id)
         for log_file in sorted(os.listdir(chat_log_path)):
             with open(os.path.join(chat_log_path, log_file), 'r') as file:
                 message = json.load(file)
