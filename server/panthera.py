@@ -327,21 +327,45 @@ class Panthera:
         return chat_gpt_prompt_original
     
     # def log_message(self, chat_id: str, message_text: str):
-    def log_message(self, message):
-        '''Logs a single message to a file, structured by chat_id.'''
-        chat_id = message['chat']['id']
-        message_text = message['text']
+    def save_to_chat_history(self, chat_id, message_text, type):
+        # chat_id = message['chat']['id']
+        # message_text = message['text']
         # Prepare a folder
         path = f'./data/chats/{chat_id}'
         os.makedirs(path, exist_ok=True)
         filename = f'{message["date"]}_{message["message_id"]}.json'
+        
 
         chat_log_path = os.path.join(self.data_dir, str(chat_id))
         Path(chat_log_path).mkdir(parents=True, exist_ok=True)
         timestamp = int(time.time())
         log_file_name = f"{timestamp}.json"
         with open(os.path.join(chat_log_path, log_file_name), 'w') as log_file:
-            json.dump({"text": message_text}, log_file)
+            json.dump({
+                "type": type,
+                "text": message_text
+                }, log_file)
+
+    """def save_to_chat_history(self, message):
+        chat_id = message['chat']['id']
+        path = f'./data/chats/{chat_id}'
+        os.makedirs(path, exist_ok=True)
+        filename = f'{message["date"]}_{message["message_id"]}.json'
+        # Save the user json file"""
+
+    def read_chat_history(self, chat_id: str):
+        '''Reads the chat history from a folder.'''
+        self.chat_history = []
+        chat_log_path = os.path.join(self.data_dir, str(chat_id))
+        for log_file in sorted(os.listdir(chat_log_path)):
+            with open(os.path.join(chat_log_path, log_file), 'r') as file:
+                message = json.load(file)
+                if message['type'] == 'AIMessage':
+                    self.chat_history.append(AIMessage(message['text']))
+                elif message['type'] == 'HumanMessage':
+                    self.chat_history.append(HumanMessage(message['text']))
+        # return chat_history
+
 
     def construct_prompt(self, chat_id: str):
         '''Constructs a chat history prompt from logged messages.'''
@@ -358,6 +382,9 @@ class Panthera:
     def llm_request(self, user_session, message, system_content=None):
         chat_id = message['chat']['id']
         self.logger.info(f'llm_request: {chat_id}')
+
+        # Read chat history
+        self.read_chat_history(chat_id=chat_id)
 
         # Construct the prompt from chat history
         prompt_messages = self.construct_prompt(chat_id=chat_id)
@@ -381,6 +408,15 @@ class Panthera:
         logger.info(f'sending:\n{user_input}')
         response = chat_agent.agent.run(input=user_input, chat_history=self.chat_history)"""
 
+        # chat_id = message['chat']['id']
+        # message_text = message['text']
+
+        self.save_to_chat_history(
+            message['chat']['id'], 
+            message['text'], 
+            'HumanMessage'
+            )
+
         self.logger.info(f'sending:\n{message_text}')
         
         response = self.chat_agent.agent.run(
@@ -390,9 +426,16 @@ class Panthera:
         
         self.logger.info(f'response:\n{response}')
 
+        self.save_to_chat_history(
+            message['chat']['id'],
+            response,
+            'AIMessage'
+            )
+
         # Log the new message
         # self.log_message(chat_id=chat_id, message_text=message_text)
-        self.log_message(message)
+        # self.log_message(message)
+        
 
         # Assuming response is AIMessage object, extracting the text content
         # response_text = response.content.strip() if isinstance(response, AIMessage) else "Sorry, I couldn't understand."
