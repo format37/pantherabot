@@ -40,7 +40,7 @@ class ChatAgent:
 
     def initialize_agent(self):
         llm = ChatOpenAI(
-            openai_api_key=os.environ.get('LLM_TOKEN', ''),
+            openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
             model="gpt-4-0125-preview",
             temperature=0.8
         )
