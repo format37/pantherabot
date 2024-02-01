@@ -413,7 +413,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         "type": "text",
         "body": str(answer)
         })
-
+  
 # Post inline query
 @app.post("/inline")
 async def call_inline(request: Request, authorization: str = Header(None)):
