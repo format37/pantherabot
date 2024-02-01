@@ -429,7 +429,7 @@ async def call_inline(request: Request, authorization: str = Header(None)):
     logger.info(f'inlint content: {message}')
     # message = content['inline_query']
     # Check is path ./data/{user_id}/ exists. If not, return 'no data'
-    data_folder = f"data/{message['from_user_id']}/"
+    data_folder = f"data/users/{message['from_user_id']}/"
     if not os.path.exists(data_folder):
         logger.info(f"Folder is not exist: {data_folder}")
         return JSONResponse(content={
