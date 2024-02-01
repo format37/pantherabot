@@ -364,7 +364,9 @@ class Panthera:
             message_text, 
             message_id,
             type,
-            message_date = None):
+            message_date = None,
+            user_name = 'AI'
+            ):
         # chat_id = message['chat']['id']
         # message_text = message['text']
         # Prepare a folder
@@ -382,7 +384,7 @@ class Panthera:
         with open(os.path.join(chat_log_path, log_file_name), 'w') as log_file:
             json.dump({
                 "type": type,
-                "text": message_text
+                "text": f"[{user_name}]: {message_text}"
                 }, log_file)
 
     def read_chat_history(self, chat_id: str):
@@ -415,13 +417,23 @@ class Panthera:
         self.read_chat_history(chat_id=chat_id)
 
         message_text = message['text']
+        
+        if 'first_name' in message['chat']:
+            first_name = message['from']['first_name']
+        elif 'username' in message['from']:
+            first_name = message['from']['username']
+        elif 'id' in message['from']:
+            first_name = message['from']['id']
+        else:
+            first_name = 'Unknown'
 
         self.save_to_chat_history(
             message['chat']['id'], 
             message['text'], 
             message["message_id"],
             'HumanMessage',
-            message["date"]
+            message["date"],
+            first_name
             )
 
         # self.logger.info(f'sending:\n{message_text}')
