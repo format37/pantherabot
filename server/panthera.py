@@ -22,6 +22,84 @@ from langchain.chains import RetrievalQA
 import time as py_time
 from pathlib import Path
 
+class BotActionType(BaseModel):
+    val: str = Field(description="Tool parameter value")
+
+class ChatAgent:
+    def __init__(self, config, retriever, bot_instance):
+        # Initialize logging
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.INFO)
+        self.config = config
+        self.retriever = retriever
+        self.bot_instance = bot_instance  # Passing the Bot instance to the ChatAgent
+        self.logger.info(f"ChatAgent function: {self.bot_instance.bot_action_come}")
+        self.agent = self.initialize_agent()
+        
+
+    def initialize_agent(self):
+        llm = ChatOpenAI(
+            openai_api_key=os.environ.get('LLM_TOKEN', ''),
+            model="gpt-4-0125-preview",
+            temperature=0.8
+        )
+        # llm = Ollama(model="llama2")
+        # llm = Ollama(model="mistral")
+        tools = []
+        """tools = [self.create_structured_tool(func, name, description, return_direct)
+                 for func, name, description, return_direct in [
+                        (self.bot_instance.bot_action_come, "Command to come to Minecraft player",
+                            "Provide the name of the player asking to come", True),
+                        (self.bot_instance.bot_action_follow, "Command to follow for Minecraft player",
+                            "Provide the name of the player asking to follow", True),
+                        (self.bot_instance.bot_action_stop, "Command to stop performing any actions in Minecraft",
+                            "You may provide the name of player asking to stop", True),
+                        (self.bot_instance.bot_action_take, "Command to take an item in Minecraft",
+                            "Provide the name of the item to take", True),
+                        (self.bot_instance.bot_action_list_items, "Command to list items in Bot's inventory",
+                            "Provide the name of the bot", True),
+                        (self.bot_instance.bot_action_toss, "Command to toss an item stack from Bot's inventory",
+                            "Provide the name of the item to toss", True),
+                        (self.bot_instance.bot_action_go_sleep, "Command to go sleep in Minecraft",
+                            "Provide the name of the bed to sleep", True),
+                        (self.bot_instance.bot_action_find, "Command to find an item in Minecraft",
+                            "Provide the name of the item to find", True),
+                        (self.bot_instance.bot_action_place_block, "Command to place a block in Minecraft",
+                            "Provide the name of the block to place", True),
+                      ]
+                 ]"""
+        # tools.append(DuckDuckGoSearchRun())
+        # wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
+        # tools.append(wikipedia)
+        """tools.append(
+            Tool(
+                args_schema=DocumentInput,
+                name='Knowledge base',
+                description="Providing a game information from the knowledge base",
+                func=RetrievalQA.from_chain_type(llm=llm, retriever=self.retriever),
+            )
+        )"""
+        # tools = []
+        return initialize_agent(
+            tools,
+            llm,
+            agent='chat-conversational-react-description',
+            verbose=True,
+            handle_parsing_errors=True
+        )
+
+    @staticmethod
+    def create_structured_tool(func, name, description, return_direct):
+        # self.logger.info(f"create_structured_tool name: {name} func: {func}")
+        print(f"create_structured_tool name: {name} func: {func}")
+        return StructuredTool.from_function(
+            func=func,
+            name=name,
+            description=description,
+            args_schema=BotActionType,
+            return_direct=return_direct,
+        )
 
 class Panthera:
     
@@ -30,14 +108,11 @@ class Panthera:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
-        # Initialize Llama with your API key and preferred model
-        self.llm = ChatOpenAI(
-            openai_api_key=os.environ.get('LLM_TOKEN', ''),
-            model="gpt-4-0125-preview",
-            temperature=0.8
-        )
+        # self.agent = self.initialize_agent()
+        self.chat_agent = ChatAgent(self.config, None, self)
         self.data_dir = './data/chats'
         Path(self.data_dir).mkdir(parents=True, exist_ok=True)  # Ensure data directory exists
+        self.chat_history = []
 
     def get_message_type(self, user_session, text):
         if text == '/start':
@@ -293,7 +368,27 @@ class Panthera:
         prompt_messages.append(HumanMessage(content=message_text))
 
         # Run the agent with the constructed history
-        response = self.llm.run(input=prompt_messages, chat_history=prompt_messages, model=user_session['model'])
+        """response = self.llm.run(
+            input=prompt_messages, 
+            chat_history=prompt_messages, 
+            model=user_session['model']
+            )"""
+        # chat_agent = ChatAgent(self.config, None, self)
+        """
+        # chat_agent = ChatAgent(self.config, self.retriever, self) # TODO: Enable
+
+        user_input = f"Player: {sender}. Message: {message}"
+        logger.info(f'sending:\n{user_input}')
+        response = chat_agent.agent.run(input=user_input, chat_history=self.chat_history)"""
+
+        self.logger.info(f'sending:\n{message_text}')
+        
+        response = self.chat_agent.agent.run(
+            input=message_text, 
+            chat_history=self.chat_history
+            )
+        
+        self.logger.info(f'response:\n{response}')
 
         # Log the new message
         self.log_message(chat_id=chat_id, message_text=message_text)
