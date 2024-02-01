@@ -221,38 +221,48 @@ async def call_message(request: Request, authorization: str = Header(None)):
             "body": str(answer)
             })
 
-    panthera = Panthera()
-
-    panthera.log_message(message)
-    chat_id = message['chat']['id']
-    text = message['text']
-
-    user_session = panthera.get_user_session(message['from']['id'])
-    logger.info(f'user_session: {user_session}')
     answer = 'empty'
-    message_type = panthera.get_message_type(user_session, text)
-    logger.info(f'message_type: {message_type}')
 
-    system_content = None
+    panthera = Panthera()
 
     # if message text is /reset
     # if chat type private
     if message['text'] == '/reset' and message['chat']['type'] == 'private':
         panthera.reset_chat(message['chat']['id'])
         answer = 'Chat messages memory has been cleaned'
+        return JSONResponse(content={
+        "type": "text",
+        "body": str(answer)
+        })
     # if chat type not private
     elif message['text'].startswith('/reset@') and message['chat']['type'] != 'private':
         panthera.reset_chat(message['chat']['id'])
         answer = 'Chat messages memory has been cleaned'
+        return JSONResponse(content={
+        "type": "text",
+        "body": str(answer)
+        })
+    
+    panthera.log_message(message)
+    # chat_id = message['chat']['id']
+    text = message['text']
+
+    user_session = panthera.get_user_session(message['from']['id'])
+    logger.info(f'user_session: {user_session}')
+    
+    message_type = panthera.get_message_type(user_session, text)
+    logger.info(f'message_type: {message_type}')
+
+    system_content = None
 
     # if message text is /start
-    elif message['text'] == '/start':
+    if message['text'] == '/start':
         answer = 'Welcome to the conversational gpt-4 bot.\nPlease, send me a regular message in private chat, or use /* prefix in a group chat to call me.'
 
-    # elif message['text'] == '/configure': # TODO: account the non-private chats
-    # elif user_session['last_cmd'] != 'start':
+        # elif message['text'] == '/configure': # TODO: account the non-private chats
+        # elif user_session['last_cmd'] != 'start':
     
-    elif message_type == 'button':
+        """elif message_type == 'button':
         
         keyboard_dict = get_keyboard(user_session, message['text'])
 
@@ -336,18 +346,14 @@ async def call_message(request: Request, authorization: str = Header(None)):
                 response = FileResponse(filename, media_type="image/png")
 
                 # Return the image data
-                """with open(filename, 'rb') as f:
-                    image_data = f.read()"""
+                #with open(filename, 'rb') as f:
+                    #image_data = f.read()
                 logger.info(f'image_data filename: {filename}')
                 # Remove the file
                 # os.remove(filename)
                 # Return the image data                
                 # Encode image to base64 
                 # image_data = base64.b64encode(image_data)
-                """return JSONResponse(content={
-                    "type": "image",
-                    "body": image_data
-                    })"""
                 # return FileResponse(image_data, media_type="image/png")
                 return response
             else:
@@ -363,7 +369,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         return JSONResponse(content={
             "type": "keyboard",
             "body": keyboard_dict
-            })
+            })"""
 
     elif message['chat']['type'] == 'private' or message['text'].startswith('/*') or message['text'].startswith('/.'):
         # Read the system_content from the topics by user_session['topic'] if it is set
