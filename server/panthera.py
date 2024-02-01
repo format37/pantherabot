@@ -42,7 +42,7 @@ class ChatAgent:
         llm = ChatOpenAI(
             openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
             # model="gpt-4-0125-preview",
-            model=self.bot_instance.config['model'],
+            model=self.config['model'],
             temperature=0.8
         )
         # llm = Ollama(model="llama2")
