@@ -391,7 +391,8 @@ class Panthera:
         self.logger.info(f'response:\n{response}')
 
         # Log the new message
-        self.log_message(chat_id=chat_id, message_text=message_text)
+        # self.log_message(chat_id=chat_id, message_text=message_text)
+        self.log_message(message)
 
         # Assuming response is AIMessage object, extracting the text content
         response_text = response.content.strip() if isinstance(response, AIMessage) else "Sorry, I couldn't understand."
