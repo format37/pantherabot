@@ -20,22 +20,42 @@ from langchain_community.tools import DuckDuckGoSearchResults
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain.chains import RetrievalQA
 from langchain.tools import Tool
+# from langchain.schema import TextOutput
 import time as py_time
 from pathlib import Path
 import tiktoken
+import webbrowser as wb
+
+class TextOutput(BaseModel):
+    text: str = Field(description="Text output")
 
 class BotActionType(BaseModel):
     val: str = Field(description="Tool parameter value")
 
 class SimulatedWebBrowsingTool(Tool):
     def __init__(self, llm, embeddings, name="Simulated Web Browsing", description="Simulate browsing the web and fetching information"):
-        super().__init__(name=name, description=description)
+        # Define the function to simulate web browsing internally
+        def simulate_web_browsing(url, query):
+            combined_query = f"Browsing the web: {url}. Question: {query}"
+            response = llm.query(combined_query)
+            return response
+
+        super().__init__(
+            func=simulate_web_browsing,  # Providing the defined function
+            name=name,
+            description=description,
+            output_schema=TextOutput,  # Adjust according to your needs
+        )
         self.llm = llm
         self.embeddings = embeddings
-
-    def call(self, url, query):
+        
+    async def call(self, url, query):
+        """
+        An interface to invoke the web browsing simulation with URL and query.
+        """
+        # You may want to adjust the behavior and the call here depending on how `llm.query()` is defined.
         combined_query = f"Browsing the web: {url}. Question: {query}"
-        response = self.llm.query(combined_query)
+        response = await self.llm.query(combined_query)
         return response
 
 class ChatAgent:
