@@ -384,7 +384,7 @@ class Panthera:
         with open(os.path.join(chat_log_path, log_file_name), 'w') as log_file:
             json.dump({
                 "type": type,
-                "text": f"{name_of_user}: {message_text}"
+                "text": f"{message_text}"
                 }, log_file)
 
     def read_chat_history(self, chat_id: str):
