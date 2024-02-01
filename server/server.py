@@ -243,9 +243,20 @@ async def call_message(request: Request, authorization: str = Header(None)):
         "body": str(answer)
         })
     
-    # panthera.log_message(message)
-    # chat_id = message['chat']['id']
+    chat_id = message['chat']['id']
     text = message['text']
+    if 'first_name' in message['chat']:
+        first_name = message['from']['first_name']
+    else:
+        first_name = message['from']['username']
+    # panthera.log_message(message)
+    panthera.save_to_chat_history(
+        chat_id,
+        f"{first_name}: {text}",
+        message["message_id"],
+        "HumanMessage"
+    )
+    # 
 
     user_session = panthera.get_user_session(message['from']['id'])
     logger.info(f'user_session: {user_session}')
@@ -371,7 +382,9 @@ async def call_message(request: Request, authorization: str = Header(None)):
             "body": keyboard_dict
             })"""
 
-    elif message['chat']['type'] == 'private' or message['text'].startswith('/*') or message['text'].startswith('/.'):
+    elif message['chat']['type'] == 'private' \
+        or message['text'].startswith('/*') \
+        or message['text'].startswith('/.'):
         # Read the system_content from the topics by user_session['topic'] if it is set
         if 'topic' in user_session:
             with open ('data/topics.json') as f:

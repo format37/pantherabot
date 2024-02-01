@@ -4,7 +4,6 @@ import json
 import requests
 import time
 import glob
-
 import json
 import logging
 from pydantic import BaseModel, Field
@@ -47,31 +46,9 @@ class ChatAgent:
         # llm = Ollama(model="llama2")
         # llm = Ollama(model="mistral")
         tools = []
-        """tools = [self.create_structured_tool(func, name, description, return_direct)
-                 for func, name, description, return_direct in [
-                        (self.bot_instance.bot_action_come, "Command to come to Minecraft player",
-                            "Provide the name of the player asking to come", True),
-                        (self.bot_instance.bot_action_follow, "Command to follow for Minecraft player",
-                            "Provide the name of the player asking to follow", True),
-                        (self.bot_instance.bot_action_stop, "Command to stop performing any actions in Minecraft",
-                            "You may provide the name of player asking to stop", True),
-                        (self.bot_instance.bot_action_take, "Command to take an item in Minecraft",
-                            "Provide the name of the item to take", True),
-                        (self.bot_instance.bot_action_list_items, "Command to list items in Bot's inventory",
-                            "Provide the name of the bot", True),
-                        (self.bot_instance.bot_action_toss, "Command to toss an item stack from Bot's inventory",
-                            "Provide the name of the item to toss", True),
-                        (self.bot_instance.bot_action_go_sleep, "Command to go sleep in Minecraft",
-                            "Provide the name of the bed to sleep", True),
-                        (self.bot_instance.bot_action_find, "Command to find an item in Minecraft",
-                            "Provide the name of the item to find", True),
-                        (self.bot_instance.bot_action_place_block, "Command to place a block in Minecraft",
-                            "Provide the name of the block to place", True),
-                      ]
-                 ]"""
-        # tools.append(DuckDuckGoSearchRun())
-        # wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
-        # tools.append(wikipedia)
+        tools.append(DuckDuckGoSearchRun())
+        wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
+        tools.append(wikipedia)
         """tools.append(
             Tool(
                 args_schema=DocumentInput,
@@ -80,7 +57,6 @@ class ChatAgent:
                 func=RetrievalQA.from_chain_type(llm=llm, retriever=self.retriever),
             )
         )"""
-        # tools = []
         return initialize_agent(
             tools,
             llm,
@@ -91,7 +67,6 @@ class ChatAgent:
 
     @staticmethod
     def create_structured_tool(func, name, description, return_direct):
-        # self.logger.info(f"create_structured_tool name: {name} func: {func}")
         print(f"create_structured_tool name: {name} func: {func}")
         return StructuredTool.from_function(
             func=func,
@@ -108,7 +83,6 @@ class Panthera:
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
-        # self.agent = self.initialize_agent()
         self.chat_agent = ChatAgent("", None, self)
         self.data_dir = './data/chats'
         Path(self.data_dir).mkdir(parents=True, exist_ok=True)  # Ensure data directory exists
@@ -160,20 +134,6 @@ class Panthera:
         # Return the user json file as dict
         return session
 
-
-    """def log_message(self, message):
-        self.logger.info(f'message: {message}')
-        # Read the chat id from the message
-        chat_id = message['chat']['id']
-        # Prepare a folder
-        path = f'./data/chats/{chat_id}'
-        os.makedirs(path, exist_ok=True)
-        filename = f'{message["date"]}_{message["message_id"]}.json'
-        # Save the user json file
-        file_path = os.path.join(path, filename)
-        json.dump(message, open(file_path, 'w'))"""
-
-
     def reset_chat(self, chat_id):
         self.logger.info(f'reset_chat: {chat_id}')
         chat_path = f'./data/chats/{chat_id}'
@@ -181,7 +141,6 @@ class Panthera:
         for f in os.listdir(chat_path):
             self.logger.info(f'remove file: {f}')
             os.remove(os.path.join(chat_path, f))
-
 
     def token_counter(self, text, model):
         llm_url = os.environ.get('LLM_URL', '')
@@ -354,13 +313,6 @@ class Panthera:
                 "text": message_text
                 }, log_file)
 
-    """def save_to_chat_history(self, message):
-        chat_id = message['chat']['id']
-        path = f'./data/chats/{chat_id}'
-        os.makedirs(path, exist_ok=True)
-        filename = f'{message["date"]}_{message["message_id"]}.json'
-        # Save the user json file"""
-
     def read_chat_history(self, chat_id: str):
         '''Reads the chat history from a folder.'''
         self.chat_history = []
@@ -372,18 +324,6 @@ class Panthera:
                     self.chat_history.append(AIMessage(content=message['text']))
                 elif message['type'] == 'HumanMessage':
                     self.chat_history.append(HumanMessage(content=message['text']))
-        # return chat_history
-
-
-    def construct_prompt(self, chat_id: str):
-        '''Constructs a chat history prompt from logged messages.'''
-        chat_history = []
-        chat_log_path = os.path.join(self.data_dir, str(chat_id))
-        for log_file in sorted(os.listdir(chat_log_path)):
-            with open(os.path.join(chat_log_path, log_file), 'r') as file:
-                message_log = json.load(file)
-                chat_history.append(HumanMessage(content=message_log['text']))
-        return chat_history
 
     # The original llm_request function now refactored with Langchain's conversational agent
     # def llm_request(chat_id: str, message_text: str, user_session) -> str:
@@ -394,30 +334,7 @@ class Panthera:
         # Read chat history
         self.read_chat_history(chat_id=chat_id)
 
-        # Construct the prompt from chat history
-        # prompt_messages = self.construct_prompt(chat_id=chat_id)
-
         message_text = message['text']
-
-        # Append the current message to history for the response
-        # prompt_messages.append(HumanMessage(content=message_text))
-
-        # Run the agent with the constructed history
-        """response = self.llm.run(
-            input=prompt_messages, 
-            chat_history=prompt_messages, 
-            model=user_session['model']
-            )"""
-        # chat_agent = ChatAgent(self.config, None, self)
-        """
-        # chat_agent = ChatAgent(self.config, self.retriever, self) # TODO: Enable
-
-        user_input = f"Player: {sender}. Message: {message}"
-        logger.info(f'sending:\n{user_input}')
-        response = chat_agent.agent.run(input=user_input, chat_history=self.chat_history)"""
-
-        # chat_id = message['chat']['id']
-        # message_text = message['text']
 
         self.save_to_chat_history(
             message['chat']['id'], 
@@ -427,14 +344,14 @@ class Panthera:
             message["date"]
             )
 
-        self.logger.info(f'sending:\n{message_text}')
+        # self.logger.info(f'sending:\n{message_text}')
         
         response = self.chat_agent.agent.run(
             input=message_text, 
             chat_history=self.chat_history
             )
         
-        self.logger.info(f'response:\n{response}')
+        # self.logger.info(f'response:\n{response}')
 
         self.save_to_chat_history(
             message['chat']['id'],
@@ -443,57 +360,4 @@ class Panthera:
             'AIMessage'
             )
 
-        # Log the new message
-        # self.log_message(chat_id=chat_id, message_text=message_text)
-        # self.log_message(message)
-        
-
-        # Assuming response is AIMessage object, extracting the text content
-        # response_text = response.content.strip() if isinstance(response, AIMessage) else "Sorry, I couldn't understand."
-        # response_text = response.content.strip()
-
         return response
-
-    """def llm_request_v0(self, user_session, message, system_content=None):
-        chat_id = message['chat']['id']
-        self.logger.info(f'llm_request: {chat_id}')
-        
-        prompt = self.read_latest_messages(user_session, message, system_content)
-
-        llm_url = os.environ.get('LLM_URL', '')
-        url = f'{llm_url}/request'
-        request_data = {
-            "api_key": os.environ.get('LLM_TOKEN', ''),
-            "model": user_session['model'],
-            "prompt": prompt
-        }
-        # Json dumps prompt
-        prompt_dumped = json.dumps(prompt)
-        tokens_count = self.token_counter(prompt_dumped, user_session['model']).json()['tokens']
-        self.logger.info(f'tokens_count prognose: {tokens_count}')
-        self.logger.info(f'url: {url}')
-        self.logger.info(f'request_data: {request_data}')
-        response = requests.post(url, json=request_data)
-        self.logger.info(f'response: {str(response)}')
-        response_json = json.loads(response.text)
-        # Now, response_json is a string. Let's parse it into a json
-        response_json = json.loads(response_json)
-
-        bot_message = self.default_bot_message(
-            message,
-            response_json['choices'][0]['message']['content']
-            )
-        # Log message
-        self.log_message(bot_message)
-        # Remove left 11 signs: 'assistant: '
-        if response_json['choices'][0]['message']['content'].startswith('assistant: '):
-            response_text = response_json['choices'][0]['message']['content'][11:]
-        else:
-            response_text = response_json['choices'][0]['message']['content']
-
-        # Remove 'Assistant: ' from response if it is there
-        if response_text.startswith('Assistant: '):
-            response_text = response_text[11:]
-
-        # Return the response
-        return response_text"""
