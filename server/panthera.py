@@ -245,7 +245,7 @@ class Panthera:
             # Extract the text from the message
             text = message['text']
             # Get the number of tokens for the message
-            tokens += self.token_counter(text).json()['tokens']
+            tokens += self.token_counter(text)
             # If the token limit is reached, remove the file
             if tokens > token_limit:
                 self.logger.info(f"Removing file: {file}")
