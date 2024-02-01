@@ -431,6 +431,7 @@ async def call_inline(request: Request, authorization: str = Header(None)):
     # Check is path ./data/{user_id}/ exists. If not, return 'no data'
     data_folder = f"data/{message['from_user_id']}/"
     if not os.path.exists(data_folder):
+        logger.info(f"Folder is not exist: {data_folder}")
         return JSONResponse(content={
             "title": "no data",
             "message_text": "no data"
@@ -438,6 +439,7 @@ async def call_inline(request: Request, authorization: str = Header(None)):
     # Is path ./data/{user_id}/ have files. If not, return 'no data'
     files = os.listdir(data_folder)
     if not files:
+        logger.info(f"Folder is empty: {data_folder}")
         return JSONResponse(content={
             "title": "no data",
             "message_text": "no data"
