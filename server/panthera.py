@@ -327,14 +327,22 @@ class Panthera:
         return chat_gpt_prompt_original
     
     # def log_message(self, chat_id: str, message_text: str):
-    def save_to_chat_history(self, chat_id, message_text, type):
+    def save_to_chat_history(
+            self, 
+            chat_id, 
+            message_text, 
+            message_id,
+            type,
+            message_date = None):
         # chat_id = message['chat']['id']
         # message_text = message['text']
         # Prepare a folder
         path = f'./data/chats/{chat_id}'
         os.makedirs(path, exist_ok=True)
-        filename = f'{message["date"]}_{message["message_id"]}.json'
-        
+        # filename = f'{message["date"]}_{message["message_id"]}.json'
+        if message_date is None:
+            message_date = py_time.strftime('%Y-%m-%d-%H-%M-%S', py_time.localtime())
+        filename = f'{message_date}_{message_id}.json'        
 
         chat_log_path = os.path.join(self.data_dir, str(chat_id))
         Path(chat_log_path).mkdir(parents=True, exist_ok=True)
@@ -414,7 +422,9 @@ class Panthera:
         self.save_to_chat_history(
             message['chat']['id'], 
             message['text'], 
-            'HumanMessage'
+            message["message_id"],
+            'HumanMessage',
+            message["date"]
             )
 
         self.logger.info(f'sending:\n{message_text}')
@@ -429,6 +439,7 @@ class Panthera:
         self.save_to_chat_history(
             message['chat']['id'],
             response,
+            message["message_id"],
             'AIMessage'
             )
 
