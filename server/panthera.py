@@ -32,32 +32,6 @@ class TextOutput(BaseModel):
 class BotActionType(BaseModel):
     val: str = Field(description="Tool parameter value")
 
-class SimulatedWebBrowsingTool(Tool):
-    def __init__(self, llm, embeddings, name="Simulated Web Browsing", description="Simulate browsing the web and fetching information"):
-        # Define the function to simulate web browsing internally
-        def simulate_web_browsing(url, query):
-            combined_query = f"Browsing the web: {url}. Question: {query}"
-            response = llm.query(combined_query)
-            return response
-
-        super().__init__(
-            func=simulate_web_browsing,  # Providing the defined function
-            name=name,
-            description=description,
-            output_schema=TextOutput,  # Adjust according to your needs
-        )
-        self.llm = llm
-        self.embeddings = embeddings
-        
-    async def call(self, url, query):
-        """
-        An interface to invoke the web browsing simulation with URL and query.
-        """
-        # You may want to adjust the behavior and the call here depending on how `llm.query()` is defined.
-        combined_query = f"Browsing the web: {url}. Question: {query}"
-        response = await self.llm.query(combined_query)
-        return response
-
 class ChatAgent:
     def __init__(self, retriever, bot_instance):
         # Initialize logging
@@ -66,7 +40,7 @@ class ChatAgent:
         self.logger.setLevel(logging.INFO)
         self.config = bot_instance.config
         self.retriever = retriever
-        # self.bot_instance = bot_instance  # Passing the Bot instance to the ChatAgent
+        self.bot_instance = bot_instance  # Passing the Bot instance to the ChatAgent
         # self.logger.info(f"ChatAgent function: {self.bot_instance.bot_action_come}")
         self.agent = self.initialize_agent()
         
@@ -79,10 +53,16 @@ class ChatAgent:
         )
         # llm = Ollama(model="llama2")
         # llm = Ollama(model="mistral")
-        tools = []
-        embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
-        web_browsing_tool = SimulatedWebBrowsingTool(llm, embeddings)
-        tools.append(web_browsing_tool)
+        # tools = []
+        tools = [self.create_structured_tool(func, name, description, return_direct)
+                 for func, name, description, return_direct in [
+                        (self.bot_instance.web_browser_tool, "Web browsing",
+                            "Provide a link to request", True)
+                      ]
+                 ]
+        # embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
+        # web_browsing_tool = SimulatedWebBrowsingTool(llm, embeddings)
+        # tools.append(web_browsing_tool)
         # tools.append(DuckDuckGoSearchRun())
         tools.append(DuckDuckGoSearchResults())
         # wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
@@ -127,6 +107,11 @@ class Panthera:
         self.data_dir = './data/chats'
         Path(self.data_dir).mkdir(parents=True, exist_ok=True)  # Ensure data directory exists
         self.chat_history = []
+
+    def web_browser_tool(self, bot_action_type: BotActionType):
+        self.logger.info(f"web_browser_tool: {bot_action_type}")
+        result = wb.open(bot_action_type.val)
+        return TextOutput(text=f"Web browser opened: {result}")
 
     def get_message_type(self, user_session, text):
         if text == '/start':
