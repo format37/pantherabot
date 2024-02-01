@@ -395,8 +395,9 @@ class Panthera:
         self.log_message(message)
 
         # Assuming response is AIMessage object, extracting the text content
-        response_text = response.content.strip() if isinstance(response, AIMessage) else "Sorry, I couldn't understand."
-
+        # response_text = response.content.strip() if isinstance(response, AIMessage) else "Sorry, I couldn't understand."
+        response_text = response.content.strip()
+        
         return response_text
 
     """def llm_request_v0(self, user_session, message, system_content=None):
