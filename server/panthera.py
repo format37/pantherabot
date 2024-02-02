@@ -16,7 +16,7 @@ from langchain_community.tools import StructuredTool
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
 # from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_community.tools import DuckDuckGoSearchResults
-# from langchain.tools import WikipediaQueryRun
+from langchain.tools import WikipediaQueryRun
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain.chains import RetrievalQA
 from langchain.tools import Tool
@@ -75,8 +75,8 @@ class ChatAgent:
         # tools.append(web_browsing_tool)
         # tools.append(DuckDuckGoSearchRun())
         tools.append(DuckDuckGoSearchResults())
-        # wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
-        # tools.append(wikipedia)
+        wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
+        tools.append(wikipedia)
         """tools.append(
             Tool(
                 args_schema=DocumentInput,
