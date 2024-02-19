@@ -393,7 +393,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         answer = panthera.llm_request(user_session, message, system_content=system_content)
         
         # Evaluation log: If [num] in the answer, extract the num and set the evaluation
-        match = re.search(r'\[(10|[0-9])\]', answer)
+        """match = re.search(r'\[(10|[0-9])\]', answer)
         if match:
             num = match.group(1)
             panthera.add_evaluation_to_topic(
@@ -402,7 +402,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
                 value=int(num)
             )
             # Save user session
-            panthera.save_user_session(message['from']['id'], user_session)
+            panthera.save_user_session(message['from']['id'], user_session)"""
     else:
         return JSONResponse(content={
             "type": "empty",
