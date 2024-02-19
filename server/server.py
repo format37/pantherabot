@@ -26,7 +26,7 @@ async def call_test():
 
 def keyboard_modificator(current_screen, user_session, menu, message):
     # Format message with current values if needed
-    if '%s' in message:  
+    """if '%s' in message:  
         if current_screen == 'Model':
             model = user_session['model']
         elif current_screen == 'Language':
@@ -39,7 +39,7 @@ def keyboard_modificator(current_screen, user_session, menu, message):
         message = message % model if 'model' in locals() else message
         message = message % language if 'language' in locals() else message
         message = message % topic if 'topic' in locals() else message
-        menu[current_screen]['message'] = message
+        menu[current_screen]['message'] = message"""
 
 
 def get_keyboard(user_session, current_screen):
