@@ -14,5 +14,9 @@
 	"gpt-4-1106-preview": {
 	    "token_limit": 16384,
 	    "engine": "openai"
+	},
+	"gpt-4-turbo": {
+	    "token_limit": 16384,
+	    "engine": "openai"
 	}
 }
