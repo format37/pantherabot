@@ -14,7 +14,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import DocArrayInMemorySearch
 from langchain_community.tools import StructuredTool
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
-# from langchain_community.tools import DuckDuckGoSearchRun
+from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_community.tools import DuckDuckGoSearchResults
 from langchain.tools import WikipediaQueryRun
 from langchain_community.utilities import WikipediaAPIWrapper
@@ -73,8 +73,8 @@ class ChatAgent:
         # embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
         # web_browsing_tool = SimulatedWebBrowsingTool(llm, embeddings)
         # tools.append(web_browsing_tool)
-        # tools.append(DuckDuckGoSearchRun())
-        tools.append(DuckDuckGoSearchResults())
+        tools.append(DuckDuckGoSearchRun())
+        # tools.append(DuckDuckGoSearchResults())
         wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
         tools.append(wikipedia)
         """tools.append(
