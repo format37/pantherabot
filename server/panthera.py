@@ -22,6 +22,7 @@ from langchain.utilities import GoogleSerperAPIWrapper
 # from langchain_community.utilities import WikipediaAPIWrapper
 from langchain.tools import WikipediaQueryRun
 from langchain.utilities import WikipediaAPIWrapper
+from langchain_community.utilities.wolfram_alpha import WolframAlphaAPIWrapper
 from langchain.chains import RetrievalQA
 from langchain.tools import Tool
 # from langchain.schema import TextOutput
@@ -97,14 +98,23 @@ class ChatAgent:
             )
         )
 
+        wolfram = WolframAlphaAPIWrapper()
+        tools.append(
+            Tool(
+                name="Wolfram Alpha",
+                func=wolfram.run,
+                description="Useful when need to calculate the math expression or solve any scientific task. Provide the solution details if possible.",
+            )
+        )
+
         # wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())        
         wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
         tools.append(
-        Tool(
-            name="Wikipedia Search",
-            func=wikipedia.run,
-            description="Useful when users request biographies or historical moments. Provide links if possible.",
-        )
+            Tool(
+                name="Wikipedia Search",
+                func=wikipedia.run,
+                description="Useful when users request biographies or historical moments. Provide links if possible.",
+            )
         )
         # tools.append(wikipedia)
         
