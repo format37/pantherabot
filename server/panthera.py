@@ -16,6 +16,7 @@ from langchain_community.tools import StructuredTool
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_community.tools import DuckDuckGoSearchResults
+from langchain.tools import YouTubeSearchTool
 from langchain.utilities import GoogleSerperAPIWrapper
 # from langchain.tools import WikipediaQueryRun
 # from langchain_community.utilities import WikipediaAPIWrapper
@@ -83,22 +84,32 @@ class ChatAgent:
             Tool(
                 name="Google Search",
                 func=google_search.run,
-                description="Useful to search in Google. Use by default.",
+                description="Useful to search in Google. Use by default. Provide links if possible.",
             )
         )
 
-        # wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
-        
+        youtube = YouTubeSearchTool()
+        tools.append(
+            Tool(
+                name="Youtube Search",
+                func=youtube.run,
+                description="Useful for when the user explicitly asks you to look on Youtube. Provide links if possible.",
+            )
+        )
+
+        # wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())        
         wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
         tools.append(
         Tool(
             name="Wikipedia Search",
             func=wikipedia.run,
-            description="Useful when users request biographies or historical moments.",
+            description="Useful when users request biographies or historical moments. Provide links if possible.",
         )
         )
-
         # tools.append(wikipedia)
+        
+        
+
         """tools.append(
             Tool(
                 args_schema=DocumentInput,
