@@ -17,8 +17,10 @@ from langchain.schema import HumanMessage, SystemMessage, AIMessage
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_community.tools import DuckDuckGoSearchResults
 from langchain.utilities import GoogleSerperAPIWrapper
+# from langchain.tools import WikipediaQueryRun
+# from langchain_community.utilities import WikipediaAPIWrapper
 from langchain.tools import WikipediaQueryRun
-from langchain_community.utilities import WikipediaAPIWrapper
+from langchain.utilities import WikipediaAPIWrapper
 from langchain.chains import RetrievalQA
 from langchain.tools import Tool
 # from langchain.schema import TextOutput
@@ -85,8 +87,18 @@ class ChatAgent:
             )
         )
 
+        # wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
+        
         wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
-        tools.append(wikipedia)
+        tools.append(
+        Tool(
+            name="Wikipedia Search",
+            func=wikipedia.run,
+            description="Useful when users request biographies or historical moments.",
+        )
+        )
+
+        # tools.append(wikipedia)
         """tools.append(
             Tool(
                 args_schema=DocumentInput,
