@@ -461,5 +461,5 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         })"""
     return JSONResponse(content={
             "type": "inline",
-            "body": data['text']
+            "body": [title]
             })
