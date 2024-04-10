@@ -21,3 +21,4 @@ services:
       - LANGCHAIN_PROJECT="panthera"
       - OPENAI_API_KEY=
       - SERPER_API_KEY=
+      - WOLFRAM_ALPHA_APPID=
