@@ -16,6 +16,7 @@ from langchain_community.tools import StructuredTool
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_community.tools import DuckDuckGoSearchResults
+from langchain.utilities import GoogleSerperAPIWrapper
 from langchain.tools import WikipediaQueryRun
 from langchain_community.utilities import WikipediaAPIWrapper
 from langchain.chains import RetrievalQA
@@ -75,6 +76,15 @@ class ChatAgent:
         # tools.append(web_browsing_tool)
         # tools.append(DuckDuckGoSearchRun())
         # tools.append(DuckDuckGoSearchResults())
+        google_search = GoogleSerperAPIWrapper()
+        tools.append(
+            Tool(
+                name="Google Search",
+                func=google_search.run,
+                description="Useful to search in Google. Use by default.",
+            )
+        )
+
         wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
         tools.append(wikipedia)
         """tools.append(
