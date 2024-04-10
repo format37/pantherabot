@@ -451,15 +451,15 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         data = json.load(f)
     # Returns the file content
     logger.info(f"inline data: {data}")
-    if len(data['text']) > 50:
+    """if len(data['text']) > 50:
         title = data['text'][:50] + '...'
     else:
         title = data['text']
-    """return JSONResponse(content={
+    return JSONResponse(content={
         "title": title,
         "message_text": data['text']
         })"""
     return JSONResponse(content={
             "type": "inline",
-            "body": [title]
+            "body": [data['text']]
             })
