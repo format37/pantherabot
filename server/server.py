@@ -455,7 +455,11 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         title = data['text'][:50] + '...'
     else:
         title = data['text']
-    return JSONResponse(content={
+    """return JSONResponse(content={
         "title": title,
         "message_text": data['text']
-        })
+        })"""
+    return JSONResponse(content={
+            "type": "inline",
+            "body": data['text']
+            })
