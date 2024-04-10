@@ -73,7 +73,7 @@ class ChatAgent:
         # embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
         # web_browsing_tool = SimulatedWebBrowsingTool(llm, embeddings)
         # tools.append(web_browsing_tool)
-        tools.append(DuckDuckGoSearchRun())
+        # tools.append(DuckDuckGoSearchRun())
         # tools.append(DuckDuckGoSearchResults())
         wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
         tools.append(wikipedia)
