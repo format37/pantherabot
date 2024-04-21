@@ -16,6 +16,7 @@ app = FastAPI()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+panthera = Panthera()
 
 
 @app.get("/test")
@@ -106,7 +107,6 @@ def user_access(message, token):
         f.write(str(message["chat"]["id"]))
     
     return False
-
 
 @app.post("/message")
 async def call_message(request: Request, authorization: str = Header(None)):
@@ -223,7 +223,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
 
     answer = 'empty'
 
-    panthera = Panthera()
+    
 
     # if message text is /reset
     # if chat type private
