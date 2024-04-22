@@ -2,7 +2,7 @@ fastapi==0.103.2
 uvicorn==0.23.2
 requests==2.31.0
 pandas==2.1.2
-matplotlib==3.8.1
+matplotlib==3.8.4
 pyTelegramBotAPI==4.14.0
 langchain>=0.0.184
 docarray==0.40.0
