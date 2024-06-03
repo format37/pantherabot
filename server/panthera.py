@@ -111,7 +111,7 @@ class ChatAgent:
                 description="Useful when need to calculate the math expression or solve any scientific task. Provide the solution details if possible.",
             )
         )
-        tools = []
+        
         # wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())        
         wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
         tools.append(
@@ -122,8 +122,8 @@ class ChatAgent:
             )
         )
         # tools.append(wikipedia)
-        
-        
+        tools = []
+        tools.append(repl_tool)
 
         """tools.append(
             Tool(
