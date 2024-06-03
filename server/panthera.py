@@ -110,13 +110,11 @@ class ChatAgent:
         
         # wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())        
         wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
-        tools.append(
-            Tool(
-                name="Wikipedia Search",
+        wikipedia_tool = Tool(
+                name="wikipedia_search",
                 func=wikipedia.run,
                 description="Useful when users request biographies or historical moments. Provide links if possible.",
             )
-        )
         # tools.append(wikipedia)
         tools = []
         tools.append(repl_tool)
