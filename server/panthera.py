@@ -121,6 +121,7 @@ class ChatAgent:
         tools.append(wolfram_tool)
         tools.append(youtube_tool)
         tools.append(google_search_tool)
+        tools.append(wikipedia_tool)
 
         """tools.append(
             Tool(
