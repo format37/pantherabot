@@ -148,6 +148,7 @@ class ChatAgent:
                 ("placeholder", "{agent_scratchpad}"),
             ]
         )
+        tools = []
         agent = create_tool_calling_agent(llm, tools, prompt)
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
