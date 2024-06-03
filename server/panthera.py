@@ -99,13 +99,7 @@ class ChatAgent:
         
 
         wolfram = WolframAlphaAPIWrapper()
-        tools.append(
-            Tool(
-                name="Wolfram Alpha",
-                func=wolfram.run,
-                description="Useful when need to calculate the math expression or solve any scientific task. Provide the solution details if possible.",
-            )
-        )
+        
         
         # wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())        
         wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
@@ -119,6 +113,14 @@ class ChatAgent:
         # tools.append(wikipedia)
         tools = []
         tools.append(repl_tool)
+
+        tools.append(
+            Tool(
+                name="Wolfram Alpha",
+                func=wolfram.run,
+                description="Useful when need to calculate the math expression or solve any scientific task. Provide the solution details if possible.",
+            )
+        )
 
         # tools.append(
         #     Tool(
