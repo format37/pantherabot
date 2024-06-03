@@ -432,7 +432,7 @@ class Panthera:
                 "input": message_text,
                 "chat_history": self.chat_history,
             }
-        )
+        )["output"]
         
         # self.logger.info(f'response:\n{response}')
 
