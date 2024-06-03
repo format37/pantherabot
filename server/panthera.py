@@ -111,7 +111,7 @@ class ChatAgent:
                 description="Useful when need to calculate the math expression or solve any scientific task. Provide the solution details if possible.",
             )
         )
-
+        tools = []
         # wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())        
         wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
         tools.append(
@@ -148,7 +148,7 @@ class ChatAgent:
                 ("placeholder", "{agent_scratchpad}"),
             ]
         )
-        tools = []
+        
         agent = create_tool_calling_agent(llm, tools, prompt)
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
