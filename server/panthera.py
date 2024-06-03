@@ -73,7 +73,7 @@ class ChatAgent:
             func=python_repl.run,
             return_direct=False,
         )
-        tools.append(repl_tool)
+        # tools.append(repl_tool)
         """tools = [self.create_structured_tool(func, name, description, return_direct)
                  for func, name, description, return_direct in [
                         (self.bot_instance.web_browser_tool, "Web browsing",
@@ -86,13 +86,7 @@ class ChatAgent:
         # tools.append(DuckDuckGoSearchRun())
         # tools.append(DuckDuckGoSearchResults())
         google_search = GoogleSerperAPIWrapper()
-        tools.append(
-            Tool(
-                name="Google Search",
-                func=google_search.run,
-                description="Useful to search in Google. Use by default. Provide links if possible.",
-            )
-        )
+        
 
         youtube = YouTubeSearchTool()
         tools.append(
@@ -124,6 +118,14 @@ class ChatAgent:
         # tools.append(wikipedia)
         tools = []
         tools.append(repl_tool)
+
+        tools.append(
+            Tool(
+                name="Google Search",
+                func=google_search.run,
+                description="Useful to search in Google. Use by default. Provide links if possible.",
+            )
+        )
 
         """tools.append(
             Tool(
