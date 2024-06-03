@@ -71,7 +71,7 @@ class ChatAgent:
             name="python_repl",
             description="A Python shell. Use this to execute python commands. Input should be a valid python command. If you want to see the output of a value, you should print it out with `print(...)`.",
             func=python_repl.run,
-            return_direct=False,
+            # return_direct=False,
         )
         # tools.append(repl_tool)
         """tools = [self.create_structured_tool(func, name, description, return_direct)
@@ -98,12 +98,12 @@ class ChatAgent:
             name="youtube_search",
             description="Useful for when the user explicitly asks you to look on Youtube. Provide links if possible.",
             func=youtube.run,
-            return_direct=False,
+            # return_direct=False,
         )
 
         wolfram = WolframAlphaAPIWrapper()
         wolfram_tool = Tool(
-                name="Wolfram Alpha",
+                name="wolfram_alpha",
                 func=wolfram.run,
                 description="Useful when need to calculate the math expression or solve any scientific task. Provide the solution details if possible.",
             )
