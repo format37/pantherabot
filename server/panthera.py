@@ -120,13 +120,13 @@ class ChatAgent:
         tools = []
         tools.append(repl_tool)
 
-        tools.append(
-            Tool(
-                name="Youtube Search",
-                func=youtube.run,
-                description="Useful for when the user explicitly asks you to look on Youtube. Provide links if possible.",
-            )
-        )
+        # tools.append(
+        #     Tool(
+        #         name="Youtube Search",
+        #         func=youtube.run,
+        #         description="Useful for when the user explicitly asks you to look on Youtube. Provide links if possible.",
+        #     )
+        # )
 
         """tools.append(
             Tool(
