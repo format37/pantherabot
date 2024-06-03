@@ -58,8 +58,8 @@ class ChatAgent:
     def initialize_agent(self):
         llm = ChatOpenAI(
             openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
-            model=self.config['model'],
-            temperature=self.config['temperature'],
+            model="GPT-4o",
+            temperature=0.7,
         )
         # llm = Ollama(model="llama2")
         # llm = Ollama(model="mistral")
