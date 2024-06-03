@@ -10,7 +10,7 @@ openai >= 0.27.7
 streamlit >= 1.24.0
 tiktoken==0.5.2
 # pydantic==1.10.9
-langchain-experimental==0.0.47
+# langchain-experimental==0.0.47
 duckduckgo-search==4.1.1
 # langchain_openai==0.0.2
 wikipedia==1.4.0
