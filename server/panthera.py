@@ -130,7 +130,7 @@ class ChatAgent:
         #     )
         # )
         youtube_tool = Tool(
-            name="Youtube Search",
+            name="youtube_search",
             description="Useful for when the user explicitly asks you to look on Youtube. Provide links if possible.",
             func=youtube.run,
             return_direct=False,
