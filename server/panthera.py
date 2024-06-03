@@ -12,7 +12,8 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.document_loaders import TextLoader, DirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import DocArrayInMemorySearch
-from langchain_community.tools import StructuredTool
+# from langchain_community.tools import StructuredTool
+from langchain.tools.base import StructuredTool
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_community.tools import DuckDuckGoSearchResults
@@ -58,7 +59,7 @@ class ChatAgent:
     def initialize_agent(self):
         llm = ChatOpenAI(
             openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
-            model="GPT-4o",
+            model="gpt-4o-2024-05-13",
             temperature=0.7,
         )
         # llm = Ollama(model="llama2")
