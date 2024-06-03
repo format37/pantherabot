@@ -7,7 +7,8 @@ from panthera import Panthera
 import re
 import pandas as pd
 import matplotlib.pyplot as plt
-from telebot import TeleBot
+# from telebot import TeleBot
+import telebot
 
 # Initialize FastAPI
 app = FastAPI()
@@ -16,6 +17,10 @@ app = FastAPI()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
+with open('config.json') as config_file:
+    bot = telebot.TeleBot(json.load(config_file)['TOKEN'])
+
 panthera = Panthera()
 
 
@@ -58,9 +63,9 @@ def get_keyboard(user_session, current_screen):
         return menu['Default']
 
 
-def user_access(message, token):
-    # Initialize the bot
-    bot = TeleBot(token)
+def user_access(message):
+    # # Initialize the bot
+    # bot = TeleBot(token)
     # Get list of users from ./data/users.txt
     with open('data/users.txt') as f:
         users = f.read().splitlines()
@@ -112,24 +117,24 @@ def user_access(message, token):
 async def call_message(request: Request, authorization: str = Header(None)):
     logger.info('call_message')
 
-    token = None
-    if authorization and authorization.startswith("Bearer "):
-        token = authorization.split(" ")[1]
+    # token = None
+    # if authorization and authorization.startswith("Bearer "):
+    #     token = authorization.split(" ")[1]
     
-    if token:
-        logger.info(f'Bot token: {token}')
-        pass
-    else:
-        answer = 'Bot token not found. Please contact the administrator.'
-        return JSONResponse(content={
-            "type": "text",
-            "body": str(answer)
-        })
+    # if token:
+    #     logger.info(f'Bot token: {token}')
+    #     pass
+    # else:
+    #     answer = 'Bot token not found. Please contact the administrator.'
+    #     return JSONResponse(content={
+    #         "type": "text",
+    #         "body": str(answer)
+    #     })
     
     message = await request.json()
     # logger.info(message)
 
-    if not user_access(message, token):
+    if not user_access(message):
         if message['chat']['type'] == 'private':
             answer = "You are not authorized to use this bot.\n"
             answer += "Please forward this message to the administrator.\n"
@@ -427,23 +432,28 @@ async def call_inline(request: Request, authorization: str = Header(None)):
     """
     message = await request.json()
     logger.info(f'inline content: {message}')
+    # from_user_id = message['from_user_id']
+    inline_query_id = message['inline_query_id']
+    # expression = message['query']
     # message = content['inline_query']
     # Check is path ./data/{user_id}/ exists. If not, return 'no data'
     data_folder = f"data/chats/{message['from_user_id']}/"
     if not os.path.exists(data_folder):
         logger.info(f"Folder is not exist: {data_folder}")
-        return JSONResponse(content={
-            "title": "no data",
-            "message_text": "no data"
-            })
+        # return JSONResponse(content={
+        #     "title": "no data",
+        #     "message_text": "no data"
+        #     })
+        return JSONResponse(content={"status": "ok"})
     # Is path ./data/{user_id}/ have files. If not, return 'no data'
     files = os.listdir(data_folder)
     if not files:
         logger.info(f"Folder is empty: {data_folder}")
-        return JSONResponse(content={
-            "title": "no data",
-            "message_text": "no data"
-            })
+        # return JSONResponse(content={
+        #     "title": "no data",
+        #     "message_text": "no data"
+        #     })
+        return JSONResponse(content={"status": "ok"})
     # Reads the latest file, sorted by name
     files.sort()
     # Latest file is json. Load and read the message['text']
@@ -451,7 +461,22 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         data = json.load(f)
     # Returns the file content
     logger.info(f"inline data: {data}")
-    return JSONResponse(content={
-            "type": "inline",
-            "body": [data['text']]
-            })
+    # return JSONResponse(content={
+    #         "type": "inline",
+    #         "body": [data['text']]
+    #         })
+    inline_elements = []
+    element = telebot.types.InlineQueryResultArticle(
+        0,
+        data['text'],
+        telebot.types.InputTextMessageContent(data['text']),
+    )
+    inline_elements.append(element)
+
+    bot.answer_inline_query(
+            inline_query_id,
+            inline_elements,
+            cache_time=0,
+            is_personal=True
+        )
+    return JSONResponse(content={"status": "ok"})
