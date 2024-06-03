@@ -19,20 +19,15 @@ from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_community.tools import DuckDuckGoSearchResults
 from langchain.tools import YouTubeSearchTool
 from langchain.utilities import GoogleSerperAPIWrapper
-# from langchain.tools import WikipediaQueryRun
-# from langchain_community.utilities import WikipediaAPIWrapper
 from langchain.tools import WikipediaQueryRun
 from langchain.utilities import WikipediaAPIWrapper
 from langchain_community.utilities.wolfram_alpha import WolframAlphaAPIWrapper
 from langchain.chains import RetrievalQA
-# from langchain.tools import Tool
-# from langchain.schema import TextOutput
 from langchain_experimental.utilities import PythonREPL
 import time as py_time
 from pathlib import Path
 import tiktoken
 from langchain.agents import AgentExecutor, create_tool_calling_agent, tool
-# import webbrowser as wb
 from langchain.prompts.chat import ChatPromptTemplate
 
 class TextOutput(BaseModel):
@@ -73,18 +68,7 @@ class ChatAgent:
             func=python_repl.run,
             # return_direct=False,
         )
-        # tools.append(repl_tool)
-        """tools = [self.create_structured_tool(func, name, description, return_direct)
-                 for func, name, description, return_direct in [
-                        (self.bot_instance.web_browser_tool, "Web browsing",
-                            "Provide a link to request", True)
-                      ]
-                 ]"""
         # embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
-        # web_browsing_tool = SimulatedWebBrowsingTool(llm, embeddings)
-        # tools.append(web_browsing_tool)
-        # tools.append(DuckDuckGoSearchRun())
-        # tools.append(DuckDuckGoSearchResults())
         google_search = GoogleSerperAPIWrapper()
         
         google_search_tool = Tool(
@@ -131,13 +115,6 @@ class ChatAgent:
                 func=RetrievalQA.from_chain_type(llm=llm, retriever=self.retriever),
             )
         )"""
-        # return initialize_agent(
-        #     tools,
-        #     llm,
-        #     agent='chat-conversational-react-description',
-        #     verbose=True,
-        #     handle_parsing_errors=True
-        # )
         prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", "You are telegram chat member"),
@@ -175,10 +152,6 @@ class Panthera:
         Path(self.data_dir).mkdir(parents=True, exist_ok=True)  # Ensure data directory exists
         self.chat_history = []
 
-    """def web_browser_tool(self, bot_action_type: BotActionType):
-        self.logger.info(f"web_browser_tool: {bot_action_type}")
-        result = wb.open(bot_action_type.val)
-        return TextOutput(text=f"Web browser opened: {result}")"""
 
     def get_message_type(self, user_session, text):
         if text == '/start':
@@ -419,12 +392,6 @@ class Panthera:
             first_name
             )
 
-        # self.logger.info(f'sending:\n{message_text}')
-        
-        # response = self.chat_agent.agent.run(
-        #     input=message_text, 
-        #     chat_history=self.chat_history
-        #     )
         response = self.chat_agent.agent_executor.invoke(
             {
                 "input": message_text,
@@ -432,8 +399,6 @@ class Panthera:
             }
         )["output"]
         
-        # self.logger.info(f'response:\n{response}')
-
         self.save_to_chat_history(
             message['chat']['id'],
             response,
