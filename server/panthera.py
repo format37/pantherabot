@@ -30,7 +30,9 @@ from langchain_experimental.utilities import PythonREPL
 import time as py_time
 from pathlib import Path
 import tiktoken
+from langchain.agents import AgentExecutor, create_tool_calling_agent, tool
 # import webbrowser as wb
+from langchain.prompts.chat import ChatPromptTemplate
 
 class TextOutput(BaseModel):
     text: str = Field(description="Text output")
@@ -47,8 +49,10 @@ class ChatAgent:
         self.config = bot_instance.config
         self.retriever = retriever
         self.bot_instance = bot_instance  # Passing the Bot instance to the ChatAgent
+        self.agent_executor = None
         # self.logger.info(f"ChatAgent function: {self.bot_instance.bot_action_come}")
-        self.agent = self.initialize_agent()
+        # self.agent = self.initialize_agent()
+        self.initialize_agent()
         
 
     def initialize_agent(self):
@@ -128,13 +132,23 @@ class ChatAgent:
                 func=RetrievalQA.from_chain_type(llm=llm, retriever=self.retriever),
             )
         )"""
-        return initialize_agent(
-            tools,
-            llm,
-            agent='chat-conversational-react-description',
-            verbose=True,
-            handle_parsing_errors=True
+        # return initialize_agent(
+        #     tools,
+        #     llm,
+        #     agent='chat-conversational-react-description',
+        #     verbose=True,
+        #     handle_parsing_errors=True
+        # )
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", "You are telegram chat member"),
+                ("placeholder", "{chat_history}"),
+                ("human", "{input}"),
+                ("placeholder", "{agent_scratchpad}"),
+            ]
         )
+        agent = create_tool_calling_agent(llm, tools, prompt)
+        self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
     @staticmethod
     def create_structured_tool(func, name, description, return_direct):
@@ -407,10 +421,16 @@ class Panthera:
 
         # self.logger.info(f'sending:\n{message_text}')
         
-        response = self.chat_agent.agent.run(
-            input=message_text, 
-            chat_history=self.chat_history
-            )
+        # response = self.chat_agent.agent.run(
+        #     input=message_text, 
+        #     chat_history=self.chat_history
+        #     )
+        response = self.chat_agent.agent_executor.invoke(
+            {
+                "input": message_text,
+                "chat_history": self.chat_history,
+            }
+        )
         
         # self.logger.info(f'response:\n{response}')
 
