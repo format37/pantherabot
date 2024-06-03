@@ -25,7 +25,7 @@ from langchain.tools import WikipediaQueryRun
 from langchain.utilities import WikipediaAPIWrapper
 from langchain_community.utilities.wolfram_alpha import WolframAlphaAPIWrapper
 from langchain.chains import RetrievalQA
-from langchain.tools import Tool
+# from langchain.tools import Tool
 # from langchain.schema import TextOutput
 from langchain_experimental.utilities import PythonREPL
 import time as py_time
@@ -87,15 +87,16 @@ class ChatAgent:
         # tools.append(DuckDuckGoSearchResults())
         google_search = GoogleSerperAPIWrapper()
         
-
-        youtube = YouTubeSearchTool()
         tools.append(
             Tool(
-                name="Youtube Search",
-                func=youtube.run,
-                description="Useful for when the user explicitly asks you to look on Youtube. Provide links if possible.",
+                name="Google Search",
+                func=google_search.run,
+                description="Useful to search in Google. Use by default. Provide links if possible.",
             )
         )
+        
+        youtube = YouTubeSearchTool()
+        
 
         wolfram = WolframAlphaAPIWrapper()
         tools.append(
@@ -121,9 +122,9 @@ class ChatAgent:
 
         tools.append(
             Tool(
-                name="Google Search",
-                func=google_search.run,
-                description="Useful to search in Google. Use by default. Provide links if possible.",
+                name="Youtube Search",
+                func=youtube.run,
+                description="Useful for when the user explicitly asks you to look on Youtube. Provide links if possible.",
             )
         )
 
