@@ -87,16 +87,19 @@ class ChatAgent:
         # tools.append(DuckDuckGoSearchResults())
         google_search = GoogleSerperAPIWrapper()
         
-        tools.append(
-            Tool(
-                name="Google Search",
-                func=google_search.run,
-                description="Useful to search in Google. Use by default. Provide links if possible.",
-            )
+        google_search_tool = Tool(
+            name="google_search",
+            func=google_search.run,
+            description="Useful to search in Google. Use by default. Provide links if possible.",
         )
         
         youtube = YouTubeSearchTool()
-        
+        youtube_tool = Tool(
+            name="youtube_search",
+            description="Useful for when the user explicitly asks you to look on Youtube. Provide links if possible.",
+            func=youtube.run,
+            return_direct=False,
+        )
 
         wolfram = WolframAlphaAPIWrapper()
         
@@ -129,13 +132,9 @@ class ChatAgent:
         #         description="Useful for when the user explicitly asks you to look on Youtube. Provide links if possible.",
         #     )
         # )
-        youtube_tool = Tool(
-            name="youtube_search",
-            description="Useful for when the user explicitly asks you to look on Youtube. Provide links if possible.",
-            func=youtube.run,
-            return_direct=False,
-        )
+        
         tools.append(youtube_tool)
+        tools.append(google_search_tool)
 
         """tools.append(
             Tool(
