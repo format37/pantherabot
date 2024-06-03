@@ -102,7 +102,11 @@ class ChatAgent:
         )
 
         wolfram = WolframAlphaAPIWrapper()
-        
+        wolfram_tool = Tool(
+                name="Wolfram Alpha",
+                func=wolfram.run,
+                description="Useful when need to calculate the math expression or solve any scientific task. Provide the solution details if possible.",
+            )
         
         # wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())        
         wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
@@ -116,23 +120,7 @@ class ChatAgent:
         # tools.append(wikipedia)
         tools = []
         tools.append(repl_tool)
-
-        # tools.append(
-        #     Tool(
-        #         name="Wolfram Alpha",
-        #         func=wolfram.run,
-        #         description="Useful when need to calculate the math expression or solve any scientific task. Provide the solution details if possible.",
-        #     )
-        # )
-
-        # tools.append(
-        #     Tool(
-        #         name="Youtube Search",
-        #         func=youtube.run,
-        #         description="Useful for when the user explicitly asks you to look on Youtube. Provide links if possible.",
-        #     )
-        # )
-        
+        tools.append(wolfram_tool)
         tools.append(youtube_tool)
         tools.append(google_search_tool)
 
