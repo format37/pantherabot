@@ -8,7 +8,8 @@ pyTelegramBotAPI==4.14.0
 docarray==0.40.0
 openai >= 0.27.7
 streamlit >= 1.24.0
-tiktoken==0.5.2
+# tiktoken==0.5.2
+tiktoken==0.7.0
 # pydantic==1.10.9
 # langchain-experimental==0.0.47
 duckduckgo-search==4.1.1
