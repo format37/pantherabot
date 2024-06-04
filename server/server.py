@@ -132,7 +132,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
     #     })
     
     message = await request.json()
-    # logger.info(message)
+    logger.info(message)
 
     if not user_access(message):
         if message['chat']['type'] == 'private':
