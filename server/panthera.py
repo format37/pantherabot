@@ -117,7 +117,7 @@ class ChatAgent:
         image_context_conversation_tool = Tool(
             name="image_context_conversation",
             description="Answering on your text request about provided images",
-            func=image_context_conversation,
+            func=self.image_context_conversation,
         )
 
         tools = []
