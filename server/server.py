@@ -149,7 +149,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
                 "body": ''
             })
 
-    if 'text' not in message:
+    if 'text' not in message and not 'caption' in message:
         return JSONResponse(content={
             "type": "empty",
             "body": ''
@@ -232,24 +232,28 @@ async def call_message(request: Request, authorization: str = Header(None)):
 
     # if message text is /reset
     # if chat type private
-    if message['text'] == '/reset' and message['chat']['type'] == 'private':
-        panthera.reset_chat(message['chat']['id'])
-        answer = 'Chat messages memory has been cleaned'
-        return JSONResponse(content={
-        "type": "text",
-        "body": str(answer)
-        })
-    # if chat type not private
-    elif message['text'].startswith('/reset@') and message['chat']['type'] != 'private':
-        panthera.reset_chat(message['chat']['id'])
-        answer = 'Chat messages memory has been cleaned'
-        return JSONResponse(content={
-        "type": "text",
-        "body": str(answer)
-        })
-    
+    if 'text' in message:
+        if message['text'] == '/reset' and message['chat']['type'] == 'private':
+            panthera.reset_chat(message['chat']['id'])
+            answer = 'Chat messages memory has been cleaned'
+            return JSONResponse(content={
+                "type": "text",
+                "body": str(answer)
+                })
+        # if chat type not private
+        elif message['text'].startswith('/reset@') and message['chat']['type'] != 'private':
+            panthera.reset_chat(message['chat']['id'])
+            answer = 'Chat messages memory has been cleaned'
+            return JSONResponse(content={
+                "type": "text",
+                "body": str(answer)
+                })
+        
     chat_id = message['chat']['id']
-    text = message['text']
+    if 'text' in message:
+        text = message['text']
+    else:
+        text = message['caption']
     if 'first_name' in message['chat']:
         first_name = message['from']['first_name']
     else:
@@ -272,17 +276,17 @@ async def call_message(request: Request, authorization: str = Header(None)):
     system_content = None
 
     # if message text is /start
-    if message['text'] == '/start':
-        answer = 'Welcome to the conversational gpt-4 bot.\nPlease, send me a regular message in private chat, or use /* prefix in a group chat to call me.'
+    if text == '/start':
+        answer = 'Welcome to the conversational gpt bot.\nPlease, send me a regular message in private chat, or use /* prefix in a group chat to call me.'
 
         # elif message['text'] == '/configure': # TODO: account the non-private chats
         # elif user_session['last_cmd'] != 'start':
     
         # elif message_type == 'button':
         
-        keyboard_dict = get_keyboard(user_session, message['text'])
+        keyboard_dict = get_keyboard(user_session, text)
 
-        if message['text'] != 'Back':
+        if text != 'Back':
             # Model
             if user_session['last_cmd'] == 'Model':
                 logger.info(f'Button last_cmd: Model. text is: {text}')
@@ -378,7 +382,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         logger.info(f'keyboard_dict: {keyboard_dict}')
 
         # Update user session
-        user_session['last_cmd'] = message['text']
+        user_session['last_cmd'] = text
         # Save user session
         panthera.save_user_session(message['from']['id'], user_session)
 
@@ -388,8 +392,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
             })
 
     elif message['chat']['type'] == 'private' \
-        or message['text'].startswith('/*') \
-        or message['text'].startswith('/.'):
+        or text.startswith('/*') \
+        or text.startswith('/.'):
         # Read the system_content from the topics by user_session['topic'] if it is set
         if 'topic' in user_session:
             with open ('data/topics.json') as f:
