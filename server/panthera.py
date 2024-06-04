@@ -391,7 +391,13 @@ class Panthera:
         # Read chat history
         self.read_chat_history(chat_id=chat_id)
 
-        message_text = message['text']
+        if 'test' in message:
+            message_text = message['text']
+        elif 'caption' in message:
+            message_text = message['caption']
+        else:
+            self.logger.error(f'No text or caption in message: {message}')
+            return 'No text or caption in message'
         
         if 'first_name' in message['chat']:
             first_name = message['from']['first_name']
@@ -404,7 +410,7 @@ class Panthera:
 
         self.save_to_chat_history(
             message['chat']['id'], 
-            message['text'], 
+            message_text, 
             message["message_id"],
             'HumanMessage',
             message["date"],
