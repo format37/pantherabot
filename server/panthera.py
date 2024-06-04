@@ -192,7 +192,7 @@ class ChatAgent:
                 # "max_tokens": 2000
             }
         )
-        self.logger.info(f"image_context_conversation response: {response}")
+        self.logger.info(f"image_context_conversation response text: {response.text}")
         # response_content = response.choices[0].message.content
         # return "На данных фото изображен кувшин и тарелка"
         return response
