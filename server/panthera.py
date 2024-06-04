@@ -194,6 +194,11 @@ class ChatAgent:
         )
         self.logger.info(f"image_context_conversation response text: {response.text}")
         # response_content = response.choices[0].message.content
+        # try:
+        response_text = response.text['choices'][0]['message']['content']
+        # except Exception as e:
+        #     self.logger.error(f"Error getting response text: {e}")
+        #     response_text = "Error getting response text"
         # return "На данных фото изображен кувшин и тарелка"
         return response
 
