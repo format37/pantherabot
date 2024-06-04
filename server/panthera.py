@@ -121,7 +121,7 @@ class ChatAgent:
         tools.append(youtube_tool)
         tools.append(google_search_tool)
         tools.append(wikipedia_tool)
-        tools.append(save_gps_tool)
+        tools.append(image_context_conversation_tool)
 
         """tools.append(
             Tool(
