@@ -38,7 +38,7 @@ class BotActionType(BaseModel):
     val: str = Field(description="Tool parameter value")
 
 class image_context_conversation_args(BaseModel):
-    request: str = Field(description="Text request in context of images")
+    text_request: str = Field(description="Text request in context of images")
     file_list: List[str] = Field(description="List of file_id")
 
 class ChatAgent:
@@ -117,6 +117,7 @@ class ChatAgent:
         image_context_conversation_tool = Tool(
             name="image_context_conversation",
             description="Answering on your text request about provided images",
+            args_schema=image_context_conversation_args,
             func=self.image_context_conversation,
         )
 
@@ -149,7 +150,7 @@ class ChatAgent:
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
     def image_context_conversation(self, request, file_list):
-        self.logger.info(f"image_context_conversation file_list: {file_list}")
+        self.logger.info(f"image_context_conversation request: {request}; file_list: {file_list}")
         return "На данных фото изображен кувшин и тарелка"
 
     @staticmethod
