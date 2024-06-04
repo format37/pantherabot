@@ -192,9 +192,10 @@ class ChatAgent:
                 # "max_tokens": 2000
             }
         )
-        response_content = response.choices[0].message.content
+        self.logger.info(f"image_context_conversation response: {response}")
+        # response_content = response.choices[0].message.content
         # return "На данных фото изображен кувшин и тарелка"
-        return response_content
+        return response
 
     @staticmethod
     def create_structured_tool(func, name, description, return_direct):
