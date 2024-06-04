@@ -155,14 +155,19 @@ async def call_message(request: Request, authorization: str = Header(None)):
             "body": ''
             })
     
+    if 'text' in message:
+        text = message['text']
+    else:
+        text = message['caption']
+    
     data_path = 'data/'
     # Read user_list from ./data/users.txt
     with open(data_path + 'users.txt', 'r') as f:
         user_list = f.read().splitlines()
 
     # Add user CMD
-    if message['text'].startswith('/add'):
-        logger.info(f'Add user CMD: {message["text"]}')
+    if text.startswith('/add'):
+        logger.info(f'Add user CMD: {text}')
         # Check is current user in atdmins.txt
         admins = []
         with open(data_path + 'admins.txt', 'r') as f:
@@ -174,7 +179,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
                 "body": str(answer)
                 })
         # split cmd from format /add <user_id>
-        cmd = message['text'].split(' ')
+        cmd = text.split(' ')
         if len(cmd) != 2:
             answer = "Invalid command format. Please use /add <user_id>."
             return JSONResponse(content={
@@ -194,8 +199,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
             })
 
     # Remove user CMD
-    elif message['text'].startswith('/remove'):
-        logger.info(f'Remove user CMD: {message["text"]}')
+    elif text.startswith('/remove'):
+        logger.info(f'Remove user CMD: {text}')
         # Check is current user in atdmins.txt
         admins = []
         with open(data_path + 'admins.txt', 'r') as f:
@@ -207,7 +212,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
                 "body": str(answer)
                 })
         # split cmd from format /remove <user_id>
-        cmd = message['text'].split(' ')
+        cmd = text.split(' ')
         if len(cmd) != 2:
             answer = "Invalid command format. Please use /remove <user_id>."
             return JSONResponse(content={
@@ -233,7 +238,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
     # if message text is /reset
     # if chat type private
     if 'text' in message:
-        if message['text'] == '/reset' and message['chat']['type'] == 'private':
+        if text == '/reset' and message['chat']['type'] == 'private':
             panthera.reset_chat(message['chat']['id'])
             answer = 'Chat messages memory has been cleaned'
             return JSONResponse(content={
@@ -241,7 +246,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
                 "body": str(answer)
                 })
         # if chat type not private
-        elif message['text'].startswith('/reset@') and message['chat']['type'] != 'private':
+        elif text.startswith('/reset@') and message['chat']['type'] != 'private':
             panthera.reset_chat(message['chat']['id'])
             answer = 'Chat messages memory has been cleaned'
             return JSONResponse(content={
@@ -250,10 +255,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
                 })
         
     chat_id = message['chat']['id']
-    if 'text' in message:
-        text = message['text']
-    else:
-        text = message['caption']
+    
     if 'first_name' in message['chat']:
         first_name = message['from']['first_name']
     else:
