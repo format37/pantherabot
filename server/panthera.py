@@ -450,7 +450,7 @@ class Panthera:
         # Read chat history
         self.read_chat_history(chat_id=chat_id)
 
-        if 'test' in message:
+        if 'text' in message:
             message_text = message['text']
         elif 'caption' in message:
             message_text = message['caption']
