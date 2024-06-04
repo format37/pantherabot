@@ -143,7 +143,7 @@ class ChatAgent:
         agent = create_tool_calling_agent(llm, tools, prompt)
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-    async def image_context_conversation(self, file_list):
+    def image_context_conversation(self, file_list):
         self.logger.info(f"image_context_conversation file_list: {file_list}")
         return "На данных фото изображен кувшин и тарелка"
 
