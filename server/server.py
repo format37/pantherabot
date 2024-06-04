@@ -401,7 +401,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
             with open ('data/topics.json') as f:
                 topics = json.load(f)
             system_content = topics[user_session['topic']]['system']
-        answer = panthera.llm_request(user_session, message, system_content=system_content)
+        answer = panthera.llm_request(bot, user_session, message, system_content=system_content)
         
         # Evaluation log: If [num] in the answer, extract the num and set the evaluation
         """match = re.search(r'\[(10|[0-9])\]', answer)

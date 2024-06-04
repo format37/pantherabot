@@ -31,6 +31,7 @@ import tiktoken
 from langchain.agents import AgentExecutor, create_tool_calling_agent, tool
 from langchain.prompts.chat import ChatPromptTemplate
 
+
 class TextOutput(BaseModel):
     text: str = Field(description="Text output")
 
@@ -384,7 +385,7 @@ class Panthera:
 
     # The original llm_request function now refactored with Langchain's conversational agent
     # def llm_request(chat_id: str, message_text: str, user_session) -> str:
-    def llm_request(self, user_session, message, system_content=None):
+    def llm_request(self, bot, user_session, message, system_content=None):
         chat_id = message['chat']['id']
         self.logger.info(f'llm_request: {chat_id}')
 
@@ -434,7 +435,9 @@ class Panthera:
                     # Document is a photo
                     file_id = document['file_id']
                     self.logger.info("mrmsupport_bot. file_id: "+str(file_id))
-            message_text = 'images:[' + file_id + ']\n' + message_text
+            file_info = bot.get_file(file_id)
+            self.logger.info(f'file_path: {file_info.file_path}')
+            message_text = 'files:[' + file_info.file_path + ']\n' + message_text
             # self.logger.info(f'photo: {message["photo"]}')
             # self.save_to_chat_history(
             #     message['chat']['id'], 
