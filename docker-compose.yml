@@ -8,6 +8,9 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - ./data:/server/data
       - ./config.json:/server/config.json
+      - type: bind
+        source: /TELEGRAM_BOT_TOKEN
+        target: /TELEGRAM_BOT_TOKEN
     build: server
     logging:
       options:
