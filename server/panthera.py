@@ -106,13 +106,18 @@ class ChatAgent:
             )
         # tools.append(wikipedia)
 
-        # Tool: save_gps_tool
-        image_context_conversation_tool = StructuredTool.from_function(
-            coroutine=self.image_context_conversation,
+        # Tool: image_context_conversation_tool
+        # image_context_conversation_tool = StructuredTool.from_function(
+        #     coroutine=self.image_context_conversation,
+        #     name="image_context_conversation",
+        #     description="Answering on your text request about provided images",
+        #     args_schema=image_context_conversation_args,
+        #     return_direct=False,
+        # )
+        image_context_conversation_tool = Tool(
             name="image_context_conversation",
             description="Answering on your text request about provided images",
-            args_schema=image_context_conversation_args,
-            return_direct=False,
+            func=image_context_conversation,
         )
 
         tools = []
@@ -143,7 +148,7 @@ class ChatAgent:
         agent = create_tool_calling_agent(llm, tools, prompt)
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-    def image_context_conversation(self, file_list):
+    def image_context_conversation(self, request, file_list):
         self.logger.info(f"image_context_conversation file_list: {file_list}")
         return "На данных фото изображен кувшин и тарелка"
 
