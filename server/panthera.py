@@ -202,6 +202,8 @@ class Panthera:
     def reset_chat(self, chat_id):
         self.logger.info(f'reset_chat: {chat_id}')
         chat_path = f'./data/chats/{chat_id}'
+        # Create folder if not exist
+        Path(chat_path).mkdir(parents=True, exist_ok=True)
         # Remove all files in chat path
         for f in os.listdir(chat_path):
             self.logger.info(f'remove file: {f}')
