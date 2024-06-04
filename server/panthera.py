@@ -97,29 +97,14 @@ class ChatAgent:
                 description="Useful when need to calculate the math expression or solve any scientific task. Provide the solution details if possible.",
             )
         
-        # wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())        
         wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
         wikipedia_tool = Tool(
                 name="wikipedia_search",
                 func=wikipedia.run,
                 description="Useful when users request biographies or historical moments. Provide links if possible.",
             )
-        # tools.append(wikipedia)
 
-        # Tool: image_context_conversation_tool
-        # image_context_conversation_tool = StructuredTool.from_function(
-        #     coroutine=self.image_context_conversation,
-        #     name="image_context_conversation",
-        #     description="Answering on your text request about provided images",
-        #     args_schema=image_context_conversation_args,
-        #     return_direct=False,
-        # )
-        # image_context_conversation_tool = Tool(
-        #     name="image_context_conversation",
-        #     description="Answering on your text request about provided images",
-        #     args_schema=image_context_conversation_args,
-        #     func=self.image_context_conversation,
-        # )
+        # coroutine=self.image_context_conversation, # may be used instead of func
         image_context_conversation_tool = StructuredTool.from_function(
             func=self.image_context_conversation,
             name="image_context_conversation",
@@ -155,9 +140,6 @@ class ChatAgent:
         agent = create_tool_calling_agent(llm, tools, prompt)
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-    # def image_context_conversation(self, request, file_list):
-    #     self.logger.info(f"image_context_conversation request: {request}; file_list: {file_list}")
-    #     return "На данных фото изображен кувшин и тарелка"
     def image_context_conversation(self, text_request: str, file_list: List[str]):
         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
         return "На данных фото изображен кувшин и тарелка"
@@ -428,6 +410,33 @@ class Panthera:
             message["date"],
             first_name
             )
+        
+        # If message contains an attached images
+        if 'photo' in message or 'document' in message:
+            if 'photo' in message:
+                photo = message['photo']
+                self.logger.info(f"photo in message: {len(photo)}")
+                if len(photo) > 0:
+                    # Photo is a photo
+                    file_id = photo[-1]['file_id']
+                    self.logger.info("mrmsupport_bot. file_id: "+str(file_id))
+
+            elif 'document' in message:
+                self.logger.info("document in message")
+                document = message['document']
+                if document['mime_type'].startswith('image/'):
+                    # Document is a photo
+                    file_id = document['file_id']
+                    self.logger.info("mrmsupport_bot. file_id: "+str(file_id))
+            message_text = 'images:[' + file_id + ']\n' + message_text
+            # self.logger.info(f'photo: {message["photo"]}')
+            # self.save_to_chat_history(
+            #     message['chat']['id'], 
+            #     'photo', 
+            #     message["message_id"],
+            #     'HumanMessage'
+            #     )
+            # return 'photo'
 
         response = self.chat_agent.agent_executor.invoke(
             {
