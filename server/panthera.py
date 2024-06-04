@@ -30,6 +30,7 @@ from pathlib import Path
 import tiktoken
 from langchain.agents import AgentExecutor, create_tool_calling_agent, tool
 from langchain.prompts.chat import ChatPromptTemplate
+import base64
 
 
 class TextOutput(BaseModel):
@@ -41,6 +42,26 @@ class BotActionType(BaseModel):
 class image_context_conversation_args(BaseModel):
     text_request: str = Field(description="Text request in context of images")
     file_list: List[str] = Field(description="List of file_id")
+
+def append_message(messages, role, text, image_url):
+    messages.append(
+        {
+            "role": role,
+            "content": [
+                {"type": "text", "text": text},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": image_url
+                    }
+                },
+            ],
+        }
+    )
+
+def encode_image(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
 
 class ChatAgent:
     def __init__(self, retriever, bot_instance):
@@ -143,7 +164,37 @@ class ChatAgent:
 
     def image_context_conversation(self, text_request: str, file_list: List[str]):
         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
-        return "На данных фото изображен кувшин и тарелка"
+        file_path = file_list[0]
+        messages = []
+        base64_image = encode_image(file_path)
+        image_url = f"data:image/jpeg;base64,{base64_image}"    
+        append_message(
+            messages, 
+            "user",
+            text_request,
+            image_url
+        )
+        api_key = os.environ.get('OPENAI_API_KEY', '')
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+
+        # model = "gpt-4o-2024-05-13"
+        model = "gpt-4o"
+
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json={
+                "model": model,
+                "messages": messages,
+                # "max_tokens": 2000
+            }
+        )
+        response_content = response.choices[0].message.content
+        # return "На данных фото изображен кувшин и тарелка"
+        return response_content
 
     @staticmethod
     def create_structured_tool(func, name, description, return_direct):
