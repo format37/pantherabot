@@ -436,8 +436,9 @@ class Panthera:
                     file_id = document['file_id']
                     self.logger.info("mrmsupport_bot. file_id: "+str(file_id))
             file_info = bot.get_file(file_id)
-            self.logger.info(f'file_path: {file_info.file_path}')
-            message_text = 'files:[' + file_info.file_path + ']\n' + message_text
+            file_path = file_info.file_path
+            self.logger.info(f'file_path: {file_path}')
+            message_text = 'files:[' + file_path + ']\n' + message_text
             # self.logger.info(f'photo: {message["photo"]}')
             # self.save_to_chat_history(
             #     message['chat']['id'], 

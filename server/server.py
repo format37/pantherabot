@@ -18,6 +18,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+server_api_uri = 'http://localhost:8081/bot{0}/{1}'
+telebot.apihelper.API_URL = server_api_uri
+logger.info(f'Setting API_URL: {server_api_uri}')
+
+server_file_url = 'http://localhost:8081'
+telebot.apihelper.FILE_URL = server_file_url
+logger.info(f'Setting FILE_URL: {server_file_url}')
+
 with open('config.json') as config_file:
     bot = telebot.TeleBot(json.load(config_file)['TOKEN'])
 
