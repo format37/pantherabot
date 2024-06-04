@@ -7,6 +7,7 @@ import glob
 import json
 import logging
 from pydantic import BaseModel, Field
+from typing import List
 from langchain.agents import Tool, initialize_agent
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.document_loaders import TextLoader, DirectoryLoader
@@ -35,6 +36,10 @@ class TextOutput(BaseModel):
 
 class BotActionType(BaseModel):
     val: str = Field(description="Tool parameter value")
+
+class image_context_conversation_args(BaseModel):
+    request: str = Field(description="Text request in context of images")
+    file_list: List[str] = Field(description="List of file_id")
 
 class ChatAgent:
     def __init__(self, retriever, bot_instance):
@@ -100,12 +105,23 @@ class ChatAgent:
                 description="Useful when users request biographies or historical moments. Provide links if possible.",
             )
         # tools.append(wikipedia)
+
+        # Tool: save_gps_tool
+        image_context_conversation_tool = StructuredTool.from_function(
+            coroutine=self.image_context_conversation,
+            name="image_context_conversation",
+            description="Answering on your text request about provided images",
+            args_schema=image_context_conversation_args,
+            return_direct=False,
+        )
+
         tools = []
         tools.append(repl_tool)
         tools.append(wolfram_tool)
         tools.append(youtube_tool)
         tools.append(google_search_tool)
         tools.append(wikipedia_tool)
+        tools.append(save_gps_tool)
 
         """tools.append(
             Tool(
@@ -126,6 +142,10 @@ class ChatAgent:
         
         agent = create_tool_calling_agent(llm, tools, prompt)
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+
+    async def image_context_conversation(self, file_list):
+        self.logger.info(f"image_context_conversation file_list: {file_list}")
+        return "На данных фото изображен кувшин и тарелка"
 
     @staticmethod
     def create_structured_tool(func, name, description, return_direct):
