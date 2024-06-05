@@ -157,7 +157,10 @@ async def call_message(request: Request, authorization: str = Header(None)):
                 "body": ''
             })
 
-    if 'text' not in message and not 'caption' in message:
+    if  not 'text'      in message and \
+        not 'caption'   in message and \
+        not 'photo'     in message and \
+        not 'document'  in message:
         return JSONResponse(content={
             "type": "empty",
             "body": ''
@@ -165,8 +168,10 @@ async def call_message(request: Request, authorization: str = Header(None)):
     
     if 'text' in message:
         text = message['text']
-    else:
+    elif 'caption' in message:
         text = message['caption']
+    else:
+        text = ''
     
     data_path = 'data/'
     # Read user_list from ./data/users.txt
@@ -269,12 +274,12 @@ async def call_message(request: Request, authorization: str = Header(None)):
     else:
         first_name = message['from']['username']
     # panthera.log_message(message)
-    panthera.save_to_chat_history(
-        chat_id,
-        f"{first_name}: {text}",
-        message["message_id"],
-        "HumanMessage"
-    )
+    # panthera.save_to_chat_history(
+    #     chat_id,
+    #     f"{first_name}: {text}",
+    #     message["message_id"],
+    #     "HumanMessage"
+    # )
     # 
 
     user_session = panthera.get_user_session(message['from']['id'])
