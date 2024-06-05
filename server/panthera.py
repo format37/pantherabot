@@ -502,7 +502,8 @@ class Panthera:
                     message["date"],
                     first_name
                 )
-            return 'No text or caption in message'
+            # return 'No text or caption in message'
+            return ''
         
         
 
