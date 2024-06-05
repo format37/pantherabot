@@ -518,7 +518,7 @@ class Panthera:
             #     'HumanMessage'
             #     )
             # return 'photo'
-
+        self.logger.info(f'invoking message_text: {message_text}')
         response = self.chat_agent.agent_executor.invoke(
             {
                 "input": message_text,
