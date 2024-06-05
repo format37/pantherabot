@@ -401,6 +401,7 @@ class Panthera:
             message_date = None,
             name_of_user = 'AI'
             ):
+        self.logger.info(f'save_to_chat_history: {chat_id} message_text: {message_text}')
         # chat_id = message['chat']['id']
         # message_text = message['text']
         # Prepare a folder
@@ -499,6 +500,9 @@ class Panthera:
         else:
             first_name = 'Unknown'
 
+        # If message contains an attached images
+        self.append_file_prefix(message_text, message)
+
         self.save_to_chat_history(
             message['chat']['id'], 
             message_text, 
@@ -508,8 +512,7 @@ class Panthera:
             first_name
             )
         
-        # If message contains an attached images
-        self.append_file_prefix(message_text, message)
+        
             # self.logger.info(f'photo: {message["photo"]}')
             # self.save_to_chat_history(
             #     message['chat']['id'], 
