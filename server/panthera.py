@@ -422,7 +422,7 @@ class Panthera:
                 "text": f"{message_text}"
                 }, log_file)
             
-    def append_file_prefix(self, message_text, message):
+    def append_file_prefix(self, bot, message_text, message):
         if 'photo' in message or 'document' in message:
             if 'photo' in message:
                 photo = message['photo']
@@ -481,7 +481,7 @@ class Panthera:
             message_text = ''
             self.logger.error(f'No text or caption in message: {message}')
             if 'photo' in message or 'document' in message:
-                self.append_file_prefix(message_text, message)
+                self.append_file_prefix(bot, message_text, message)
                 self.save_to_chat_history(
                     message['chat']['id'], 
                     message_text, 
@@ -502,7 +502,7 @@ class Panthera:
             first_name = 'Unknown'
 
         # If message contains an attached images
-        self.append_file_prefix(message_text, message)
+        self.append_file_prefix(bot, message_text, message)
 
         self.save_to_chat_history(
             message['chat']['id'], 
