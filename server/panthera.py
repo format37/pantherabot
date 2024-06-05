@@ -430,7 +430,7 @@ class Panthera:
                 if len(photo) > 0:
                     # Photo is a photo
                     file_id = photo[-1]['file_id']
-                    self.logger.info("mrmsupport_bot. file_id: "+str(file_id))
+                    self.logger.info("file_id: "+str(file_id))
 
             elif 'document' in message:
                 self.logger.info("document in message")
@@ -438,11 +438,12 @@ class Panthera:
                 if document['mime_type'].startswith('image/'):
                     # Document is a photo
                     file_id = document['file_id']
-                    self.logger.info("mrmsupport_bot. file_id: "+str(file_id))
+                    self.logger.info("file_id: "+str(file_id))
             file_info = bot.get_file(file_id)
             file_path = file_info.file_path
             self.logger.info(f'file_path: {file_path}')
             message_text = 'files:[' + file_path + ']\n' + message_text
+        return message_text
 
     def read_chat_history(self, chat_id: str):
         '''Reads the chat history from a folder.'''
@@ -492,7 +493,7 @@ class Panthera:
             message_text = ''
             self.logger.error(f'No text or caption in message: {message}')
             if 'photo' in message or 'document' in message:
-                self.append_file_prefix(bot, message_text, message)
+                message_text = self.append_file_prefix(bot, message_text, message)
                 self.save_to_chat_history(
                     message['chat']['id'], 
                     message_text, 
@@ -506,7 +507,7 @@ class Panthera:
         
 
         # If message contains an attached images
-        self.append_file_prefix(bot, message_text, message)
+        message_text = self.append_file_prefix(bot, message_text, message)
 
         self.save_to_chat_history(
             message['chat']['id'], 

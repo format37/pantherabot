@@ -269,10 +269,10 @@ async def call_message(request: Request, authorization: str = Header(None)):
         
     chat_id = message['chat']['id']
     
-    if 'first_name' in message['chat']:
-        first_name = message['from']['first_name']
-    else:
-        first_name = message['from']['username']
+    # if 'first_name' in message['chat']:
+    #     first_name = message['from']['first_name']
+    # else:
+    #     first_name = message['from']['username']
     # panthera.log_message(message)
     # panthera.save_to_chat_history(
     #     chat_id,
