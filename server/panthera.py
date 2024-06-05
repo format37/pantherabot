@@ -164,16 +164,18 @@ class ChatAgent:
 
     def image_context_conversation(self, text_request: str, file_list: List[str]):
         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
-        file_path = file_list[0]
         messages = []
-        base64_image = encode_image(file_path)
-        image_url = f"data:image/jpeg;base64,{base64_image}"    
-        append_message(
-            messages, 
-            "user",
-            text_request,
-            image_url
-        )
+        for file_path in file_list:
+            self.logger.info(f"file_path: {file_path}")
+            # file_path = file_list[0]
+            base64_image = encode_image(file_path)
+            image_url = f"data:image/jpeg;base64,{base64_image}"    
+            append_message(
+                messages, 
+                "user",
+                text_request,
+                image_url
+            )
         api_key = os.environ.get('OPENAI_API_KEY', '')
         headers = {
             "Content-Type": "application/json",
