@@ -293,7 +293,13 @@ async def call_message(request: Request, authorization: str = Header(None)):
     # if message text is /start
     if text == '/start':
         answer = 'Welcome to the conversational gpt bot.\nPlease, send me a regular message in private chat, or use /* prefix in a group chat to call me.'
-
+        bot.send_message(chat_id, answer)
+        # return empty
+        return JSONResponse(content={
+            "type": "empty",
+            "body": ''
+            })
+        
         # elif message['text'] == '/configure': # TODO: account the non-private chats
         # elif user_session['last_cmd'] != 'start':
     
@@ -401,9 +407,15 @@ async def call_message(request: Request, authorization: str = Header(None)):
         # Save user session
         panthera.save_user_session(message['from']['id'], user_session)
 
+        # return JSONResponse(content={
+        #     "type": "keyboard",
+        #     "body": keyboard_dict
+        #     })
+        
+        # return empty
         return JSONResponse(content={
-            "type": "keyboard",
-            "body": keyboard_dict
+            "type": "empty",
+            "body": ''
             })
 
     elif message['chat']['type'] == 'private' \
