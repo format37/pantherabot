@@ -478,6 +478,7 @@ class Panthera:
         elif 'caption' in message:
             message_text = message['caption']
         else:
+            message_text = ''
             self.logger.error(f'No text or caption in message: {message}')
             if 'photo' in message or 'document' in message:
                 self.append_file_prefix(message_text, message)
