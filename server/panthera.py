@@ -473,6 +473,17 @@ class Panthera:
         # Read chat history
         self.read_chat_history(chat_id=chat_id)
 
+        # Define the first name of the user
+        if 'first_name' in message['chat']:
+            first_name = message['from']['first_name']
+        elif 'username' in message['from']:
+            first_name = message['from']['username']
+        elif 'id' in message['from']:
+            first_name = message['from']['id']
+        else:
+            first_name = 'Unknown'
+
+        # Check if the message contains text or caption
         if 'text' in message:
             message_text = message['text']
         elif 'caption' in message:
@@ -492,14 +503,7 @@ class Panthera:
                 )
             return 'No text or caption in message'
         
-        if 'first_name' in message['chat']:
-            first_name = message['from']['first_name']
-        elif 'username' in message['from']:
-            first_name = message['from']['username']
-        elif 'id' in message['from']:
-            first_name = message['from']['id']
-        else:
-            first_name = 'Unknown'
+        
 
         # If message contains an attached images
         self.append_file_prefix(bot, message_text, message)
