@@ -441,9 +441,10 @@ async def call_message(request: Request, authorization: str = Header(None)):
 
         # Send
         try:
-            bot.send_message(chat_id, answer, parse_mode="HTML")
+            # bot.send_message(chat_id, answer, parse_mode="HTML")
+            bot.send_message(chat_id, answer, parse_mode="MarkdownV2")
         except Exception as e:
-            logger.info(f'Error: {e}')
+            logger.info(f'### UNABLE TO PARSE MarkdownV2: {e}')
             bot.send_message(chat_id, answer)
         
         # Evaluation log: If [num] in the answer, extract the num and set the evaluation
