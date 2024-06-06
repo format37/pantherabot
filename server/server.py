@@ -37,6 +37,26 @@ async def call_test():
     logger.info('call_test')
     return JSONResponse(content={"status": "ok"})
 
+def remove_unsupported_tags(text, supported_tags):
+    # Convert the supported tags string to a set for faster lookup
+    supported_tags_set = set(supported_tags.split('>'))
+    
+    # Regular expression pattern to match HTML tags
+    tag_pattern = re.compile(r'<(/?\w+)(.*?)>')
+    
+    # Function to replace unsupported tags
+    def replace_tag(match):
+        tag_name = match.group(1)
+        if '<' + tag_name + '>' in supported_tags_set:
+            return match.group(0)  # Keep the tag if it's supported
+        else:
+            return ''  # Remove the tag if it's not supported
+    
+    # Replace unsupported tags using the replace_tag function
+    cleaned_text = tag_pattern.sub(replace_tag, text)
+    
+    return cleaned_text
+
 def escape_markdown(text):
     escape_chars = r'_*[]()~`>#+-=|{}.!'
     return re.sub(r'([{}])'.format(re.escape(escape_chars)), r'\\\1', text)
@@ -474,10 +494,13 @@ async def call_message(request: Request, authorization: str = Header(None)):
         
         # answer = escape_markdown(answer)
         # answer = prepare_markdown(answer)
+        
 
         # Send
         try:
-            bot.send_message(chat_id, answer, parse_mode="HTML")
+            supported_html_tags = '<b><strong><i><em><u><ins><s><strike><del><span class="tg-spoiler"><tg-spoiler><b><a href="http://www.example.com/"><code><pre><code class="language-python">'
+            html_answer = remove_unsupported_tags(answer, supported_html_tags)
+            bot.send_message(chat_id, html_answer, parse_mode="HTML")
             # bot.send_message(chat_id, answer, parse_mode="MarkdownV2")
         except Exception as e:
             logger.info(f'### UNABLE TO PARSE HTML: {e}')

@@ -43,7 +43,6 @@ class image_context_conversation_args(BaseModel):
     text_request: str = Field(description="Text request in context of images")
     file_list: List[str] = Field(description="List of file_id")
 
-supported_html_tags = '<b><strong><i><em><u><ins><s><strike><del><span class="tg-spoiler"><tg-spoiler><b><a href="http://www.example.com/"><code><pre><code class="language-python">'
 markdown_sample = """*bold \*text*
 _italic \*text_
 __underline__
@@ -98,6 +97,7 @@ Please note:
     A valid emoji must be used as the content of the tg-emoji tag. The emoji will be shown instead of the custom emoji in places where a custom emoji cannot be displayed (e.g., system notifications) or if the message is forwarded by a non-premium user. It is recommended to use the emoji from the emoji field of the custom emoji sticker.
     Custom emoji entities can only be used by bots that purchased additional usernames on Fragment.
 """
+supported_html_tags = '<b><strong><i><em><u><ins><s><strike><del><span class="tg-spoiler"><tg-spoiler><b><a href="http://www.example.com/"><code><pre><code class="language-python">'
 
 def append_message(messages, role, text, image_url):
     messages.append(
