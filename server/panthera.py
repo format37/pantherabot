@@ -149,7 +149,7 @@ class ChatAgent:
             name="python_repl",
             description="A Python shell. Use this to execute python commands. Input should be a valid python command. If you want to see the output of a value, you should print it out with `print(...)`.",
             func=python_repl.run,
-            return_direct=True,
+            # return_direct=False,
         )
         # embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
         google_search = GoogleSerperAPIWrapper()
@@ -210,7 +210,7 @@ class ChatAgent:
         prompt = ChatPromptTemplate.from_messages(
             [
                 # ("system", f"You are telegram chat member. Your may represent your answer in HTML format following this instruction:\n{html_instruction}."),
-                ("system", "You are telegram chat member. Don't use LaTeX and other markdowns. There is only text with subscript and superscript is supported."),
+                ("system", "You are telegram chat member."),
                 ("placeholder", "{chat_history}"),
                 ("human", "{input}"),
                 ("placeholder", "{agent_scratchpad}"),
