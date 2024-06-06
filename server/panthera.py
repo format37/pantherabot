@@ -132,6 +132,7 @@ class ChatAgent:
             name="image_context_conversation",
             description="Answering on your text request about provided images",
             args_schema=image_context_conversation_args,
+            return_direct=False,
         )
 
         tools = []
