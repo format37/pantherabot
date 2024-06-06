@@ -153,7 +153,7 @@ class ChatAgent:
         )"""
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", "You are telegram chat member."),
+                ("system", "You are telegram chat member. Your may represent your answer in basic HTML format (without headers like doctype)."),
                 ("placeholder", "{chat_history}"),
                 ("human", "{input}"),
                 ("placeholder", "{agent_scratchpad}"),

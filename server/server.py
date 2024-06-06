@@ -440,7 +440,11 @@ async def call_message(request: Request, authorization: str = Header(None)):
         # answer = escape_markdown(answer)
 
         # Send
-        bot.send_message(chat_id, answer, parse_mode="HTML")
+        try:
+            bot.send_message(chat_id, answer, parse_mode="HTML")
+        except Exception as e:
+            logger.info(f'Error: {e}')
+            bot.send_message(chat_id, answer)
         
         # Evaluation log: If [num] in the answer, extract the num and set the evaluation
         """match = re.search(r'\[(10|[0-9])\]', answer)
