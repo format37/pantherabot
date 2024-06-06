@@ -494,14 +494,13 @@ async def call_message(request: Request, authorization: str = Header(None)):
         
         # answer = escape_markdown(answer)
         # answer = prepare_markdown(answer)
-        
-
         # Send
         try:
             supported_html_tags = '<b><strong><i><em><u><ins><s><strike><del><span class="tg-spoiler"><tg-spoiler><b><a href="http://www.example.com/"><code><pre><code class="language-python">'
             html_answer = remove_unsupported_tags(answer, supported_html_tags)
             bot.send_message(chat_id, html_answer, parse_mode="HTML")
             # bot.send_message(chat_id, answer, parse_mode="MarkdownV2")
+            logger.info(f'### sent HTML: {html_answer}')
         except Exception as e:
             logger.info(f'### UNABLE TO PARSE HTML: {e}')
             bot.send_message(chat_id, answer)
