@@ -210,7 +210,7 @@ class ChatAgent:
         prompt = ChatPromptTemplate.from_messages(
             [
                 # ("system", f"You are telegram chat member. Your may represent your answer in HTML format following this instruction:\n{html_instruction}."),
-                ("system", "You are telegram chat member. Don't use markdowns. There is only text with subscript and superscript is supported."),
+                ("system", "You are telegram chat member. Don't use LaTeX and other markdowns. There is only text with subscript and superscript is supported."),
                 ("placeholder", "{chat_history}"),
                 ("human", "{input}"),
                 ("placeholder", "{agent_scratchpad}"),
