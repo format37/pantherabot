@@ -434,6 +434,9 @@ async def call_message(request: Request, authorization: str = Header(None)):
             "body": ''
             })
         
+        # Send
+        bot.send_message(chat_id, answer, parse_mode="Markdown V2")
+        
         # Evaluation log: If [num] in the answer, extract the num and set the evaluation
         """match = re.search(r'\[(10|[0-9])\]', answer)
         if match:
@@ -445,16 +448,16 @@ async def call_message(request: Request, authorization: str = Header(None)):
             )
             # Save user session
             panthera.save_user_session(message['from']['id'], user_session)"""
-    else:
-        return JSONResponse(content={
-            "type": "empty",
-            "body": ''
-            })
-
+    # else:
     return JSONResponse(content={
-        "type": "text",
-        "body": str(answer)
+        "type": "empty",
+        "body": ''
         })
+
+    # return JSONResponse(content={
+    #     "type": "text",
+    #     "body": str(answer)
+    #     })
   
 # Post inline query
 @app.post("/inline")
