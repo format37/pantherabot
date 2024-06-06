@@ -41,6 +41,41 @@ def escape_markdown(text):
     escape_chars = r'_*[]()~`>#+-=|{}.!'
     return re.sub(r'([{}])'.format(re.escape(escape_chars)), r'\\\1', text)
 
+def prepare_markdown(text):
+    # Characters to be escaped
+    escape_chars = '_*[]()~`>#+-=|{}.!'
+
+    # Escape function
+    def escape(char):
+        return '\\' + char
+
+    # Escape the characters in the text
+    for char in escape_chars:
+        text = text.replace(char, escape(char))
+
+    # Handle special cases
+
+    # Escape '\' character
+    text = text.replace('\\', '\\\\')
+
+    # Escape '`' and '\' characters inside pre and code entities
+    text = text.replace('```', '\\`\\`\\`')
+    text = text.replace('`', '\\`')
+
+    # Escape ')' and '\' characters inside the (...) part of the inline link and custom emoji definition
+    def escape_link_emoji(match):
+        content = match.group(1)
+        content = content.replace(')', '\\)')
+        content = content.replace('\\', '\\\\')
+        return f'({content})'
+
+    text = re.sub(r'\(([^)]*)\)', escape_link_emoji, text)
+
+    # Handle ambiguity between italic and underline entities
+    text = text.replace('___', '___*')
+
+    return text
+
 def keyboard_modificator(current_screen, user_session, menu, message):
     # Format message with current values if needed
     """if '%s' in message:  
@@ -438,6 +473,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
             })
         
         # answer = escape_markdown(answer)
+        answer = prepare_markdown(answer)
 
         # Send
         try:
