@@ -151,9 +151,10 @@ class ChatAgent:
                 func=RetrievalQA.from_chain_type(llm=llm, retriever=self.retriever),
             )
         )"""
+        supported_tags = '<b><strong><i><em><u><ins><s><strike><del><span class="tg-spoiler"><tg-spoiler><b><a href="http://www.example.com/"><code><pre><code class="language-python">'
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", "You are telegram chat member. Your may represent your answer in basic HTML format (without headers like doctype)."),
+                ("system", f"You are telegram chat member. Your may represent your answer in HTML format from list of supported tags {supported_tags}."),
                 ("placeholder", "{chat_history}"),
                 ("human", "{input}"),
                 ("placeholder", "{agent_scratchpad}"),
@@ -164,7 +165,7 @@ class ChatAgent:
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
     def image_context_conversation(self, text_request: str, file_list: List[str]):
-        postfix = ". Your answer should be represented in basic HTML format (without headers like doctype)."
+        postfix = ". Your may represent your answer in HTML format from list of supported tags {supported_tags}."
         text_request = text_request + postfix
         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
         messages = []
