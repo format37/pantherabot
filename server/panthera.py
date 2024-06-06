@@ -182,7 +182,7 @@ class ChatAgent:
         )"""
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", f"You are telegram chat member. Your may represent your answer in HTML format from list of supported tags {supported_html_tags}."),
+                ("system", f"You are telegram chat member. Your may represent your answer in MarkdownV2 format following this examples:\n{markdown_sample}."),
                 ("placeholder", "{chat_history}"),
                 ("human", "{input}"),
                 ("placeholder", "{agent_scratchpad}"),
@@ -193,7 +193,7 @@ class ChatAgent:
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
     def image_context_conversation(self, text_request: str, file_list: List[str]):
-        postfix = f". Your should represent your answer only in HTML format from list of supported tags {supported_html_tags}."
+        postfix = f". Your should represent your answer only in MarkdownV2 format following this examples:\n{markdown_sample}."
         text_request = text_request + postfix
         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
         messages = []
