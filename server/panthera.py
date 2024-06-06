@@ -43,6 +43,8 @@ class image_context_conversation_args(BaseModel):
     text_request: str = Field(description="Text request in context of images")
     file_list: List[str] = Field(description="List of file_id")
 
+supported_html_tags = '<b><strong><i><em><u><ins><s><strike><del><span class="tg-spoiler"><tg-spoiler><b><a href="http://www.example.com/"><code><pre><code class="language-python">'
+
 def append_message(messages, role, text, image_url):
     messages.append(
         {
@@ -151,10 +153,9 @@ class ChatAgent:
                 func=RetrievalQA.from_chain_type(llm=llm, retriever=self.retriever),
             )
         )"""
-        supported_tags = '<b><strong><i><em><u><ins><s><strike><del><span class="tg-spoiler"><tg-spoiler><b><a href="http://www.example.com/"><code><pre><code class="language-python">'
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", f"You are telegram chat member. Your may represent your answer in HTML format from list of supported tags {supported_tags}."),
+                ("system", f"You are telegram chat member. Your may represent your answer in HTML format from list of supported tags {supported_html_tags}."),
                 ("placeholder", "{chat_history}"),
                 ("human", "{input}"),
                 ("placeholder", "{agent_scratchpad}"),
@@ -165,7 +166,7 @@ class ChatAgent:
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
     def image_context_conversation(self, text_request: str, file_list: List[str]):
-        postfix = ". Your may represent your answer in HTML format from list of supported tags {supported_tags}."
+        postfix = f". Your should represent your answer only in HTML format from list of supported tags {supported_html_tags}."
         text_request = text_request + postfix
         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
         messages = []
