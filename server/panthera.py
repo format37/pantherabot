@@ -164,6 +164,8 @@ class ChatAgent:
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
     def image_context_conversation(self, text_request: str, file_list: List[str]):
+        postfix = ". Your answer should be represented in HTML format."
+        text_request = text_request + postfix
         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
         messages = []
         for file_path in file_list:
