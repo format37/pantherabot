@@ -149,7 +149,7 @@ class ChatAgent:
             name="python_repl",
             description="A Python shell. Use this to execute python commands. Input should be a valid python command. If you want to see the output of a value, you should print it out with `print(...)`.",
             func=python_repl.run,
-            # return_direct=False,
+            return_direct=True,
         )
         # embeddings = OpenAIEmbeddings(openai_api_key=os.environ.get('OPENAI_API_KEY', ''))
         google_search = GoogleSerperAPIWrapper()
@@ -188,7 +188,7 @@ class ChatAgent:
             name="image_context_conversation",
             description="Answering on your text request about provided images",
             args_schema=image_context_conversation_args,
-            return_direct=True,
+            # return_direct=False,
         )
 
         tools = []
