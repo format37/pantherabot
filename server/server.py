@@ -37,6 +37,9 @@ async def call_test():
     logger.info('call_test')
     return JSONResponse(content={"status": "ok"})
 
+def escape_markdown(text):
+    escape_chars = r'_*[]()~`>#+-=|{}.!'
+    return re.sub(r'([{}])'.format(re.escape(escape_chars)), r'\\\1', text)
 
 def keyboard_modificator(current_screen, user_session, menu, message):
     # Format message with current values if needed
@@ -434,6 +437,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
             "body": ''
             })
         
+        answer = escape_markdown(answer)
+
         # Send
         bot.send_message(chat_id, answer, parse_mode="Markdown")
         
