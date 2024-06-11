@@ -34,6 +34,7 @@ import base64
 from openai import OpenAI
 import uuid
 import telebot
+from telebot.types import InputFile
 
 with open('config.json') as config_file:
     bot = telebot.TeleBot(json.load(config_file)['TOKEN'])
@@ -254,7 +255,7 @@ class ChatAgent:
             quality="standard",
             n=1,
         )
-
+        self.logger.info(f"ImagePlotterTool response: {response}")
         image_url = response.data[0].url
 
         temp_folder = "temp_data"
@@ -276,11 +277,17 @@ class ChatAgent:
         # return f"data:image/jpeg;base64,{base64_image}"
         
         # Send image to the corresponding chat as relpy
-        with open(file_path, "rb") as image_file:
-            base64_image = base64.b64encode(image_file.read()).decode('utf-8')
-            image_url = f"data:image/jpeg;base64,{base64_image}"
-            self.logger.info(f"Sending {image_url} to chat_id: {chat_id} as a reply to message_id: {message_id}")
-            bot.send_photo(chat_id, image_url, reply_to_message_id=message_id)
+        # with open(file_path, "rb") as image_file:
+        #     base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+        #     image_url = f"data:image/jpeg;base64,{base64_image}"
+        #     self.logger.info(f"Sending {image_url} to chat_id: {chat_id} as a reply to message_id: {message_id}")
+        #     bot.send_photo(chat_id, image_url, reply_to_message_id=message_id)
+        # Load the photo from a file
+        with open(file_path, 'rb') as f:
+            photo = InputFile(f)
+
+        # Send the photo
+        bot.send_photo(chat_id=chat_id, photo=photo, reply_to_message_id=message_id)
 
         # async def _arun(self, prompt: str, file_path: str) -> str:
         #     raise NotImplementedError("ImagePlotterTool does not support async")
