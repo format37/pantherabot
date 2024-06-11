@@ -33,6 +33,7 @@ from langchain.prompts.chat import ChatPromptTemplate
 import base64
 from openai import OpenAI
 import telebot
+import re
 
 with open('config.json') as config_file:
     bot = telebot.TeleBot(json.load(config_file)['TOKEN'])
@@ -107,6 +108,39 @@ Please note:
     Custom emoji entities can only be used by bots that purchased additional usernames on Fragment.
 """
 supported_html_tags = '<b><strong><i><em><u><ins><s><strike><del><span class="tg-spoiler"><tg-spoiler><b><a href="http://www.example.com/"><code><pre><code class="language-python">'
+
+
+def prepare_text_markdown(text):
+    reserved_characters = r'_*[]()~`>#+-=|{}.!'
+    
+    # Escape reserved characters
+    for char in reserved_characters:
+        text = text.replace(char, '\\' + char)
+    
+    # Escape backslashes
+    text = text.replace('\\', '\\\\')
+    
+    # Escape backticks inside pre and code entities
+    in_pre_or_code = False
+    chars = list(text)
+    for i in range(len(chars)):
+        if chars[i] == '`':
+            if in_pre_or_code:
+                chars[i] = '\\`'
+            in_pre_or_code = not in_pre_or_code
+        elif chars[i] == '\\' and in_pre_or_code:
+            chars[i] = '\\\\'
+    text = ''.join(chars)
+    
+    # Escape special characters inside inline link and custom emoji definitions
+    # import re
+    pattern = re.compile(r'(?<=\()[^)]*\)')
+    for match in pattern.finditer(text):
+        substring = match.group()
+        escaped_substring = substring.replace(')', '\\)').replace('\\', '\\\\')
+        text = text.replace(substring, escaped_substring)
+    
+    return text
 
 def append_message(messages, role, text, image_url):
     messages.append(
@@ -259,12 +293,14 @@ class ChatAgent:
         # Download the image
         image_data = requests.get(image_url).content
 
+        caption = prepare_text_markdown(response.data[0].revised_prompt)
+
         # Send the photo
         bot.send_photo(
             chat_id=chat_id, 
             photo=image_data, 
             reply_to_message_id=message_id, 
-            caption=f"||{response.data[0].revised_prompt}||",
+            caption=f"||{caption}||",
             parse_mode="MarkdownV2"
             )
         
