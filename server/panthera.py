@@ -197,6 +197,14 @@ class ChatAgent:
             args_schema=image_context_conversation_args,
             # return_direct=False,
         )
+        
+        image_plotter_tool = StructuredTool.from_function(
+            func=self.ImagePlotterTool,
+            name="image_plotter",
+            description="A tool to generate and send to user images based on a given prompt",
+            args_schema=ImagePlotterArgs,
+            # return_direct=False,
+        )
 
         tools = []
         tools.append(repl_tool)
@@ -205,6 +213,7 @@ class ChatAgent:
         tools.append(google_search_tool)
         tools.append(wikipedia_tool)
         tools.append(image_context_conversation_tool)
+        tools.append(image_plotter_tool)
 
         """tools.append(
             Tool(
@@ -646,6 +655,8 @@ class Panthera:
             #     'HumanMessage'
             #     )
             # return 'photo'
+        # Add the [chat_id] and the [message_id] as a prefix to the message_text
+        message_text = f"chat_id: {chat_id}\nmessage_id: {message['message_id']}\n {message_text}"
         self.logger.info(f'invoking message_text: {message_text}')
         response = self.chat_agent.agent_executor.invoke(
             {
