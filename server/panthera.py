@@ -264,8 +264,8 @@ class ChatAgent:
             chat_id=chat_id, 
             photo=image_data, 
             reply_to_message_id=message_id, 
-            caption=response.data[0].revised_prompt,
-            has_spoiler=True
+            caption=f"||{response.data[0].revised_prompt}||",
+            parse_mode="MarkdownV2"
             )
         
         return "Image generated and sent to the chat"
