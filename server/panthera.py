@@ -34,6 +34,7 @@ import base64
 from openai import OpenAI
 import telebot
 import re
+from telebot.formatting import escape_markdown
 
 with open('config.json') as config_file:
     bot = telebot.TeleBot(json.load(config_file)['TOKEN'])
@@ -293,7 +294,8 @@ class ChatAgent:
         # Download the image
         image_data = requests.get(image_url).content
 
-        caption = f"||{prepare_text_markdown(response.data[0].revised_prompt)}||"
+        # caption = f"||{prepare_text_markdown(response.data[0].revised_prompt)}||"
+        caption = f"||{escape_markdown(response.data[0].revised_prompt)}||"
         self.logger.info(f"ImagePlotterTool caption: {caption}")
 
         # Send the photo
