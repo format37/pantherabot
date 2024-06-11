@@ -260,7 +260,13 @@ class ChatAgent:
         image_data = requests.get(image_url).content
 
         # Send the photo
-        bot.send_photo(chat_id=chat_id, photo=image_data, reply_to_message_id=message_id, caption=response.data[0].revised_prompt)
+        bot.send_photo(
+            chat_id=chat_id, 
+            photo=image_data, 
+            reply_to_message_id=message_id, 
+            caption=response.data[0].revised_prompt,
+            has_spoiler=True
+            )
         
         return "Image generated and sent to the chat"
 

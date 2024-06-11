@@ -350,7 +350,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
 
     # if message text is /start
     if text == '/start':
-        answer = 'Welcome to the conversational gpt bot.\nPlease, send me a regular message in private chat, or use /* prefix in a group chat to call me.'
+        answer = 'Welcome to the conversational gpt bot.\nPlease, send me a regular message in private chat, or use /* or ./ prefix in a group chat to call me.'
         bot.send_message(chat_id, answer)
         # return empty
         return JSONResponse(content={
