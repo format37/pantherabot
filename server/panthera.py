@@ -33,7 +33,10 @@ from langchain.prompts.chat import ChatPromptTemplate
 import base64
 from openai import OpenAI
 import uuid
+import telebot
 
+with open('config.json') as config_file:
+    bot = telebot.TeleBot(json.load(config_file)['TOKEN'])
 
 class TextOutput(BaseModel):
     text: str = Field(description="Text output")
@@ -276,7 +279,8 @@ class ChatAgent:
         with open(file_path, "rb") as image_file:
             base64_image = base64.b64encode(image_file.read()).decode('utf-8')
             image_url = f"data:image/jpeg;base64,{base64_image}"
-            self.bot_instance.telgram_bot.send_photo(chat_id, image_url, reply_to_message_id=message_id)            
+            self.logger.info(f"Sending {image_url} to chat_id: {chat_id} as a reply to message_id: {message_id}")
+            bot.send_photo(chat_id, image_url, reply_to_message_id=message_id)
 
         # async def _arun(self, prompt: str, file_path: str) -> str:
         #     raise NotImplementedError("ImagePlotterTool does not support async")
@@ -346,14 +350,13 @@ class ChatAgent:
 
 class Panthera:
     
-    def __init__(self, telegram_bot):
+    def __init__(self):
         # Initialize logging
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
         
         self.config = json.load(open('./data/users/default.json', 'r'))
-        self.telegram_bot = telegram_bot
         self.chat_agent = ChatAgent(None, self)
         self.data_dir = './data/chats'
         Path(self.data_dir).mkdir(parents=True, exist_ok=True)  # Ensure data directory exists
