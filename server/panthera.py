@@ -264,6 +264,8 @@ class ChatAgent:
         with open(file_path, "wb") as f:
             f.write(image_data)
 
+        self.logger.info(f"Image saved to: {file_path}")
+
         # Encode the image as base64
         # with open(file_path, "rb") as image_file:
         #     base64_image = base64.b64encode(image_file.read()).decode("utf-8")
@@ -274,13 +276,14 @@ class ChatAgent:
         with open(file_path, "rb") as image_file:
             base64_image = base64.b64encode(image_file.read()).decode('utf-8')
             image_url = f"data:image/jpeg;base64,{base64_image}"
-            self.bot_instance.send_photo(chat_id, image_url, reply_to_message_id=message_id)            
+            self.bot_instance.teelgram_bot.send_photo(chat_id, image_url, reply_to_message_id=message_id)            
 
         # async def _arun(self, prompt: str, file_path: str) -> str:
         #     raise NotImplementedError("ImagePlotterTool does not support async")
 
         # Remove the image file
         os.remove(file_path)
+        self.logger.info(f"Image file removed: {file_path}")
 
         return "Image generated and sent to the chat"
 
@@ -343,13 +346,14 @@ class ChatAgent:
 
 class Panthera:
     
-    def __init__(self):
+    def __init__(self, telegram_bot):
         # Initialize logging
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
         
         self.config = json.load(open('./data/users/default.json', 'r'))
+        self.telegram_bot = telegram_bot
         self.chat_agent = ChatAgent(None, self)
         self.data_dir = './data/chats'
         Path(self.data_dir).mkdir(parents=True, exist_ok=True)  # Ensure data directory exists

@@ -29,7 +29,7 @@ logger.info(f'Setting FILE_URL: {server_file_url}')
 with open('config.json') as config_file:
     bot = telebot.TeleBot(json.load(config_file)['TOKEN'])
 
-panthera = Panthera()
+panthera = Panthera(bot)
 
 
 @app.get("/test")
