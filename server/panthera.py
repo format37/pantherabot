@@ -293,14 +293,15 @@ class ChatAgent:
         # Download the image
         image_data = requests.get(image_url).content
 
-        caption = prepare_text_markdown(response.data[0].revised_prompt)
+        caption = f"||{prepare_text_markdown(response.data[0].revised_prompt)}||"
+        self.logger.info(f"ImagePlotterTool caption: {caption}")
 
         # Send the photo
         bot.send_photo(
             chat_id=chat_id, 
             photo=image_data, 
             reply_to_message_id=message_id, 
-            caption=f"||{caption}||",
+            caption=caption,
             parse_mode="MarkdownV2"
             )
         
