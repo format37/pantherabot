@@ -133,7 +133,7 @@ def prepare_text_markdown(text):
     text = ''.join(chars)
     
     # Escape special characters inside inline link and custom emoji definitions
-    # import re
+    import re
     pattern = re.compile(r'(?<=\()[^)]*\)')
     for match in pattern.finditer(text):
         substring = match.group()
