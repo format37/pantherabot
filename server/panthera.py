@@ -110,39 +110,6 @@ Please note:
 """
 supported_html_tags = '<b><strong><i><em><u><ins><s><strike><del><span class="tg-spoiler"><tg-spoiler><b><a href="http://www.example.com/"><code><pre><code class="language-python">'
 
-
-def prepare_text_markdown(text):
-    reserved_characters = r'_*[]()~`>#+-=|{}.!'
-    
-    # Escape reserved characters
-    for char in reserved_characters:
-        text = text.replace(char, '\\' + char)
-    
-    # Escape backslashes
-    text = text.replace('\\', '\\\\')
-    
-    # Escape backticks inside pre and code entities
-    in_pre_or_code = False
-    chars = list(text)
-    for i in range(len(chars)):
-        if chars[i] == '`':
-            if in_pre_or_code:
-                chars[i] = '\\`'
-            in_pre_or_code = not in_pre_or_code
-        elif chars[i] == '\\' and in_pre_or_code:
-            chars[i] = '\\\\'
-    text = ''.join(chars)
-    
-    # Escape special characters inside inline link and custom emoji definitions
-    import re
-    pattern = re.compile(r'(?<=\()[^)]*\)')
-    for match in pattern.finditer(text):
-        substring = match.group()
-        escaped_substring = substring.replace(')', '\\)').replace('\\', '\\\\')
-        text = text.replace(substring, escaped_substring)
-    
-    return text
-
 def append_message(messages, role, text, image_url):
     messages.append(
         {
@@ -294,7 +261,6 @@ class ChatAgent:
         # Download the image
         image_data = requests.get(image_url).content
 
-        # caption = f"||{prepare_text_markdown(response.data[0].revised_prompt)}||"
         caption = f"||{escape_markdown(response.data[0].revised_prompt)}||"
         self.logger.info(f"ImagePlotterTool caption: {caption}")
 
