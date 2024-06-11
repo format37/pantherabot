@@ -31,6 +31,8 @@ import tiktoken
 from langchain.agents import AgentExecutor, create_tool_calling_agent, tool
 from langchain.prompts.chat import ChatPromptTemplate
 import base64
+from openai import OpenAI
+import uuid
 
 
 class TextOutput(BaseModel):
@@ -42,6 +44,11 @@ class BotActionType(BaseModel):
 class image_context_conversation_args(BaseModel):
     text_request: str = Field(description="Text request in context of images")
     file_list: List[str] = Field(description="List of file_id")
+
+class ImagePlotterArgs(BaseModel):
+    prompt: str = Field(description="The prompt to generate the image")
+    chat_id: str = Field(description="chat_id")
+    message_id: str = Field(description="message_id")
 
 markdown_sample = """*bold \*text*
 _italic \*text_
@@ -219,6 +226,54 @@ class ChatAgent:
         
         agent = create_tool_calling_agent(llm, tools, prompt)
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+
+    def ImagePlotterTool(self, prompt: str, chat_id: str, message_id: str) -> str:
+        # name = "image_plotter"
+        # description = "A tool to generate and save images based on a given prompt"
+        # args_schema = ImagePlotterArgs
+
+        # def _run(self, prompt: str, chat_id: str, message_id: str) -> str:
+        client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+        response = client.images.generate(
+            model="dall-e-3",
+            prompt=prompt,
+            size="1024x1024",
+            quality="standard",
+            n=1,
+        )
+
+        image_url = response.data[0].url
+
+        temp_folder = "temp_data"
+        Path(temp_folder).mkdir(parents=True, exist_ok=True)
+        filename = str(uuid.uuid4())
+        file_path = f"{temp_folder}/{filename}.jpg"
+
+        # Download the image and save it to the specified file path
+        image_data = requests.get(image_url).content
+        with open(file_path, "wb") as f:
+            f.write(image_data)
+
+        # Encode the image as base64
+        # with open(file_path, "rb") as image_file:
+        #     base64_image = base64.b64encode(image_file.read()).decode("utf-8")
+
+        # return f"data:image/jpeg;base64,{base64_image}"
+        
+        # Send image to the corresponding chat as relpy
+        with open(file_path, "rb") as image_file:
+            base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+            image_url = f"data:image/jpeg;base64,{base64_image}"
+            self.bot_instance.send_photo(chat_id, image_url, reply_to_message_id=message_id)            
+
+        # async def _arun(self, prompt: str, file_path: str) -> str:
+        #     raise NotImplementedError("ImagePlotterTool does not support async")
+
+        # Remove the image file
+        os.remove(file_path)
+
+        return "Image generated and sent to the chat"
 
     def image_context_conversation(self, text_request: str, file_list: List[str]):
         # postfix = f". Your should represent your answer only in HTML format following this instruction:\n{html_instruction}."
