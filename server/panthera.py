@@ -276,7 +276,7 @@ class ChatAgent:
         with open(file_path, "rb") as image_file:
             base64_image = base64.b64encode(image_file.read()).decode('utf-8')
             image_url = f"data:image/jpeg;base64,{base64_image}"
-            self.bot_instance.teelgram_bot.send_photo(chat_id, image_url, reply_to_message_id=message_id)            
+            self.bot_instance.telgram_bot.send_photo(chat_id, image_url, reply_to_message_id=message_id)            
 
         # async def _arun(self, prompt: str, file_path: str) -> str:
         #     raise NotImplementedError("ImagePlotterTool does not support async")
