@@ -146,10 +146,13 @@ class ChatAgent:
         
 
     def initialize_agent(self):
+        # model = 'gpt-4o-2024-05-13'
+        model = 'gpt-4o'
+        temperature = 0.7
         llm = ChatOpenAI(
             openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
-            model="gpt-4o-2024-05-13",
-            temperature=0.7,
+            model=model,
+            temperature=temperature,
         )
         # llm = Ollama(model="llama2")
         # llm = Ollama(model="mistral")
@@ -230,7 +233,7 @@ class ChatAgent:
         prompt = ChatPromptTemplate.from_messages(
             [
                 # ("system", f"You are telegram chat member. Your may represent your answer in HTML format following this instruction:\n{html_instruction}."),
-                ("system", "You are telegram chat member."),
+                ("system", f"Your name is Janet. You are Artificial Intelligence and the participant in the multi-user or personal telegram chat. Your model is {model} with temperature: {temperature}. You are able to use telegram MarkdownV2 format in your answers."),
                 ("placeholder", "{chat_history}"),
                 ("human", "{input}"),
                 ("placeholder", "{agent_scratchpad}"),
@@ -647,7 +650,7 @@ class Panthera:
             #     )
             # return 'photo'
         # Add the [chat_id] and the [message_id] as a prefix to the message_text
-        message_text = f"chat_id: {chat_id}\nmessage_id: {message['message_id']}\n {message_text}"
+        message_text = f"user_name: {first_name}\nchat_id: {chat_id}\nmessage_id: {message['message_id']}\n {message_text}"
         self.logger.info(f'invoking message_text: {message_text}')
         response = self.chat_agent.agent_executor.invoke(
             {
