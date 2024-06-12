@@ -220,6 +220,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         not 'caption'   in message and \
         not 'photo'     in message and \
         not 'document'  in message:
+        logger.info('No text, caption, photo or document in the message')
         return JSONResponse(content={
             "type": "empty",
             "body": ''
@@ -328,17 +329,19 @@ async def call_message(request: Request, authorization: str = Header(None)):
         
     chat_id = message['chat']['id']
     
+    first_name = panthera.get_first_name(message)
     # if 'first_name' in message['chat']:
     #     first_name = message['from']['first_name']
     # else:
     #     first_name = message['from']['username']
     # panthera.log_message(message)
-    # panthera.save_to_chat_history(
-    #     chat_id,
-    #     f"{first_name}: {text}",
-    #     message["message_id"],
-    #     "HumanMessage"
-    # )
+    message_text = f"user_name: {first_name}\nchat_id: {chat_id}\nmessage_id: {message['message_id']}\n {text}"
+    panthera.save_to_chat_history(
+        chat_id,
+        f"{first_name}: {message_text}",
+        message["message_id"],
+        "HumanMessage"
+    )
     # 
 
     user_session = panthera.get_user_session(message['from']['id'])

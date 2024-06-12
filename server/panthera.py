@@ -253,10 +253,12 @@ class ChatAgent:
                 func=RetrievalQA.from_chain_type(llm=llm, retriever=self.retriever),
             )
         )"""
+        system_prompt = f"Your name is Janet. You are Artificial Intelligence and the participant in the multi-user or personal telegram chat. Your model is {model} with temperature: {temperature}."
         prompt = ChatPromptTemplate.from_messages(
             [
                 # ("system", f"You are telegram chat member. Your may represent your answer in HTML format following this instruction:\n{html_instruction}."),
-                ("system", f"Your name is Janet. You are Artificial Intelligence and the participant in the multi-user or personal telegram chat. Your model is {model} with temperature: {temperature}. You are able to use telegram MarkdownV2 format in your answers. For example: {markdown_sample}"),
+                # You are able to use telegram MarkdownV2 format in your answers. For example: {markdown_sample}
+                ("system", system_prompt),
                 ("placeholder", "{chat_history}"),
                 ("human", "{input}"),
                 ("placeholder", "{agent_scratchpad}"),
@@ -609,15 +611,7 @@ class Panthera:
                     # Remove
                     os.remove(os.path.join(chat_log_path, log_file))
 
-    # The original llm_request function now refactored with Langchain's conversational agent
-    # def llm_request(chat_id: str, message_text: str, user_session) -> str:
-    def llm_request(self, bot, user_session, message, system_content=None):
-        chat_id = message['chat']['id']
-        self.logger.info(f'llm_request: {chat_id}')
-
-        # Read chat history
-        self.read_chat_history(chat_id=chat_id)
-
+    def get_first_name(self, message):
         # Define the first name of the user
         if 'first_name' in message['chat']:
             first_name = message['from']['first_name']
@@ -627,6 +621,18 @@ class Panthera:
             first_name = message['from']['id']
         else:
             first_name = 'Unknown'
+        return first_name
+
+    # The original llm_request function now refactored with Langchain's conversational agent
+    # def llm_request(chat_id: str, message_text: str, user_session) -> str:
+    def llm_request(self, bot, user_session, message, system_content=None):
+        chat_id = message['chat']['id']
+        self.logger.info(f'llm_request: {chat_id}')
+
+        # Read chat history
+        self.read_chat_history(chat_id=chat_id)
+
+        first_name = self.get_first_name(message)
 
         # Check if the message contains text or caption
         if 'text' in message:
