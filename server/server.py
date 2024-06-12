@@ -349,6 +349,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
     message_text = f"user_name: {first_name}"
     message_text += f"\nchat_id: {chat_id}"
     message_text += f"\nmessage_id: {message['message_id']}"
+    if "reply_to_message" in message:
+        message_text += f"\nreply_to_message: {message['reply_to_message']['message_id']}"
     message_text += f"\nmessage_date: {message_date}"
     if file_list != '':
         message_text += f"\nfile_list: {file_list}"
@@ -376,6 +378,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
             system_content = topics[user_session['topic']]['system']
         # Log the current_date
         current_date = pd.Timestamp.now()
+        # -3h from the current_date
+        current_date = current_date - pd.Timedelta(hours=3)
         logger.info(f'current_date: {current_date}')
         answer = panthera.llm_request(bot, user_session, message, message_text, system_content=system_content)
 
