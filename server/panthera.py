@@ -229,7 +229,7 @@ class ChatAgent:
             func=self.text_file_reader,
             name="read_text_file",
             description="Provides the content of the text file",
-            args_schema=image_context_conversation_args,
+            args_schema=text_file_reader_args,
         )
 
         tools = []
