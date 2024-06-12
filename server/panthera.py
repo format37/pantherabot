@@ -305,8 +305,8 @@ class ChatAgent:
 
     def image_context_conversation(self, text_request: str, file_list: List[str]):
         # postfix = f". Your should represent your answer only in HTML format following this instruction:\n{html_instruction}."
-        postfix = ""
-        text_request = text_request + postfix
+        # postfix = ""
+        # text_request = text_request + postfix
         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
         messages = []
         for file_path in file_list:
@@ -568,7 +568,7 @@ class Panthera:
                 "text": f"{message_text}"
                 }, log_file)
             
-    def append_file_prefix(self, bot, message_text, message):
+    def get_message_file_list(self, bot, message):
         if 'photo' in message or 'document' in message:
             if 'photo' in message:
                 photo = message['photo']
@@ -588,8 +588,10 @@ class Panthera:
             file_info = bot.get_file(file_id)
             file_path = file_info.file_path
             self.logger.info(f'file_path: {file_path}')
-            message_text = 'files:[' + file_path + ']\n' + message_text
-        return message_text
+            # message_text = 'files:[' + file_path + ']\n' + message_text
+        # return message_text
+            return f'\nfiles: [{file_path}]'
+        return ''
 
     def read_chat_history(self, chat_id: str):
         '''Reads the chat history from a folder.'''
@@ -625,61 +627,61 @@ class Panthera:
 
     # The original llm_request function now refactored with Langchain's conversational agent
     # def llm_request(chat_id: str, message_text: str, user_session) -> str:
-    def llm_request(self, bot, user_session, message, system_content=None):
+    def llm_request(self, bot, user_session, message, message_text, system_content=None):
         chat_id = message['chat']['id']
         self.logger.info(f'llm_request: {chat_id}')
 
         # Read chat history
         self.read_chat_history(chat_id=chat_id)
 
-        first_name = self.get_first_name(message)
+        # first_name = self.get_first_name(message)
 
         # Check if the message contains text or caption
-        if 'text' in message:
-            message_text = message['text']
-        elif 'caption' in message:
-            message_text = message['caption']
-        else:
-            message_text = ''
-            self.logger.error(f'No text or caption in message: {message}')
-            if 'photo' in message or 'document' in message:
-                message_text = self.append_file_prefix(bot, message_text, message)
-                self.save_to_chat_history(
-                    message['chat']['id'], 
-                    message_text, 
-                    message["message_id"],
-                    'HumanMessage',
-                    message["date"],
-                    first_name
-                )
-            # return 'No text or caption in message'
-            return ''
+        # if 'text' in message:
+        #     message_text = message['text']
+        # elif 'caption' in message:
+        #     message_text = message['caption']
+        # else:
+        #     message_text = ''
+        #     self.logger.error(f'No text or caption in message: {message}')
+        #     if 'photo' in message or 'document' in message:
+        #         message_text = self.append_file_prefix(bot, message_text, message)
+        #         self.save_to_chat_history(
+        #             message['chat']['id'], 
+        #             message_text, 
+        #             message["message_id"],
+        #             'HumanMessage',
+        #             message["date"],
+        #             first_name
+        #         )
+        #     # return 'No text or caption in message'
+        #     return ''
         
         
 
-        # If message contains an attached images
-        message_text = self.append_file_prefix(bot, message_text, message)
+        # # If message contains an attached images
+        # message_text = self.append_file_prefix(bot, message_text, message)
 
-        self.save_to_chat_history(
-            message['chat']['id'], 
-            message_text, 
-            message["message_id"],
-            'HumanMessage',
-            message["date"],
-            first_name
-            )
+        # self.save_to_chat_history(
+        #     message['chat']['id'], 
+        #     message_text, 
+        #     message["message_id"],
+        #     'HumanMessage',
+        #     message["date"],
+        #     first_name
+        #     )
         
         
-            # self.logger.info(f'photo: {message["photo"]}')
-            # self.save_to_chat_history(
-            #     message['chat']['id'], 
-            #     'photo', 
-            #     message["message_id"],
-            #     'HumanMessage'
-            #     )
-            # return 'photo'
-        # Add the [chat_id] and the [message_id] as a prefix to the message_text
-        message_text = f"user_name: {first_name}\nchat_id: {chat_id}\nmessage_id: {message['message_id']}\n {message_text}"
+        #     # self.logger.info(f'photo: {message["photo"]}')
+        #     # self.save_to_chat_history(
+        #     #     message['chat']['id'], 
+        #     #     'photo', 
+        #     #     message["message_id"],
+        #     #     'HumanMessage'
+        #     #     )
+        #     # return 'photo'
+        # # Add the [chat_id] and the [message_id] as a prefix to the message_text
+        # message_text = f"user_name: {first_name}\nchat_id: {chat_id}\nmessage_id: {message['message_id']}\n {message_text}"
         self.logger.info(f'invoking message_text: {message_text}')
         response = self.chat_agent.agent_executor.invoke(
             {

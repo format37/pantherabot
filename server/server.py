@@ -183,20 +183,6 @@ def user_access(message):
 @app.post("/message")
 async def call_message(request: Request, authorization: str = Header(None)):
     logger.info('call_message')
-
-    # token = None
-    # if authorization and authorization.startswith("Bearer "):
-    #     token = authorization.split(" ")[1]
-    
-    # if token:
-    #     logger.info(f'Bot token: {token}')
-    #     pass
-    # else:
-    #     answer = 'Bot token not found. Please contact the administrator.'
-    #     return JSONResponse(content={
-    #         "type": "text",
-    #         "body": str(answer)
-    #     })
     
     message = await request.json()
     logger.info(message)
@@ -226,6 +212,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
             "body": ''
             })
     
+    # Preparing text
     if 'text' in message:
         text = message['text']
     elif 'caption' in message:
@@ -306,10 +293,6 @@ async def call_message(request: Request, authorization: str = Header(None)):
 
     answer = 'empty'
 
-    
-
-    # if message text is /reset
-    # if chat type private
     if 'text' in message:
         if text == '/reset' and message['chat']['type'] == 'private':
             panthera.reset_chat(message['chat']['id'])
@@ -328,21 +311,6 @@ async def call_message(request: Request, authorization: str = Header(None)):
                 })
         
     chat_id = message['chat']['id']
-    
-    first_name = panthera.get_first_name(message)
-    # if 'first_name' in message['chat']:
-    #     first_name = message['from']['first_name']
-    # else:
-    #     first_name = message['from']['username']
-    # panthera.log_message(message)
-    message_text = f"user_name: {first_name}\nchat_id: {chat_id}\nmessage_id: {message['message_id']}\n {text}"
-    panthera.save_to_chat_history(
-        chat_id,
-        f"{first_name}: {message_text}",
-        message["message_id"],
-        "HumanMessage"
-    )
-    # 
 
     user_session = panthera.get_user_session(message['from']['id'])
     logger.info(f'user_session: {user_session}')
@@ -361,126 +329,88 @@ async def call_message(request: Request, authorization: str = Header(None)):
             "type": "empty",
             "body": ''
             })
-        
-        # elif message['text'] == '/configure': # TODO: account the non-private chats
-        # elif user_session['last_cmd'] != 'start':
     
-        # elif message_type == 'button':
-        
-        keyboard_dict = get_keyboard(user_session, text)
+    # Extractinf file list from the message
+    file_list = ''
+    # if 'text' in message:
+    #     message_text = message['text']
+    # elif 'caption' in message:
+    #     message_text = message['caption']
+    # else:
+    #     message_text = ''
+    #     logger.info(f'No text or caption in message: {message}')
+    if 'photo' in message or 'document' in message:
+        file_list = panthera.get_message_file_list(bot, message)
+            # save_to_chat_history(
+            #     message['chat']['id'], 
+            #     message_text, 
+            #     message["message_id"],
+            #     'HumanMessage',
+            #     message["date"],
+            #     first_name
+            # )
+        # return 'No text or caption in message'
+        # return ''
+    
+    
 
-        if text != 'Back':
-            # Model
-            if user_session['last_cmd'] == 'Model':
-                logger.info(f'Button last_cmd: Model. text is: {text}')
-                with open ('data/models.json') as f:
-                    models = json.load(f)
-                for key, value in models.items():
-                    if text == key:
-                        user_session['model'] = key
-                        keyboard_dict["message"] = f'Model has been set to {key}'
-                        break
-            # Language
-            elif user_session['last_cmd'] == 'Language':
-                logger.info(f'Button last_cmd: Language. text is: {text}')
-                with open ('data/languages.json') as f:
-                    languages = json.load(f)
-                for key, value in languages.items():
-                    if text == key:
-                        user_session['language'] = key
-                        keyboard_dict["message"] = f'Language has been set to {key}'
-                        break
-            # Topic
-            elif user_session['last_cmd'] == 'Topic':
-                logger.info(f'Button last_cmd: Topic. text is: {text}')
-                with open ('data/topics.json') as f:
-                    topics = json.load(f)
-                for key, value in topics.items():
-                    if text == key:
-                        user_session['topic'] = key
-                        panthera.reset_chat(message['chat']['id'])
-                        system_content = value['system']
-                        assistant_message = value['assistant']
-                        
-                        # Log assistant's message
-                        bot_message = panthera.default_bot_message(
-                            message,
-                            assistant_message
-                            )
-                        # Log message
-                        panthera.log_message(bot_message)
+    # If message contains an attached images
+    # message_text = self.append_file_prefix(bot, message_text, message)
 
-                        keyboard_dict["message"] = f'Topic has been set to {key}\n{assistant_message}'
-                        break
-            # Report
-            elif user_session['last_cmd'] == 'Reports' and text == 'Progress report':
-                logger.info(f'Button last_cmd: Reports. text is: {text}')
-                # Convert to pandas DataFrame
-                topic = user_session['topic']
-                evaluations = user_session['topics'][topic]['evaluations']
-                # Creating a DataFrame
-                df = pd.DataFrame(evaluations)
-                df['date'] = pd.to_datetime(df['date'], unit='s')  # Converting Unix timestamp to datetime
-                df['topic'] = topic  # Adding topic as a column
-                # Set the x-axis to only include the dates we have data for
-                plt.figure(figsize=(10, 6))
-                # Calculate the width of each bar dynamically based on the number of evaluations
-                # This is to ensure that bars don't merge into each other
-                # We divide by the number of evaluations to ensure that the total width of all bars is less than 1
-                bar_width = (df['date'].max() - df['date'].min()) / len(df) / pd.Timedelta(days=1)
-                # Plot the bars with a fixed width
-                plt.bar(df['date'], df['value'], color='lightblue', width=bar_width)
-                # Set x-axis ticks to be exactly the dates from the dataset
-                plt.xticks(df['date'])
-                # Rotate the x-axis labels for better readability
-                plt.xticks(rotation=70)
-                plt.title(f"Progress of the Topic: {topic}")
-                plt.xlabel('Date')
-                plt.ylabel('Value')
-                # Save to file with unique name
-                # Create data/plots folder if it doesn't exist
-                if not os.path.exists('data/plots'):
-                    os.makedirs('data/plots')
-                filename = f'data/plots/{chat_id}_evaluation_plot.png'
-                plt.savefig(filename)
-                # Close the plot
-                plt.close()
+    # self.save_to_chat_history(
+    #     message['chat']['id'], 
+    #     message_text, 
+    #     message["message_id"],
+    #     'HumanMessage',
+    #     message["date"],
+    #     first_name
+    #     )
+    
+    
+        # self.logger.info(f'photo: {message["photo"]}')
+        # self.save_to_chat_history(
+        #     message['chat']['id'], 
+        #     'photo', 
+        #     message["message_id"],
+        #     'HumanMessage'
+        #     )
+        # return 'photo'
+    # Add the [chat_id] and the [message_id] as a prefix to the message_text
+    # message_text = f"user_name: {first_name}\nchat_id: {chat_id}\nmessage_id: {message['message_id']}\n {message_text}"
+    
+    # Save message to the Chat history
+    first_name = panthera.get_first_name(message)
+    if 'first_name' in message['chat']:
+        first_name = message['from']['first_name']
+    else:
+        first_name = message['from']['username']
+    panthera.log_message(message)
+    message_date = message['date']
+    # Convert 'date': 1718167018 to '2024-06-06 12:36:58'
+    message_date = pd.to_datetime(message_date, unit='s')
+    time_passed = pd.Timestamp.now() - message_date
+    message_text = f"user_name: {first_name}"
+    message_text += f"\nchat_id: {chat_id}"
+    message_text += f"\nmessage_id: {message['message_id']}"
+    message_text += f"\nmessage_date: {message_date}"
+    message_text += f"\ntime_passed: {time_passed}"
+    if file_list != '':
+        message_text += f"\nfile_list: {file_list}"
+    message_text += f"\nmessage_text: {text}"
+    panthera.save_to_chat_history(
+        chat_id,
+        f"{message_text}",
+        message["message_id"],
+        "HumanMessage"
+    )
 
-                response = FileResponse(filename, media_type="image/png")
-
-                # Return the image data
-                #with open(filename, 'rb') as f:
-                    #image_data = f.read()
-                logger.info(f'image_data filename: {filename}')
-                # Remove the file
-                # os.remove(filename)
-                # Return the image data                
-                # Encode image to base64 
-                # image_data = base64.b64encode(image_data)
-                # return FileResponse(image_data, media_type="image/png")
-                return response
-            else:
-                logger.info(f'Button has not reacted. last_cmd: {user_session["last_cmd"]}. text is: {text}')
-
-        logger.info(f'keyboard_dict: {keyboard_dict}')
-
-        # Update user session
-        user_session['last_cmd'] = text
-        # Save user session
-        panthera.save_user_session(message['from']['id'], user_session)
-
-        # return JSONResponse(content={
-        #     "type": "keyboard",
-        #     "body": keyboard_dict
-        #     })
-        
-        # return empty
+    if text == '':
         return JSONResponse(content={
             "type": "empty",
             "body": ''
             })
 
-    elif message['chat']['type'] == 'private' \
+    if message['chat']['type'] == 'private' \
         or text.startswith('/*') \
         or text.startswith('/.'):
         # Read the system_content from the topics by user_session['topic'] if it is set
@@ -496,43 +426,14 @@ async def call_message(request: Request, authorization: str = Header(None)):
             "body": ''
             })
         
-        # answer = escape_markdown(answer)
-        # answer = prepare_markdown(answer)
-        # Send
-        # try:
-        #     supported_html_tags = '<b><strong><i><em><u><ins><s><strike><del><span class="tg-spoiler"><tg-spoiler><b><a href="http://www.example.com/"><code><pre><code class="language-python">'
-        #     html_answer = remove_unsupported_tags(answer, supported_html_tags)
-        #     bot.send_message(chat_id, html_answer, parse_mode="HTML")
-        #     # bot.send_message(chat_id, answer, parse_mode="MarkdownV2")
-        #     logger.info(f'### sent HTML: {html_answer}')
-        # except Exception as e:
-        #     logger.info(f'### UNABLE TO PARSE HTML: {e}')
-        #     bot.send_message(chat_id, answer)
         answer = escape_markdown(answer)
         logger.info(f'### sending MarkdownV2: {answer}')
         bot.send_message(chat_id, answer, parse_mode="MarkdownV2")
         
-        # Evaluation log: If [num] in the answer, extract the num and set the evaluation
-        """match = re.search(r'\[(10|[0-9])\]', answer)
-        if match:
-            num = match.group(1)
-            panthera.add_evaluation_to_topic(
-                user_session,
-                topic_name=user_session['topic'],
-                value=int(num)
-            )
-            # Save user session
-            panthera.save_user_session(message['from']['id'], user_session)"""
-    # else:
     return JSONResponse(content={
         "type": "empty",
         "body": ''
         })
-
-    # return JSONResponse(content={
-    #     "type": "text",
-    #     "body": str(answer)
-    #     })
   
 # Post inline query
 @app.post("/inline")
