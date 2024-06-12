@@ -86,24 +86,7 @@ markdown_sample = """*bold text*
 _italic text_
 __underline__
 ~strikethrough~
-||spoiler||
-[inline URL](http://www.example.com/)
-`inline fixed-width code`
-```
-pre-formatted fixed-width code block
-```
-```python
-pre-formatted fixed-width code block written in the Python programming language
-```
->Block quotation started
->Block quotation continued
->The last line of the block quotation
-**>The expandable block quotation started right after the previous block quotation
->It is separated from the previous block quotation by an empty bold entity
->Expandable block quotation continued
->Hidden by default part of the expandable block quotation started
->Expandable block quotation continued
->The last line of the expandable block quotation with the expandability mark||"""
+||spoiler||"""
 
 html_instruction = """<b>bold</b>, <strong>bold</strong>
 <i>italic</i>, <em>italic</em>
@@ -253,7 +236,11 @@ class ChatAgent:
                 func=RetrievalQA.from_chain_type(llm=llm, retriever=self.retriever),
             )
         )"""
-        system_prompt = f"Your name is Janet. You are Artificial Intelligence and the participant in the multi-user or personal telegram chat. Your model is {model} with temperature: {temperature}."
+        system_prompt = f"""Your name is Janet.
+You are Artificial Intelligence and the participant in the multi-user or personal telegram chat.
+Your model is {model} with temperature: {temperature}.
+You can determine the current date from the message_date field in the current message.
+For the formatting you can use the telegram MarkdownV2 format. For example: {markdown_sample}."""
         prompt = ChatPromptTemplate.from_messages(
             [
                 # ("system", f"You are telegram chat member. Your may represent your answer in HTML format following this instruction:\n{html_instruction}."),
