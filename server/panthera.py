@@ -54,7 +54,7 @@ class ImagePlotterArgs(BaseModel):
     chat_id: str = Field(description="chat_id")
     message_id: str = Field(description="message_id")
 
-markdown_sample = """*bold \*text*
+markdown_sample_v0 = """*bold \*text*
 _italic \*text_
 __underline__
 ~strikethrough~
@@ -73,6 +73,29 @@ pre-formatted fixed-width code block written in the Python programming language
 >Block quotation started
 >Block quotation continued
 >Block quotation continued
+>Block quotation continued
+>The last line of the block quotation
+**>The expandable block quotation started right after the previous block quotation
+>It is separated from the previous block quotation by an empty bold entity
+>Expandable block quotation continued
+>Hidden by default part of the expandable block quotation started
+>Expandable block quotation continued
+>The last line of the expandable block quotation with the expandability mark||"""
+
+markdown_sample = """*bold text*
+_italic text_
+__underline__
+~strikethrough~
+||spoiler||
+[inline URL](http://www.example.com/)
+`inline fixed-width code`
+```
+pre-formatted fixed-width code block
+```
+```python
+pre-formatted fixed-width code block written in the Python programming language
+```
+>Block quotation started
 >Block quotation continued
 >The last line of the block quotation
 **>The expandable block quotation started right after the previous block quotation
@@ -233,7 +256,7 @@ class ChatAgent:
         prompt = ChatPromptTemplate.from_messages(
             [
                 # ("system", f"You are telegram chat member. Your may represent your answer in HTML format following this instruction:\n{html_instruction}."),
-                ("system", f"Your name is Janet. You are Artificial Intelligence and the participant in the multi-user or personal telegram chat. Your model is {model} with temperature: {temperature}. You are able to use telegram MarkdownV2 format in your answers. Markdown samples: {markdown_sample}."),
+                ("system", f"Your name is Janet. You are Artificial Intelligence and the participant in the multi-user or personal telegram chat. Your model is {model} with temperature: {temperature}. You are able to use telegram MarkdownV2 format in your answers. For example: {markdown_sample}"),
                 ("placeholder", "{chat_history}"),
                 ("human", "{input}"),
                 ("placeholder", "{agent_scratchpad}"),
