@@ -49,6 +49,9 @@ class image_context_conversation_args(BaseModel):
     text_request: str = Field(description="Text request in context of images")
     file_list: List[str] = Field(description="List of file_id")
 
+class text_file_reader_args(BaseModel):
+    file_list: List[str] = Field(description="List of file_id")
+
 class ImagePlotterArgs(BaseModel):
     prompt: str = Field(description="The prompt to generate the image")
     chat_id: str = Field(description="chat_id")
@@ -222,6 +225,13 @@ class ChatAgent:
             # return_direct=False,
         )
 
+        text_file_reader_tool = StructuredTool.from_function(
+            func=self.text_file_reader,
+            name="read_text_file",
+            description="Provides the content of the text file",
+            args_schema=image_context_conversation_args,
+        )
+
         tools = []
         tools.append(repl_tool)
         tools.append(wolfram_tool)
@@ -230,6 +240,7 @@ class ChatAgent:
         tools.append(wikipedia_tool)
         tools.append(image_context_conversation_tool)
         tools.append(image_plotter_tool)
+        tools.append(text_file_reader_tool)
 
         """tools.append(
             Tool(
@@ -338,6 +349,16 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         #     response_text = "Error getting response text"
         # return "На данных фото изображен кувшин и тарелка"
         return response_text
+    
+    def text_file_reader(self, file_list: List[str]):
+        self.logger.info(f"text_file_reader request: file_list: {file_list}")
+        text = ""
+        for file_path in file_list:
+            self.logger.info(f"file_path: {file_path}")
+            with open(file_path, 'r') as file:
+                text += f"file_path: {file_path}\n{file.read()}"
+        return text
+        
 
     @staticmethod
     def create_structured_tool(func, name, description, return_direct):
@@ -583,6 +604,7 @@ class Panthera:
             
     def get_message_file_list(self, bot, message):
         if 'photo' in message or 'document' in message:
+            file_id = ''            
             if 'photo' in message:
                 photo = message['photo']
                 self.logger.info(f"photo in message: {len(photo)}")
@@ -598,10 +620,15 @@ class Panthera:
                     # Document is a photo
                     file_id = document['file_id']
                     self.logger.info("file_id: "+str(file_id))
-            file_info = bot.get_file(file_id)
-            file_path = file_info.file_path
-            self.logger.info(f'file_path: {file_path}')
-            return f'\nfiles: [{file_path}]'
+                elif document['mime_type'].startswith('text/'):
+                    # Document is a text file
+                    file_id = document['file_id']
+                    self.logger.info("file_id: "+str(file_id))
+            if file_id != '':
+                file_info = bot.get_file(file_id)
+                file_path = file_info.file_path
+                self.logger.info(f'file_path: {file_path}')
+                return f'\nfiles: [{file_path}]'
         return ''
 
     def read_chat_history(self, chat_id: str):

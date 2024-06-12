@@ -397,15 +397,12 @@ async def call_message(request: Request, authorization: str = Header(None)):
             "~": "u06f4b328e72240c8b2909652a70af831",
             "||": "u955ba36d498a48119ac522100978f861",
             "```": "u795fe7bde93a4aaf9351a2064b1ab484"
-
         }
         for key, value in formatting.items():
             answer = answer.replace(key, value)
         answer = escape_markdown(answer)
         for key, value in formatting.items():
             answer = answer.replace(value, key)
-        # logger.info(f'### sending escaped: {answer}')
-        # bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
         try:
             logger.info(f'### sending MarkdownV2: {answer}')
             bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
