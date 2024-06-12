@@ -620,7 +620,9 @@ class Panthera:
                     # Document is a photo
                     file_id = document['file_id']
                     self.logger.info("file_id: "+str(file_id))
-                elif document['mime_type'].startswith('text/'):
+                elif document['mime_type'].startswith('text/') or \
+                    document['mime_type'].startswith('application/json') or \
+                    document['mime_type'].startswith('application/xml'):
                     # Document is a text file
                     file_id = document['file_id']
                     self.logger.info("file_id: "+str(file_id))
