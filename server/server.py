@@ -390,9 +390,14 @@ async def call_message(request: Request, authorization: str = Header(None)):
             "body": ''
             })
         
-        answer = escape_markdown(answer)
-        logger.info(f'### sending MarkdownV2: {answer}')
-        bot.send_message(chat_id, answer, parse_mode="MarkdownV2")
+        try:
+            logger.info(f'### sending MarkdownV2: {answer}')
+            bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
+        except Exception as e:
+            logger.error(f'Error sending markdown: {e}')
+            answer = escape_markdown(answer)
+            logger.info(f'### sending escaped: {answer}')
+            bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')        
         
     return JSONResponse(content={
         "type": "empty",
