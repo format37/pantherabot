@@ -302,30 +302,6 @@ class ChatAgent:
             )
         
         return "Image generated and sent to the chat"
-    
-    def is_reply_to_ai_message(self, message):
-        if "reply_to_message" not in message:
-            return False
-
-        reply_to_message_id = message["reply_to_message"]["message_id"]
-        chat_id = message["chat"]["id"]
-
-        chat_log_path = os.path.join(self.data_dir, str(chat_id))
-        for log_file in os.listdir(chat_log_path):
-            with open(os.path.join(chat_log_path, log_file), 'r') as file:
-                try:
-                    saved_message = json.load(file)
-                    if (
-                        saved_message["type"] == "AIMessage"
-                        and int(log_file.split("_")[1].split(".")[0]) == reply_to_message_id
-                    ):
-                        return True
-                except Exception as e:
-                    self.logger.error(f'Error reading chat history: {e}')
-                    # Remove the problematic file
-                    # os.remove(os.path.join(chat_log_path, log_file))
-
-        return False
 
     def image_context_conversation(self, text_request: str, file_list: List[str]):
         # postfix = f". Your should represent your answer only in HTML format following this instruction:\n{html_instruction}."
@@ -398,6 +374,29 @@ class Panthera:
         Path(self.data_dir).mkdir(parents=True, exist_ok=True)  # Ensure data directory exists
         self.chat_history = []
 
+    def is_reply_to_ai_message(self, message):
+        if "reply_to_message" not in message:
+            return False
+
+        reply_to_message_id = message["reply_to_message"]["message_id"]
+        chat_id = message["chat"]["id"]
+
+        chat_log_path = os.path.join(self.data_dir, str(chat_id))
+        for log_file in os.listdir(chat_log_path):
+            with open(os.path.join(chat_log_path, log_file), 'r') as file:
+                try:
+                    saved_message = json.load(file)
+                    if (
+                        saved_message["type"] == "AIMessage"
+                        and int(log_file.split("_")[1].split(".")[0]) == reply_to_message_id
+                    ):
+                        return True
+                except Exception as e:
+                    self.logger.error(f'Error reading chat history: {e}')
+                    # Remove the problematic file
+                    # os.remove(os.path.join(chat_log_path, log_file))
+
+        return False
 
     def get_message_type(self, user_session, text):
         if text == '/start':
