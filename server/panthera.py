@@ -508,9 +508,6 @@ class Panthera:
         Path(chat_path).mkdir(parents=True, exist_ok=True)
         # Get all files in folder
         list_of_files = glob.glob(chat_path + "/*.json")
-        # Sort files by creation time ascending
-        # list_of_files.sort(key=os.path.getctime)
-        # Sort files by creation time descending
         list_of_files.sort(key=os.path.getctime, reverse=True)
         tokens = 0
         # Log list of files
@@ -537,7 +534,6 @@ class Panthera:
                 self.logger.error(f"Error loading file: {file} error: {e}")
                 os.remove(file)
        
-    # def log_message(self, chat_id: str, message_text: str):
     def save_to_chat_history(
             self, 
             chat_id, 
@@ -548,20 +544,15 @@ class Panthera:
             name_of_user = 'AI'
             ):
         self.logger.info(f'save_to_chat_history: {chat_id} message_text: {message_text}')
-        # chat_id = message['chat']['id']
-        # message_text = message['text']
         # Prepare a folder
         path = f'./data/chats/{chat_id}'
         os.makedirs(path, exist_ok=True)
-        # filename = f'{message["date"]}_{message["message_id"]}.json'
         if message_date is None:
             message_date = py_time.strftime('%Y-%m-%d-%H-%M-%S', py_time.localtime())
         log_file_name = f'{message_date}_{message_id}.json'        
 
         chat_log_path = os.path.join(self.data_dir, str(chat_id))
         Path(chat_log_path).mkdir(parents=True, exist_ok=True)
-        # timestamp = int(time.time())
-        # log_file_name = f"{timestamp}.json"
         with open(os.path.join(chat_log_path, log_file_name), 'w') as log_file:
             json.dump({
                 "type": type,
@@ -588,8 +579,6 @@ class Panthera:
             file_info = bot.get_file(file_id)
             file_path = file_info.file_path
             self.logger.info(f'file_path: {file_path}')
-            # message_text = 'files:[' + file_path + ']\n' + message_text
-        # return message_text
             return f'\nfiles: [{file_path}]'
         return ''
 
@@ -625,63 +614,12 @@ class Panthera:
             first_name = 'Unknown'
         return first_name
 
-    # The original llm_request function now refactored with Langchain's conversational agent
-    # def llm_request(chat_id: str, message_text: str, user_session) -> str:
     def llm_request(self, bot, user_session, message, message_text, system_content=None):
         chat_id = message['chat']['id']
         self.logger.info(f'llm_request: {chat_id}')
 
         # Read chat history
         self.read_chat_history(chat_id=chat_id)
-
-        # first_name = self.get_first_name(message)
-
-        # Check if the message contains text or caption
-        # if 'text' in message:
-        #     message_text = message['text']
-        # elif 'caption' in message:
-        #     message_text = message['caption']
-        # else:
-        #     message_text = ''
-        #     self.logger.error(f'No text or caption in message: {message}')
-        #     if 'photo' in message or 'document' in message:
-        #         message_text = self.append_file_prefix(bot, message_text, message)
-        #         self.save_to_chat_history(
-        #             message['chat']['id'], 
-        #             message_text, 
-        #             message["message_id"],
-        #             'HumanMessage',
-        #             message["date"],
-        #             first_name
-        #         )
-        #     # return 'No text or caption in message'
-        #     return ''
-        
-        
-
-        # # If message contains an attached images
-        # message_text = self.append_file_prefix(bot, message_text, message)
-
-        # self.save_to_chat_history(
-        #     message['chat']['id'], 
-        #     message_text, 
-        #     message["message_id"],
-        #     'HumanMessage',
-        #     message["date"],
-        #     first_name
-        #     )
-        
-        
-        #     # self.logger.info(f'photo: {message["photo"]}')
-        #     # self.save_to_chat_history(
-        #     #     message['chat']['id'], 
-        #     #     'photo', 
-        #     #     message["message_id"],
-        #     #     'HumanMessage'
-        #     #     )
-        #     # return 'photo'
-        # # Add the [chat_id] and the [message_id] as a prefix to the message_text
-        # message_text = f"user_name: {first_name}\nchat_id: {chat_id}\nmessage_id: {message['message_id']}\n {message_text}"
         self.logger.info(f'invoking message_text: {message_text}')
         response = self.chat_agent.agent_executor.invoke(
             {

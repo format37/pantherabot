@@ -332,51 +332,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
     
     # Extractinf file list from the message
     file_list = ''
-    # if 'text' in message:
-    #     message_text = message['text']
-    # elif 'caption' in message:
-    #     message_text = message['caption']
-    # else:
-    #     message_text = ''
-    #     logger.info(f'No text or caption in message: {message}')
     if 'photo' in message or 'document' in message:
         file_list = panthera.get_message_file_list(bot, message)
-            # save_to_chat_history(
-            #     message['chat']['id'], 
-            #     message_text, 
-            #     message["message_id"],
-            #     'HumanMessage',
-            #     message["date"],
-            #     first_name
-            # )
-        # return 'No text or caption in message'
-        # return ''
-    
-    
-
-    # If message contains an attached images
-    # message_text = self.append_file_prefix(bot, message_text, message)
-
-    # self.save_to_chat_history(
-    #     message['chat']['id'], 
-    #     message_text, 
-    #     message["message_id"],
-    #     'HumanMessage',
-    #     message["date"],
-    #     first_name
-    #     )
-    
-    
-        # self.logger.info(f'photo: {message["photo"]}')
-        # self.save_to_chat_history(
-        #     message['chat']['id'], 
-        #     'photo', 
-        #     message["message_id"],
-        #     'HumanMessage'
-        #     )
-        # return 'photo'
-    # Add the [chat_id] and the [message_id] as a prefix to the message_text
-    # message_text = f"user_name: {first_name}\nchat_id: {chat_id}\nmessage_id: {message['message_id']}\n {message_text}"
     
     # Save message to the Chat history
     first_name = panthera.get_first_name(message)
@@ -393,7 +350,6 @@ async def call_message(request: Request, authorization: str = Header(None)):
     message_text += f"\nchat_id: {chat_id}"
     message_text += f"\nmessage_id: {message['message_id']}"
     message_text += f"\nmessage_date: {message_date}"
-    message_text += f"\ntime_passed: {time_passed}"
     if file_list != '':
         message_text += f"\nfile_list: {file_list}"
     message_text += f"\nmessage_text: {text}"
@@ -418,6 +374,9 @@ async def call_message(request: Request, authorization: str = Header(None)):
             with open ('data/topics.json') as f:
                 topics = json.load(f)
             system_content = topics[user_session['topic']]['system']
+        # Log the current_date
+        current_date = pd.Timestamp.now()
+        logger.info(f'current_date: {current_date}')
         answer = panthera.llm_request(bot, user_session, message, message_text, system_content=system_content)
 
         if answer == '':
@@ -448,27 +407,16 @@ async def call_inline(request: Request, authorization: str = Header(None)):
     """
     message = await request.json()
     logger.info(f'inline content: {message}')
-    # from_user_id = message['from_user_id']
     inline_query_id = message['inline_query_id']
-    # expression = message['query']
-    # message = content['inline_query']
     # Check is path ./data/{user_id}/ exists. If not, return 'no data'
     data_folder = f"data/chats/{message['from_user_id']}/"
     if not os.path.exists(data_folder):
         logger.info(f"Folder is not exist: {data_folder}")
-        # return JSONResponse(content={
-        #     "title": "no data",
-        #     "message_text": "no data"
-        #     })
         return JSONResponse(content={"status": "ok"})
     # Is path ./data/{user_id}/ have files. If not, return 'no data'
     files = os.listdir(data_folder)
     if not files:
         logger.info(f"Folder is empty: {data_folder}")
-        # return JSONResponse(content={
-        #     "title": "no data",
-        #     "message_text": "no data"
-        #     })
         return JSONResponse(content={"status": "ok"})
     # Reads the latest file, sorted by name
     files.sort()
@@ -477,10 +425,6 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         data = json.load(f)
     # Returns the file content
     logger.info(f"inline data: {data}")
-    # return JSONResponse(content={
-    #         "type": "inline",
-    #         "body": [data['text']]
-    #         })
     inline_elements = []
     element = telebot.types.InlineQueryResultArticle(
         0,
