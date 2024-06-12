@@ -9,6 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 # from telebot import TeleBot
 import telebot
+from telebot.formatting import escape_markdown
 
 # Initialize FastAPI
 app = FastAPI()
@@ -504,7 +505,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
         # except Exception as e:
         #     logger.info(f'### UNABLE TO PARSE HTML: {e}')
         #     bot.send_message(chat_id, answer)
-        bot.send_message(chat_id, answer)
+        answer = escape_markdown(answer)
+        bot.send_message(chat_id, answer, parse_mode="MarkdownV2")
         
         # Evaluation log: If [num] in the answer, extract the num and set the evaluation
         """match = re.search(r'\[(10|[0-9])\]', answer)
