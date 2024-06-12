@@ -557,7 +557,8 @@ class Panthera:
         self.logger.info(f"list_of_files: \n{list_of_files}")
         # Iterate over sorted files and append message to messages list
         for file in list_of_files: 
-            if tokens > self.config['token_limit']:
+            # if tokens > self.config['token_limit']:
+            if tokens > 4000:
                 self.logger.info(f"Removing file: {file}")
                 os.remove(file)
                 continue
@@ -630,7 +631,7 @@ class Panthera:
                 file_info = bot.get_file(file_id)
                 file_path = file_info.file_path
                 self.logger.info(f'file_path: {file_path}')
-                return f'\nfiles: [{file_path}]'
+                return f'[{file_path}]'
         return ''
 
     def read_chat_history(self, chat_id: str):

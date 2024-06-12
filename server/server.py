@@ -354,7 +354,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
     message_text += f"\nmessage_date: {message_date}"
     if file_list != '':
         message_text += f"\nfile_list: {file_list}"
-    message_text += f"\nmessage_text: {text}"
+    if text != '':
+        message_text += f"\nmessage_text: {text}"
     panthera.save_to_chat_history(
         chat_id,
         f"{message_text}",
