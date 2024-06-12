@@ -38,25 +38,25 @@ async def call_test():
     logger.info('call_test')
     return JSONResponse(content={"status": "ok"})
 
-def remove_unsupported_tags(text, supported_tags):
-    # Convert the supported tags string to a set for faster lookup
-    supported_tags_set = set(supported_tags.split('>'))
+# def remove_unsupported_tags(text, supported_tags):
+#     # Convert the supported tags string to a set for faster lookup
+#     supported_tags_set = set(supported_tags.split('>'))
     
-    # Regular expression pattern to match HTML tags
-    tag_pattern = re.compile(r'<(/?\w+)(.*?)>')
+#     # Regular expression pattern to match HTML tags
+#     tag_pattern = re.compile(r'<(/?\w+)(.*?)>')
     
-    # Function to replace unsupported tags
-    def replace_tag(match):
-        tag_name = match.group(1)
-        if '<' + tag_name + '>' in supported_tags_set:
-            return match.group(0)  # Keep the tag if it's supported
-        else:
-            return ''  # Remove the tag if it's not supported
+#     # Function to replace unsupported tags
+#     def replace_tag(match):
+#         tag_name = match.group(1)
+#         if '<' + tag_name + '>' in supported_tags_set:
+#             return match.group(0)  # Keep the tag if it's supported
+#         else:
+#             return ''  # Remove the tag if it's not supported
     
-    # Replace unsupported tags using the replace_tag function
-    cleaned_text = tag_pattern.sub(replace_tag, text)
+#     # Replace unsupported tags using the replace_tag function
+#     cleaned_text = tag_pattern.sub(replace_tag, text)
     
-    return cleaned_text
+#     return cleaned_text
 
 # def escape_markdown(text):
 #     escape_chars = r'_*[]()~`>#+-=|{}.!'
@@ -506,6 +506,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         #     logger.info(f'### UNABLE TO PARSE HTML: {e}')
         #     bot.send_message(chat_id, answer)
         answer = escape_markdown(answer)
+        logger.info(f'### sending MarkdownV2: {answer}')
         bot.send_message(chat_id, answer, parse_mode="MarkdownV2")
         
         # Evaluation log: If [num] in the answer, extract the num and set the evaluation
