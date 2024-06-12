@@ -370,7 +370,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
 
     if message['chat']['type'] == 'private' \
         or text.startswith('/*') \
-        or text.startswith('/.'):
+        or text.startswith('/.') \
+        or panthera.is_reply_to_ai_message(message):
         # Read the system_content from the topics by user_session['topic'] if it is set
         if 'topic' in user_session:
             with open ('data/topics.json') as f:
