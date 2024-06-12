@@ -86,7 +86,10 @@ markdown_sample = """*bold text*
 _italic text_
 __underline__
 ~strikethrough~
-||spoiler||"""
+||spoiler||
+```
+pre-formatted fixed-width code block
+```"""
 
 html_instruction = """<b>bold</b>, <strong>bold</strong>
 <i>italic</i>, <em>italic</em>

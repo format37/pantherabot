@@ -395,43 +395,25 @@ async def call_message(request: Request, authorization: str = Header(None)):
             "__": "u4cf178c998d04dfb88897ac3e49630bf",
             "_": "u9604214d2ab14a539623d63f4a3b7e3b",
             "~": "u06f4b328e72240c8b2909652a70af831",
-            "||": "u955ba36d498a48119ac522100978f861"
+            "||": "u955ba36d498a48119ac522100978f861",
+            "```": "u795fe7bde93a4aaf9351a2064b1ab484"
+
         }
-        # # Replace * by tg_f_bul_mul
-        # answer = answer.replace("*', f_mul)
-        # # Replace __ by tg_f_und
-        # answer = answer.replace('__', 'tgfund')
-        # # Replace _ by tg_f_it
-        # answer = answer.replace('_', 'tgfit')
-        # # Replace ~ by tg_f_strik
-        # answer = answer.replace('~', 'tgfstrik')
-        # # Replace || by tg_f_spol
-        # answer = answer.replace('||', 'tgfspol')
         for key, value in formatting.items():
             answer = answer.replace(key, value)
         answer = escape_markdown(answer)
         for key, value in formatting.items():
             answer = answer.replace(value, key)
-        # # Replace tg_f_bul_mul by *
-        # answer = answer.replace('tgfbulmul', '*')
-        # # Replace tg_f_und by __
-        # answer = answer.replace('tgfund', '__')
-        # # Replace tg_f_it by _
-        # answer = answer.replace('tgfit', '_')
-        # # Replace tg_f_strik by ~
-        # answer = answer.replace('tgfstrik', '~')
-        # # Replace tg_f_spol by ||
-        # answer = answer.replace('tgfspol', '||')
-        logger.info(f'### sending escaped: {answer}')
-        bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')        
-        # try:
-        #     logger.info(f'### sending MarkdownV2: {answer}')
-        #     bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
-        # except Exception as e:
-        #     logger.error(f'Error sending markdown: {e}')
-        #     answer = escape_markdown(answer)
-        #     logger.info(f'### sending escaped: {answer}')
-        #     bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')        
+        # logger.info(f'### sending escaped: {answer}')
+        # bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
+        try:
+            logger.info(f'### sending MarkdownV2: {answer}')
+            bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
+        except Exception as e:
+            logger.error(f'Error sending markdown: {e}')
+            answer = escape_markdown(answer)
+            logger.info(f'### sending escaped: {answer}')
+            bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
         
     return JSONResponse(content={
         "type": "empty",
