@@ -384,7 +384,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         first_name = message['from']['first_name']
     else:
         first_name = message['from']['username']
-    panthera.log_message(message)
+    # panthera.log_message(message)
     message_date = message['date']
     # Convert 'date': 1718167018 to '2024-06-06 12:36:58'
     message_date = pd.to_datetime(message_date, unit='s')
