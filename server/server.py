@@ -418,7 +418,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
             with open ('data/topics.json') as f:
                 topics = json.load(f)
             system_content = topics[user_session['topic']]['system']
-        answer = panthera.llm_request(bot, user_session, message, system_content=system_content)
+        answer = panthera.llm_request(bot, user_session, message, message_text, system_content=system_content)
 
         if answer == '':
             return JSONResponse(content={
