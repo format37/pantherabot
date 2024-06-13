@@ -474,8 +474,8 @@ class Panthera:
         self.logger.info(f"list_of_files: \n{list_of_files}")
         # Iterate over sorted files and append message to messages list
         for file in list_of_files: 
-            # if tokens > self.config['token_limit']:
-            if tokens > 4000:
+            if tokens > self.config['token_limit']:
+            # if tokens > 4000:
                 self.logger.info(f"Removing file: {file}")
                 os.remove(file)
                 continue
