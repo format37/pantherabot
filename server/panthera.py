@@ -8,46 +8,36 @@ import json
 import logging
 from pydantic import BaseModel, Field
 from typing import List
-from langchain.agents import Tool, initialize_agent
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain_community.document_loaders import TextLoader, DirectoryLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import DocArrayInMemorySearch
-# from langchain_community.tools import StructuredTool
-# from langchain.tools.base import StructuredTool
+# from langchain.agents import Tool, initialize_agent
+from langchain.agents import Tool
+# from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
+# from langchain_community.document_loaders import TextLoader, DirectoryLoader
+# from langchain.text_splitter import RecursiveCharacterTextSplitter
+# from langchain_community.vectorstores import DocArrayInMemorySearch
 from langchain_core.tools import StructuredTool
-from langchain.schema import HumanMessage, SystemMessage, AIMessage
-from langchain_community.tools import DuckDuckGoSearchRun
-from langchain_community.tools import DuckDuckGoSearchResults
+# from langchain.schema import HumanMessage, SystemMessage, AIMessage
+from langchain.schema import HumanMessage, AIMessage
+# from langchain_community.tools import DuckDuckGoSearchRun
+# from langchain_community.tools import DuckDuckGoSearchResults
 from langchain.tools import YouTubeSearchTool
 from langchain.utilities import GoogleSerperAPIWrapper
 from langchain.tools import WikipediaQueryRun
 from langchain.utilities import WikipediaAPIWrapper
 from langchain_community.utilities.wolfram_alpha import WolframAlphaAPIWrapper
-from langchain.chains import RetrievalQA
+# from langchain.chains import RetrievalQA
 from langchain_experimental.utilities import PythonREPL
 import time as py_time
 from pathlib import Path
 import tiktoken
-from langchain.agents import AgentExecutor, create_tool_calling_agent, tool
+# from langchain.agents import AgentExecutor, create_tool_calling_agent, tool
+from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain.prompts.chat import ChatPromptTemplate
 import base64
 from openai import OpenAI
 import telebot
-# import re
 from telebot.formatting import escape_markdown
-# import aiohttp
 import logging
-# from langchain.callbacks.manager import (
-#     AsyncCallbackManagerForToolRun,
-#     CallbackManagerForToolRun,
-# )
-# from langchain.tools import BaseTool
-# from typing import List, Optional
-# from langchain.callbacks.manager import CallbackManager
-# from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
-
-# callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
 
 with open('config.json') as config_file:
     bot = telebot.TeleBot(json.load(config_file)['TOKEN'])
@@ -69,71 +59,6 @@ class ImagePlotterArgs(BaseModel):
     prompt: str = Field(description="The prompt to generate the image")
     chat_id: str = Field(description="chat_id")
     message_id: str = Field(description="message_id")
-
-markdown_sample_v0 = """*bold \*text*
-_italic \*text_
-__underline__
-~strikethrough~
-||spoiler||
-*bold _italic bold ~italic bold strikethrough ||italic bold strikethrough spoiler||~ __underline italic bold___ bold*
-[inline URL](http://www.example.com/)
-[inline mention of a user](tg://user?id=123456789)
-![👍](tg://emoji?id=5368324170671202286)
-`inline fixed-width code`
-```
-pre-formatted fixed-width code block
-```
-```python
-pre-formatted fixed-width code block written in the Python programming language
-```
->Block quotation started
->Block quotation continued
->Block quotation continued
->Block quotation continued
->The last line of the block quotation
-**>The expandable block quotation started right after the previous block quotation
->It is separated from the previous block quotation by an empty bold entity
->Expandable block quotation continued
->Hidden by default part of the expandable block quotation started
->Expandable block quotation continued
->The last line of the expandable block quotation with the expandability mark||"""
-
-markdown_sample = """*bold text*
-_italic text_
-__underline__
-~strikethrough~
-||spoiler||
-```
-pre-formatted fixed-width code block
-```"""
-
-html_instruction = """<b>bold</b>, <strong>bold</strong>
-<i>italic</i>, <em>italic</em>
-<u>underline</u>, <ins>underline</ins>
-<s>strikethrough</s>, <strike>strikethrough</strike>, <del>strikethrough</del>
-<span class="tg-spoiler">spoiler</span>, <tg-spoiler>spoiler</tg-spoiler>
-<b>bold <i>italic bold <s>italic bold strikethrough <span class="tg-spoiler">italic bold strikethrough spoiler</span></s> <u>underline italic bold</u></i> bold</b>
-<a href="http://www.example.com/">inline URL</a>
-<a href="tg://user?id=123456789">inline mention of a user</a>
-<tg-emoji emoji-id="5368324170671202286">👍</tg-emoji>
-<code>inline fixed-width code</code>
-<pre>pre-formatted fixed-width code block</pre>
-<pre><code class="language-python">pre-formatted fixed-width code block written in the Python programming language</code></pre>
-<blockquote>Block quotation started\nBlock quotation continued\nThe last line of the block quotation</blockquote>
-<blockquote expandable>Expandable block quotation started\nExpandable block quotation continued\nExpandable block quotation continued\nHidden by default part of the block quotation started\nExpandable block quotation continued\nThe last line of the block quotation</blockquote>
-
-Please note:
-
-    Only the tags mentioned above are currently supported.
-    All <, > and & symbols that are not a part of a tag or an HTML entity must be replaced with the corresponding HTML entities (< with &lt;, > with &gt; and & with &amp;).
-    All numerical HTML entities are supported.
-    The API currently supports only the following named HTML entities: &lt;, &gt;, &amp; and &quot;.
-    Use nested pre and code tags, to define programming language for pre entity.
-    Programming language can't be specified for standalone code tags.
-    A valid emoji must be used as the content of the tg-emoji tag. The emoji will be shown instead of the custom emoji in places where a custom emoji cannot be displayed (e.g., system notifications) or if the message is forwarded by a non-premium user. It is recommended to use the emoji from the emoji field of the custom emoji sticker.
-    Custom emoji entities can only be used by bots that purchased additional usernames on Fragment.
-"""
-supported_html_tags = '<b><strong><i><em><u><ins><s><strike><del><span class="tg-spoiler"><tg-spoiler><b><a href="http://www.example.com/"><code><pre><code class="language-python">'
 
 def append_message(messages, role, text, image_url):
     messages.append(
@@ -267,6 +192,14 @@ class ChatAgent:
                 func=RetrievalQA.from_chain_type(llm=llm, retriever=self.retriever),
             )
         )"""
+        markdown_sample = """*bold text*
+_italic text_
+__underline__
+~strikethrough~
+||spoiler||
+```
+pre-formatted fixed-width code block
+```"""
         system_prompt = f"""Your name is Janet.
 You are Artificial Intelligence and the participant in the multi-user or personal telegram chat.
 Your model is {model} with temperature: {temperature}.
@@ -399,23 +332,6 @@ class Panthera:
             return False
         if message["reply_to_message"]["from"]["username"] == os.environ.get('BOT_USERNAME', 'your_bot_name'):
             return True
-        # reply_to_message_id = message["reply_to_message"]["message_id"]
-        # chat_id = message["chat"]["id"]
-
-        # chat_log_path = os.path.join(self.data_dir, str(chat_id))
-        # for log_file in os.listdir(chat_log_path):
-        #     with open(os.path.join(chat_log_path, log_file), 'r') as file:
-        #         try:
-        #             saved_message = json.load(file)
-        #             if (
-        #                 saved_message["type"] == "AIMessage"
-        #                 and int(log_file.split("_")[1].split(".")[0]) == reply_to_message_id
-        #             ):
-        #                 return True
-        #         except Exception as e:
-        #             self.logger.error(f'Error reading chat history: {e}')
-        #             # Remove the problematic file
-        #             # os.remove(os.path.join(chat_log_path, log_file))
 
         return False
 
