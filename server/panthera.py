@@ -306,15 +306,13 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         
         return "Image generated and sent to the chat"
 
+    import aiohttp
+
     async def image_context_conversation(self, text_request: str, file_list: List[str]):
-        # postfix = f". Your should represent your answer only in HTML format following this instruction:\n{html_instruction}."
-        # postfix = ""
-        # text_request = text_request + postfix
         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
         messages = []
         for file_path in file_list:
             self.logger.info(f"file_path: {file_path}")
-            # file_path = file_list[0]
             base64_image = encode_image(file_path)
             image_url = f"data:image/jpeg;base64,{base64_image}"    
             append_message(
@@ -328,8 +326,41 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}"
         }
+        model = "gpt-4o"
 
-        # model = "gpt-4o-2024-05-13"
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers=headers,
+                json={
+                    "model": model,
+                    "messages": messages,
+                    # "max_tokens": 2000
+                }
+            ) as response:
+                response_text = await response.text()
+                self.logger.info(f"image_context_conversation response text: {response_text}")
+                response_data = json.loads(response_text)
+                return response_data['choices'][0]['message']['content']
+    
+    def image_context_conversation_(self, text_request: str, file_list: List[str]):
+        self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
+        messages = []
+        for file_path in file_list:
+            self.logger.info(f"file_path: {file_path}")
+            base64_image = encode_image(file_path)
+            image_url = f"data:image/jpeg;base64,{base64_image}"    
+            append_message(
+                messages, 
+                "user",
+                text_request,
+                image_url
+            )
+        api_key = os.environ.get('OPENAI_API_KEY', '')
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
         model = "gpt-4o"
 
         response = requests.post(
@@ -342,14 +373,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             }
         )
         self.logger.info(f"image_context_conversation response text: {response.text}")
-        # response_content = response.choices[0].message.content
-        # try:
-        # response_text = response.text['choices'][0]['message']['content']
         response_text = json.loads(response.text)['choices'][0]['message']['content']
-        # except Exception as e:
-        #     self.logger.error(f"Error getting response text: {e}")
-        #     response_text = "Error getting response text"
-        # return "На данных фото изображен кувшин и тарелка"
         return response_text
     
     def text_file_reader(self, file_list: List[str]):
