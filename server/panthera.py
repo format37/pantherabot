@@ -219,7 +219,7 @@ class ChatAgent:
 
         # coroutine=self.image_context_conversation, # may be used instead of func
         image_context_conversation_tool = StructuredTool.from_function(
-            func=self.image_context_conversation,
+            # func=self.image_context_conversation,
             coroutine=self.image_context_conversation,
             name="image_context_conversation",
             description="Answering on your text request about provided images",
