@@ -235,7 +235,7 @@ class ChatAgent:
         )
         
         image_plotter_tool = StructuredTool.from_function(
-            func=self.ImagePlotterTool,
+            coroutine=self.ImagePlotterTool,
             name="image_plotter",
             description="A tool to generate and send to user images based on a given prompt",
             args_schema=ImagePlotterArgs,
@@ -250,13 +250,13 @@ class ChatAgent:
         )
 
         tools = []
-        # tools.append(repl_tool)
-        # tools.append(wolfram_tool)
-        # tools.append(youtube_tool)
-        # tools.append(google_search_tool)
-        # tools.append(wikipedia_tool)
+        tools.append(repl_tool)
+        tools.append(wolfram_tool)
+        tools.append(youtube_tool)
+        tools.append(google_search_tool)
+        tools.append(wikipedia_tool)
         tools.append(image_context_conversation_tool)
-        # tools.append(image_plotter_tool)
+        tools.append(image_plotter_tool)
         tools.append(text_file_reader_tool)
 
         """tools.append(
@@ -274,8 +274,6 @@ You can determine the current date from the message_date field in the current me
 For the formatting you can use the telegram MarkdownV2 format. For example: {markdown_sample}."""
         prompt = ChatPromptTemplate.from_messages(
             [
-                # ("system", f"You are telegram chat member. Your may represent your answer in HTML format following this instruction:\n{html_instruction}."),
-                # You are able to use telegram MarkdownV2 format in your answers. For example: {markdown_sample}
                 ("system", system_prompt),
                 ("placeholder", "{chat_history}"),
                 ("human", "{input}"),
@@ -289,7 +287,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         # )
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-    def ImagePlotterTool(self, prompt: str, chat_id: str, message_id: str) -> str:
+    async def ImagePlotterTool(self, prompt: str, chat_id: str, message_id: str) -> str:
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
         response = client.images.generate(
