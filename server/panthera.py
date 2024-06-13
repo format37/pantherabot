@@ -754,14 +754,14 @@ class Panthera:
             first_name = 'Unknown'
         return first_name
 
-    def llm_request(self, bot, user_session, message, message_text, system_content=None):
+    async def llm_request(self, bot, user_session, message, message_text, system_content=None):
         chat_id = message['chat']['id']
         self.logger.info(f'llm_request: {chat_id}')
 
         # Read chat history
         self.read_chat_history(chat_id=chat_id)
         self.logger.info(f'invoking message_text: {message_text}')
-        response = self.chat_agent.agent_executor.ainvoke(
+        response = await self.chat_agent.agent_executor.ainvoke(
             {
                 "input": message_text,
                 "chat_history": self.chat_history,
