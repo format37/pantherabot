@@ -395,9 +395,9 @@ async def call_message(request: Request, authorization: str = Header(None)):
         
         formatting = {
             "&&&": "u447a0a7930e94a888a86a9ee09042458",
-            "__": "u4cf178c998d04dfb88897ac3e49630bf",
-            "_": "u9604214d2ab14a539623d63f4a3b7e3b",
-            "~": "u06f4b328e72240c8b2909652a70af831",
+            "@@@": "u4cf178c998d04dfb88897ac3e49630bf",
+            "%%%": "u9604214d2ab14a539623d63f4a3b7e3b",
+            "~~~": "u06f4b328e72240c8b2909652a70af831",
             "||": "u955ba36d498a48119ac522100978f861",
             "```": "u795fe7bde93a4aaf9351a2064b1ab484"
         }
@@ -406,7 +406,10 @@ async def call_message(request: Request, authorization: str = Header(None)):
         answer = escape_markdown(answer)
         for key, value in formatting.items():
             answer = answer.replace(value, key)
-        answer = answer.replace('&&&', '*')
+        answer = answer.replace('&&&', '*') # bold
+        answer = answer.replace('%%%', '_') # italic
+        answer = answer.replace('@@@', '__') # underline
+        answer = answer.replace('~~~', '~') # strikethrough
         try:
             logger.info(f'### sending MarkdownV2: {answer}')
             bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')

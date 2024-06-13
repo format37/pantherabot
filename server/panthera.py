@@ -193,9 +193,9 @@ class ChatAgent:
             )
         )"""
         markdown_sample = """&&&bold text&&&
-_italic text_
-__underline__
-~strikethrough~
+%%%italic text%%%
+@@@underline@@@
+~~~strikethrough~~~
 ||spoiler||
 ```
 pre-formatted fixed-width code block
