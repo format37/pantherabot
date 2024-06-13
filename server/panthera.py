@@ -34,16 +34,16 @@ from langchain.prompts.chat import ChatPromptTemplate
 import base64
 from openai import OpenAI
 import telebot
-import re
+# import re
 from telebot.formatting import escape_markdown
-import aiohttp
+# import aiohttp
 import logging
-from langchain.callbacks.manager import (
-    AsyncCallbackManagerForToolRun,
-    CallbackManagerForToolRun,
-)
-from langchain.tools import BaseTool
-from typing import List, Optional
+# from langchain.callbacks.manager import (
+#     AsyncCallbackManagerForToolRun,
+#     CallbackManagerForToolRun,
+# )
+# from langchain.tools import BaseTool
+# from typing import List, Optional
 
 with open('config.json') as config_file:
     bot = telebot.TeleBot(json.load(config_file)['TOKEN'])
@@ -219,7 +219,7 @@ class ChatAgent:
 
         # coroutine=self.image_context_conversation, # may be used instead of func
         image_context_conversation_tool = StructuredTool.from_function(
-            # func=self.image_context_conversation,
+            func=self.image_context_conversation,
             coroutine=self.image_context_conversation,
             name="image_context_conversation",
             description="Answering on your text request about provided images",
@@ -315,93 +315,93 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         return "Image generated and sent to the chat"
     
     # class ImageContextConversationTool(BaseTool):
-    class image_context_conversation(BaseTool):
-        name = "image_context_conversation"
-        description = "Answering on your text request about provided images."
-        # args_schema: Type[BaseModel] = image_context_conversation_args
+    # class image_context_conversation(BaseTool):
+    #     name = "image_context_conversation"
+    #     description = "Answering on your text request about provided images."
+    #     # args_schema: Type[BaseModel] = image_context_conversation_args
 
-        def _run(
-            self,
-            text_request: str,
-            file_list: List[str],
-            run_manager: Optional[CallbackManagerForToolRun] = None,
-        ) -> str:
-            """Use the tool."""
-            self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
-            messages = []
-            for file_path in file_list:
-                self.logger.info(f"file_path: {file_path}")
-                base64_image = encode_image(file_path)
-                image_url = f"data:image/jpeg;base64,{base64_image}"
-                append_message(
-                    messages,
-                    "user",
-                    text_request,
-                    image_url
-                )
-            api_key = os.environ.get('OPENAI_API_KEY', '')
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}"
-            }
-            model = "gpt-4o"
+    #     def _run(
+    #         self,
+    #         text_request: str,
+    #         file_list: List[str],
+    #         run_manager: Optional[CallbackManagerForToolRun] = None,
+    #     ) -> str:
+    #         """Use the tool."""
+    #         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
+    #         messages = []
+    #         for file_path in file_list:
+    #             self.logger.info(f"file_path: {file_path}")
+    #             base64_image = encode_image(file_path)
+    #             image_url = f"data:image/jpeg;base64,{base64_image}"
+    #             append_message(
+    #                 messages,
+    #                 "user",
+    #                 text_request,
+    #                 image_url
+    #             )
+    #         api_key = os.environ.get('OPENAI_API_KEY', '')
+    #         headers = {
+    #             "Content-Type": "application/json",
+    #             "Authorization": f"Bearer {api_key}"
+    #         }
+    #         model = "gpt-4o"
 
-            response = requests.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers=headers,
-                json={
-                    "model": model,
-                    "messages": messages,
-                    # "max_tokens": 2000
-                }
-            )
-            response_text = response.text
-            self.logger.info(f"image_context_conversation response text: {response_text}")
-            response_data = json.loads(response_text)
-            return response_data['choices'][0]['message']['content']
+    #         response = requests.post(
+    #             "https://api.openai.com/v1/chat/completions",
+    #             headers=headers,
+    #             json={
+    #                 "model": model,
+    #                 "messages": messages,
+    #                 # "max_tokens": 2000
+    #             }
+    #         )
+    #         response_text = response.text
+    #         self.logger.info(f"image_context_conversation response text: {response_text}")
+    #         response_data = json.loads(response_text)
+    #         return response_data['choices'][0]['message']['content']
 
-        async def _arun(
-            self,
-            text_request: str,
-            file_list: List[str],
-            run_manager: Optional[AsyncCallbackManagerForToolRun] = None,
-        ) -> str:
-            """Use the tool asynchronously."""
-            self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
-            messages = []
-            for file_path in file_list:
-                self.logger.info(f"file_path: {file_path}")
-                base64_image = encode_image(file_path)
-                image_url = f"data:image/jpeg;base64,{base64_image}"
-                append_message(
-                    messages,
-                    "user",
-                    text_request,
-                    image_url
-                )
-            api_key = os.environ.get('OPENAI_API_KEY', '')
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {api_key}"
-            }
-            model = "gpt-4o"
+    #     async def _arun(
+    #         self,
+    #         text_request: str,
+    #         file_list: List[str],
+    #         run_manager: Optional[AsyncCallbackManagerForToolRun] = None,
+    #     ) -> str:
+    #         """Use the tool asynchronously."""
+    #         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
+    #         messages = []
+    #         for file_path in file_list:
+    #             self.logger.info(f"file_path: {file_path}")
+    #             base64_image = encode_image(file_path)
+    #             image_url = f"data:image/jpeg;base64,{base64_image}"
+    #             append_message(
+    #                 messages,
+    #                 "user",
+    #                 text_request,
+    #                 image_url
+    #             )
+    #         api_key = os.environ.get('OPENAI_API_KEY', '')
+    #         headers = {
+    #             "Content-Type": "application/json",
+    #             "Authorization": f"Bearer {api_key}"
+    #         }
+    #         model = "gpt-4o"
 
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers=headers,
-                    json={
-                        "model": model,
-                        "messages": messages,
-                        # "max_tokens": 2000
-                    }
-                ) as response:
-                    response_text = await response.text()
-                    self.logger.info(f"image_context_conversation response text: {response_text}")
-                    response_data = json.loads(response_text)
-                    return response_data['choices'][0]['message']['content']
+    #         async with aiohttp.ClientSession() as session:
+    #             async with session.post(
+    #                 "https://api.openai.com/v1/chat/completions",
+    #                 headers=headers,
+    #                 json={
+    #                     "model": model,
+    #                     "messages": messages,
+    #                     # "max_tokens": 2000
+    #                 }
+    #             ) as response:
+    #                 response_text = await response.text()
+    #                 self.logger.info(f"image_context_conversation response text: {response_text}")
+    #                 response_data = json.loads(response_text)
+    #                 return response_data['choices'][0]['message']['content']
     
-    def image_context_conversation_(self, text_request: str, file_list: List[str]):
+    async def image_context_conversation(self, text_request: str, file_list: List[str]):
         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
         messages = []
         for file_path in file_list:
@@ -757,7 +757,7 @@ class Panthera:
         # Read chat history
         self.read_chat_history(chat_id=chat_id)
         self.logger.info(f'invoking message_text: {message_text}')
-        response = self.chat_agent.agent_executor.invoke(
+        response = self.chat_agent.agent_executor.ainvoke(
             {
                 "input": message_text,
                 "chat_history": self.chat_history,
