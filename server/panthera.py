@@ -44,6 +44,10 @@ import logging
 # )
 # from langchain.tools import BaseTool
 # from typing import List, Optional
+from langchain.callbacks.manager import CallbackManager
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+
+callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
 
 with open('config.json') as config_file:
     bot = telebot.TeleBot(json.load(config_file)['TOKEN'])
@@ -280,6 +284,9 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         )
         
         agent = create_tool_calling_agent(llm, tools, prompt)
+        # self.agent_executor = AgentExecutor(
+        #     agent=agent, tools=tools, verbose=True, handle_parsing_errors=True, early_stopping_method="generate", max_iterations=20
+        # )
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
     def ImagePlotterTool(self, prompt: str, chat_id: str, message_id: str) -> str:
