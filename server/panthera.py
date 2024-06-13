@@ -44,10 +44,10 @@ import logging
 # )
 # from langchain.tools import BaseTool
 # from typing import List, Optional
-from langchain.callbacks.manager import CallbackManager
-from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
+# from langchain.callbacks.manager import CallbackManager
+# from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
-callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
+# callback_manager = CallbackManager([StreamingStdOutCallbackHandler()])
 
 with open('config.json') as config_file:
     bot = telebot.TeleBot(json.load(config_file)['TOKEN'])
@@ -768,12 +768,19 @@ class Panthera:
         # Read chat history
         self.read_chat_history(chat_id=chat_id)
         self.logger.info(f'invoking message_text: {message_text}')
-        response = await self.chat_agent.agent_executor.ainvoke(
+        # response = await self.chat_agent.agent_executor.ainvoke(
+        #     {
+        #         "input": message_text,
+        #         "chat_history": self.chat_history,
+        #     }
+        # )["output"]
+        result = await self.chat_agent.agent_executor.ainvoke(
             {
                 "input": message_text,
                 "chat_history": self.chat_history,
             }
-        )["output"]
+        )
+        response = result["output"]
         
         self.save_to_chat_history(
             message['chat']['id'],
