@@ -36,6 +36,8 @@ from openai import OpenAI
 import telebot
 import re
 from telebot.formatting import escape_markdown
+import aiohttp
+import logging
 
 with open('config.json') as config_file:
     bot = telebot.TeleBot(json.load(config_file)['TOKEN'])
@@ -305,14 +307,17 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             )
         
         return "Image generated and sent to the chat"
-
-    import aiohttp
-
-    async def image_context_conversation(self, text_request: str, file_list: List[str]):
-        self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
+    
+    @tool("image_context_conversation", args_schema=image_context_conversation_args)
+    async def image_context_conversation(text_request: str, file_list: List[str]) -> str:
+        """Answering on your text request about provided images."""
+        logger = logging.getLogger(__name__)
+        # set level info
+        logger.setLevel(logging.INFO)
+        logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
         messages = []
         for file_path in file_list:
-            self.logger.info(f"file_path: {file_path}")
+            logger.info(f"file_path: {file_path}")
             base64_image = encode_image(file_path)
             image_url = f"data:image/jpeg;base64,{base64_image}"    
             append_message(
@@ -339,7 +344,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 }
             ) as response:
                 response_text = await response.text()
-                self.logger.info(f"image_context_conversation response text: {response_text}")
+                logger.info(f"image_context_conversation response text: {response_text}")
                 response_data = json.loads(response_text)
                 return response_data['choices'][0]['message']['content']
     
