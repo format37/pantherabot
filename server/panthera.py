@@ -243,7 +243,7 @@ class ChatAgent:
         )
 
         text_file_reader_tool = StructuredTool.from_function(
-            func=self.text_file_reader,
+            coroutine=self.text_file_reader,
             name="read_text_file",
             description="Provides the content of the text file",
             args_schema=text_file_reader_args,
@@ -257,7 +257,7 @@ class ChatAgent:
         # tools.append(wikipedia_tool)
         tools.append(image_context_conversation_tool)
         # tools.append(image_plotter_tool)
-        # tools.append(text_file_reader_tool)
+        tools.append(text_file_reader_tool)
 
         """tools.append(
             Tool(
@@ -290,11 +290,6 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
     def ImagePlotterTool(self, prompt: str, chat_id: str, message_id: str) -> str:
-        # name = "image_plotter"
-        # description = "A tool to generate and save images based on a given prompt"
-        # args_schema = ImagePlotterArgs
-
-        # def _run(self, prompt: str, chat_id: str, message_id: str) -> str:
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
         response = client.images.generate(
@@ -323,93 +318,6 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             )
         
         return "Image generated and sent to the chat"
-    
-    # class ImageContextConversationTool(BaseTool):
-    # class image_context_conversation(BaseTool):
-    #     name = "image_context_conversation"
-    #     description = "Answering on your text request about provided images."
-    #     # args_schema: Type[BaseModel] = image_context_conversation_args
-
-    #     def _run(
-    #         self,
-    #         text_request: str,
-    #         file_list: List[str],
-    #         run_manager: Optional[CallbackManagerForToolRun] = None,
-    #     ) -> str:
-    #         """Use the tool."""
-    #         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
-    #         messages = []
-    #         for file_path in file_list:
-    #             self.logger.info(f"file_path: {file_path}")
-    #             base64_image = encode_image(file_path)
-    #             image_url = f"data:image/jpeg;base64,{base64_image}"
-    #             append_message(
-    #                 messages,
-    #                 "user",
-    #                 text_request,
-    #                 image_url
-    #             )
-    #         api_key = os.environ.get('OPENAI_API_KEY', '')
-    #         headers = {
-    #             "Content-Type": "application/json",
-    #             "Authorization": f"Bearer {api_key}"
-    #         }
-    #         model = "gpt-4o"
-
-    #         response = requests.post(
-    #             "https://api.openai.com/v1/chat/completions",
-    #             headers=headers,
-    #             json={
-    #                 "model": model,
-    #                 "messages": messages,
-    #                 # "max_tokens": 2000
-    #             }
-    #         )
-    #         response_text = response.text
-    #         self.logger.info(f"image_context_conversation response text: {response_text}")
-    #         response_data = json.loads(response_text)
-    #         return response_data['choices'][0]['message']['content']
-
-    #     async def _arun(
-    #         self,
-    #         text_request: str,
-    #         file_list: List[str],
-    #         run_manager: Optional[AsyncCallbackManagerForToolRun] = None,
-    #     ) -> str:
-    #         """Use the tool asynchronously."""
-    #         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
-    #         messages = []
-    #         for file_path in file_list:
-    #             self.logger.info(f"file_path: {file_path}")
-    #             base64_image = encode_image(file_path)
-    #             image_url = f"data:image/jpeg;base64,{base64_image}"
-    #             append_message(
-    #                 messages,
-    #                 "user",
-    #                 text_request,
-    #                 image_url
-    #             )
-    #         api_key = os.environ.get('OPENAI_API_KEY', '')
-    #         headers = {
-    #             "Content-Type": "application/json",
-    #             "Authorization": f"Bearer {api_key}"
-    #         }
-    #         model = "gpt-4o"
-
-    #         async with aiohttp.ClientSession() as session:
-    #             async with session.post(
-    #                 "https://api.openai.com/v1/chat/completions",
-    #                 headers=headers,
-    #                 json={
-    #                     "model": model,
-    #                     "messages": messages,
-    #                     # "max_tokens": 2000
-    #                 }
-    #             ) as response:
-    #                 response_text = await response.text()
-    #                 self.logger.info(f"image_context_conversation response text: {response_text}")
-    #                 response_data = json.loads(response_text)
-    #                 return response_data['choices'][0]['message']['content']
     
     async def image_context_conversation(self, text_request: str, file_list: List[str]):
         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
@@ -445,7 +353,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         return response_text
         # return "Это кот"
     
-    def text_file_reader(self, file_list: List[str]):
+    async def text_file_reader(self, file_list: List[str]):
         self.logger.info(f"text_file_reader request: file_list: {file_list}")
         text = ""
         for file_path in file_list:
