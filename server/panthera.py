@@ -243,14 +243,14 @@ class ChatAgent:
         )
 
         tools = []
-        tools.append(repl_tool)
-        tools.append(wolfram_tool)
-        tools.append(youtube_tool)
-        tools.append(google_search_tool)
-        tools.append(wikipedia_tool)
+        # tools.append(repl_tool)
+        # tools.append(wolfram_tool)
+        # tools.append(youtube_tool)
+        # tools.append(google_search_tool)
+        # tools.append(wikipedia_tool)
         tools.append(image_context_conversation_tool)
-        tools.append(image_plotter_tool)
-        tools.append(text_file_reader_tool)
+        # tools.append(image_plotter_tool)
+        # tools.append(text_file_reader_tool)
 
         """tools.append(
             Tool(
