@@ -13,9 +13,9 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_community.document_loaders import TextLoader, DirectoryLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import DocArrayInMemorySearch
-from langchain_community.tools import StructuredTool
+# from langchain_community.tools import StructuredTool
 # from langchain.tools.base import StructuredTool
-# from langchain_core.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 from langchain.schema import HumanMessage, SystemMessage, AIMessage
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_community.tools import DuckDuckGoSearchResults
@@ -224,7 +224,10 @@ class ChatAgent:
             name="image_context_conversation",
             description="Answering on your text request about provided images",
             args_schema=image_context_conversation_args,
-            # return_direct=False,
+            return_direct=False,
+            handle_tool_error=True,
+            handle_validation_error=True,
+            verbose=True,
         )
         
         image_plotter_tool = StructuredTool.from_function(
