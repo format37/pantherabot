@@ -413,37 +413,37 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
     
     async def image_context_conversation(self, text_request: str, file_list: List[str]):
         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
-        # messages = []
-        # for file_path in file_list:
-        #     self.logger.info(f"file_path: {file_path}")
-        #     base64_image = encode_image(file_path)
-        #     image_url = f"data:image/jpeg;base64,{base64_image}"    
-        #     append_message(
-        #         messages, 
-        #         "user",
-        #         text_request,
-        #         image_url
-        #     )
-        # api_key = os.environ.get('OPENAI_API_KEY', '')
-        # headers = {
-        #     "Content-Type": "application/json",
-        #     "Authorization": f"Bearer {api_key}"
-        # }
-        # model = "gpt-4o"
+        messages = []
+        for file_path in file_list:
+            self.logger.info(f"file_path: {file_path}")
+            base64_image = encode_image(file_path)
+            image_url = f"data:image/jpeg;base64,{base64_image}"    
+            append_message(
+                messages, 
+                "user",
+                text_request,
+                image_url
+            )
+        api_key = os.environ.get('OPENAI_API_KEY', '')
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {api_key}"
+        }
+        model = "gpt-4o"
 
-        # response = requests.post(
-        #     "https://api.openai.com/v1/chat/completions",
-        #     headers=headers,
-        #     json={
-        #         "model": model,
-        #         "messages": messages,
-        #         # "max_tokens": 2000
-        #     }
-        # )
-        # self.logger.info(f"image_context_conversation response text: {response.text}")
-        # response_text = json.loads(response.text)['choices'][0]['message']['content']
-        # return response_text
-        return "Это кот"
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json={
+                "model": model,
+                "messages": messages,
+                # "max_tokens": 2000
+            }
+        )
+        self.logger.info(f"image_context_conversation response text: {response.text}")
+        response_text = json.loads(response.text)['choices'][0]['message']['content']
+        return response_text
+        # return "Это кот"
     
     def text_file_reader(self, file_list: List[str]):
         self.logger.info(f"text_file_reader request: file_list: {file_list}")
