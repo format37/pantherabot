@@ -192,7 +192,7 @@ class ChatAgent:
                 func=RetrievalQA.from_chain_type(llm=llm, retriever=self.retriever),
             )
         )"""
-        markdown_sample = """*bold text*
+        markdown_sample = """&&&bold text&&&
 _italic text_
 __underline__
 ~strikethrough~

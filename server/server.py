@@ -384,8 +384,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
         current_date = current_date - pd.Timedelta(hours=3)
         logger.info(f'current_date: {current_date}')
         answer = await panthera.llm_request(bot, user_session, message, message_text, system_content=system_content)
-        logger.info(f'<< llm_request answer ({type(answer)}): {answer}')
-        answer = str(answer)
+        # logger.info(f'<< llm_request answer ({type(answer)}): {answer}')
+        # answer = str(answer)
 
         if answer == '':
             return JSONResponse(content={
@@ -394,7 +394,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
             })
         
         formatting = {
-            "*": "u447a0a7930e94a888a86a9ee09042458",
+            "&&&": "u447a0a7930e94a888a86a9ee09042458",
             "__": "u4cf178c998d04dfb88897ac3e49630bf",
             "_": "u9604214d2ab14a539623d63f4a3b7e3b",
             "~": "u06f4b328e72240c8b2909652a70af831",
@@ -406,6 +406,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         answer = escape_markdown(answer)
         for key, value in formatting.items():
             answer = answer.replace(value, key)
+        answer = answer.replace('&&&', '*')
         try:
             logger.info(f'### sending MarkdownV2: {answer}')
             bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
