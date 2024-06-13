@@ -19,4 +19,4 @@ pydantic==1.10.10
 langchain-anthropic==0.1.13
 langchain-experimental==0.0.59
 tavily-python==0.3.3
-langchain-core==0.2.5
+langchain_core==0.2.4
