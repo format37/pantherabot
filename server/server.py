@@ -383,7 +383,9 @@ async def call_message(request: Request, authorization: str = Header(None)):
         # -3h from the current_date
         current_date = current_date - pd.Timedelta(hours=3)
         logger.info(f'current_date: {current_date}')
-        answer = panthera.llm_request(bot, user_session, message, message_text, system_content=system_content)
+        answer = await panthera.llm_request(bot, user_session, message, message_text, system_content=system_content)
+        logger.info(f'<< llm_request answer ({type(answer)}): {answer}')
+        answer = str(answer)
 
         if answer == '':
             return JSONResponse(content={
