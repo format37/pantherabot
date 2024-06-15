@@ -57,6 +57,7 @@ class text_file_reader_args(BaseModel):
 
 class ImagePlotterArgs(BaseModel):
     prompt: str = Field(description="The prompt to generate the image")
+    style: str = Field(description="The style of the generated images. Must be one of vivid or natural. Vivid causes the model to lean towards generating hyper-real and dramatic images. Natural causes the model to produce more natural, less hyper-real looking images.")
     chat_id: str = Field(description="chat_id")
     message_id: str = Field(description="message_id")
 
@@ -220,14 +221,19 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         # )
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-    async def ImagePlotterTool(self, prompt: str, chat_id: str, message_id: str) -> str:
+    async def ImagePlotterTool(self, prompt: str, style: str, chat_id: str, message_id: str) -> str:
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        style = style.lower()
+        if style not in ["vivid", "natural"]:
+            self.logger.info(f"Style {style} is not supported. Using default style: vivid")
+            style = "vivid"
 
         response = client.images.generate(
             model="dall-e-3",
             prompt=prompt,
-            size="1024x1024",
-            quality="standard",
+            style=style,
+            size="1024x1024",            
+            quality="hd",
             n=1,
         )
         self.logger.info(f"ImagePlotterTool response: {response}")
