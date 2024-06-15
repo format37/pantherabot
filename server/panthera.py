@@ -234,6 +234,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             style=style,
             size="1024x1024",            
             quality="hd",
+            user_id=chat_id,
             n=1,
         )
         self.logger.info(f"ImagePlotterTool response: {response}")
