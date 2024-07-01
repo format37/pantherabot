@@ -337,10 +337,10 @@ async def call_message(request: Request, authorization: str = Header(None)):
     
     # Save message to the Chat history
     first_name = panthera.get_first_name(message)
-    if 'first_name' in message['chat']:
-        first_name = message['from']['first_name']
-    else:
-        first_name = message['from']['username']
+    # if 'first_name' in message['chat']:
+    #     first_name = message['from']['first_name']
+    # else:
+    #     first_name = message['from']['username']
     # panthera.log_message(message)
     message_date = message['date']
     # Convert 'date': 1718167018 to '2024-06-06 12:36:58'
