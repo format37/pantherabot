@@ -55,6 +55,13 @@ class image_context_conversation_args(BaseModel):
 class text_file_reader_args(BaseModel):
     file_list: List[str] = Field(description="List of file_id")
 
+class update_system_prompt_args(BaseModel):
+    chat_id: str = Field(description="chat_id")
+    new_prompt: str = Field(description="new_prompt")
+
+class reset_system_prompt_args(BaseModel):
+    chat_id: str = Field(description="chat_id")
+
 class ImagePlotterArgs(BaseModel):
     prompt: str = Field(description="The prompt to generate the image")
     style: str = Field(description="The style of the generated images. Must be one of vivid or natural. Vivid causes the model to lean towards generating hyper-real and dramatic images. Natural causes the model to produce more natural, less hyper-real looking images.")
@@ -175,6 +182,20 @@ class ChatAgent:
             args_schema=text_file_reader_args,
         )
 
+        update_system_prompt_tool = StructuredTool.from_function(
+            coroutine=self.update_system_prompt,
+            name="update_system_prompt",
+            description="Update the system prompt for the corresponding group_id",
+            args_schema=update_system_prompt_args
+        )
+
+        reset_system_prompt_tool = StructuredTool.from_function(
+            coroutine=self.reset_system_prompt,
+            name="reset_system_prompt",
+            description="Reset the system prompt for the corresponding group_id",
+            args_schema=reset_system_prompt_args
+        )
+
         tools = []
         tools.append(repl_tool)
         tools.append(wolfram_tool)
@@ -184,6 +205,7 @@ class ChatAgent:
         tools.append(image_context_conversation_tool)
         tools.append(image_plotter_tool)
         tools.append(text_file_reader_tool)
+        tools.append(update_system_prompt_tool)
 
         """tools.append(
             Tool(
@@ -208,7 +230,8 @@ You can determine the current date from the message_date field in the current me
 For the formatting you can use the telegram MarkdownV2 format. For example: {markdown_sample}."""
         prompt = ChatPromptTemplate.from_messages(
             [
-                ("system", system_prompt),
+                # ("system", system_prompt),
+                ("system", "{system_prompt}"),
                 ("placeholder", "{chat_history}"),
                 ("human", "{input}"),
                 ("placeholder", "{agent_scratchpad}"),
@@ -299,7 +322,23 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             with open(file_path, 'r') as file:
                 text += f"file_path: {file_path}\n{file.read()}"
         return text
+    
+
+    async def update_system_prompt(self, chat_id, new_prompt):
+        self.logger.info(f"[chat_id] update_system_prompt: {new_prompt}")
+        # Save the new system prompt
+        os.makedirs('./data/custom_prompts', exist_ok=True)
+        with open(f'./data/custom_prompts/{chat_id}.txt', 'w') as f:
+            f.write(new_prompt)
+        return "System prompt updated"
         
+    async def reset_system_prompt(self, chat_id):
+        self.logger.info(f"[chat_id] reset_system_prompt")
+        # Remove the custom system prompt
+        custom_prompt_path = f'./data/custom_prompts/{chat_id}.txt'
+        if os.path.exists(custom_prompt_path):
+            os.remove(custom_prompt_path)
+        return "System prompt reset: ok"        
 
     @staticmethod
     def create_structured_tool(func, name, description, return_direct):
@@ -589,6 +628,28 @@ class Panthera:
         else:
             first_name = 'Unknown'
         return first_name
+    
+    def get_system_prompt(self, chat_id):
+        # Check if there's a custom system prompt for this chat
+        custom_prompt_path = f'./data/custom_prompts/{chat_id}.txt'
+        if os.path.exists(custom_prompt_path):
+            with open(custom_prompt_path, 'r') as f:
+                return f.read().strip()
+        # If no custom prompt, return the default system prompt
+        # return self.config['default_system_prompt']
+        markdown_sample = """&&&bold text&&&
+%%%italic text%%%
+@@@underline@@@
+~~~strikethrough~~~
+||spoiler||
+```
+pre-formatted fixed-width code block
+```"""
+        system_prompt = f"""Your name is Janet.
+You are Artificial Intelligence and the participant in the multi-user or personal telegram chat.
+You can determine the current date from the message_date field in the current message.
+For the formatting you can use the telegram MarkdownV2 format. For example: {markdown_sample}."""
+        return system_prompt
 
     async def llm_request(self, bot, user_session, message, message_text, system_content=None):
         chat_id = message['chat']['id']
@@ -603,10 +664,12 @@ class Panthera:
         #         "chat_history": self.chat_history,
         #     }
         # )["output"]
+        system_prompt = self.get_system_prompt(chat_id)
         result = await self.chat_agent.agent_executor.ainvoke(
             {
                 "input": message_text,
                 "chat_history": self.chat_history,
+                "system_prompt": system_prompt,
             }
         )
         response = result["output"]
