@@ -68,6 +68,9 @@ class ImagePlotterArgs(BaseModel):
     chat_id: str = Field(description="chat_id")
     message_id: str = Field(description="message_id")
 
+class ask_reasoning_args(BaseModel):
+    request: str = Field(description="Request for the Reasoning expert")
+
 def append_message(messages, role, text, image_url):
     messages.append(
         {
@@ -196,6 +199,13 @@ class ChatAgent:
             args_schema=reset_system_prompt_args
         )
 
+        ask_reasoning_tool = StructuredTool.from_function(
+            coroutine=self.ask_reasoning,
+            name="ask_reasoning",
+            description="Ask the Reasoning expert LLM for the given request",
+            args_schema=ask_reasoning_args
+        )
+
         tools = []
         tools.append(repl_tool)
         tools.append(wolfram_tool)
@@ -206,6 +216,8 @@ class ChatAgent:
         tools.append(image_plotter_tool)
         tools.append(text_file_reader_tool)
         tools.append(update_system_prompt_tool)
+        tools.append(reset_system_prompt_tool)
+        tools.append(ask_reasoning_tool)
 
         """tools.append(
             Tool(
@@ -338,7 +350,26 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         custom_prompt_path = f'./data/custom_prompts/{chat_id}.txt'
         if os.path.exists(custom_prompt_path):
             os.remove(custom_prompt_path)
-        return "System prompt reset: ok"        
+        return "System prompt reset: ok"
+    
+    async def ask_reasoning(self, request):
+        self.logger.info(f"[ask_reasoning] request")
+        client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        response = client.beta.chat.completions.parse(
+        model="o1-mini",
+            messages=[
+                {
+                    "role": "user", 
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": f"{request}"
+                        },                
+                    ]
+                },
+            ],
+        )
+        return response.choices[0].message.content
 
     @staticmethod
     def create_structured_tool(func, name, description, return_direct):
