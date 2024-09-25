@@ -355,7 +355,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
     async def ask_reasoning(self, request):
         self.logger.info(f"[ask_reasoning] request")
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        response = client.beta.chat.completions.parse(
+        response = client.chat.completions.create(
         model="o1-mini",
             messages=[
                 {
