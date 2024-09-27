@@ -356,7 +356,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         self.logger.info(f"[ask_reasoning] request")
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
         response = client.chat.completions.create(
-        model="o1-mini",
+        model="o1-preview",
             messages=[
                 {
                     "role": "user", 
