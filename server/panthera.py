@@ -68,6 +68,11 @@ class ImagePlotterArgs(BaseModel):
     chat_id: str = Field(description="chat_id")
     message_id: str = Field(description="message_id")
 
+class BFL_ImagePlotterArgs(BaseModel):
+    prompt: str = Field(description="The prompt to generate the image")
+    chat_id: str = Field(description="chat_id")
+    message_id: str = Field(description="message_id")
+
 class ask_reasoning_args(BaseModel):
     request: str = Field(description="Request for the Reasoning expert")
 
@@ -171,10 +176,10 @@ class ChatAgent:
         )
         
         image_plotter_tool = StructuredTool.from_function(
-            coroutine=self.ImagePlotterTool,
+            coroutine=self.BFL_ImagePlotterTool,
             name="image_plotter",
             description="A tool to generate and send to user images based on a given prompt",
-            args_schema=ImagePlotterArgs,
+            args_schema=BFL_ImagePlotterArgs,
             # return_direct=False,
         )
 
@@ -293,35 +298,17 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             
             time.sleep(5)  # Wait for 5 seconds before checking again
 
-    async def ImagePlotterTool(self, prompt: str, style: str, chat_id: str, message_id: str) -> str:
-        # client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        # style = style.lower()
-        # if style not in ["vivid", "natural"]:
-        #     self.logger.info(f"Style {style} is not supported. Using default style: vivid")
-        #     style = "vivid"
-        
+    async def BFL_ImagePlotterTool(self, prompt: str, chat_id: str, message_id: str) -> str:        
         headers = {
             "x-key": os.environ.get('BFL_API_KEY', ''),
             "Content-Type": "application/json"
         }
         self.logger.info(f"Submitting the bfl image generation request...")
-        task_id = self.bfl_generate_image(headers, prompt)
+        task_id = self.bfl_generate_image(headers, prompt, 1280, 1280)
         self.logger.info(f"Task ID: {task_id} Waiting for the image to be generated...")
         result = self.bfl_get_result(task_id, headers)
         if "sample" in result:
             image_url = result["sample"]
-            # response = client.images.generate(
-            #     model="dall-e-3",
-            #     prompt=prompt,
-            #     style=style,
-            #     size="1024x1024",            
-            #     quality="hd",
-            #     user=chat_id,
-            #     n=1,
-            # )
-            # self.logger.info(f"ImagePlotterTool response: {response}")
-            # image_url = response.data[0].url
-
             # Download the image
             image_data = requests.get(image_url).content
 
