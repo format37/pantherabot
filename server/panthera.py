@@ -256,7 +256,93 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         # )
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
+    def bfl_generate_image(self, headers, prompt, width=1024, height=768):
+        """
+        Submit an image generation request to the API.
+        """
+        API_URL = "https://api.bfl.ml"
+        endpoint = f"{API_URL}/v1/flux-pro-1.1"
+        payload = {
+            "prompt": prompt,
+            "width": width,
+            "height": height,
+            "safety_tolerance": 6
+        }
+
+        response = requests.post(endpoint, json=payload, headers=headers)
+        response.raise_for_status()
+        return response.json()["id"]
+
+    def bfl_get_result(self, task_id, headers):
+        """
+        Retrieve the result of an image generation task.
+        """
+        API_URL = "https://api.bfl.ml"
+        endpoint = f"{API_URL}/v1/get_result"
+        params = {"id": task_id}
+
+        while True:
+            response = requests.get(endpoint, params=params, headers=headers)
+            response.raise_for_status()
+            result = response.json()
+
+            if result["status"] == "Ready":
+                return result["result"]
+            elif result["status"] in ["Error", "Request Moderated", "Content Moderated"]:
+                raise Exception(f"Task failed with status: {result['status']}")
+            
+            time.sleep(5)  # Wait for 5 seconds before checking again
+
     async def ImagePlotterTool(self, prompt: str, style: str, chat_id: str, message_id: str) -> str:
+        # client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        # style = style.lower()
+        # if style not in ["vivid", "natural"]:
+        #     self.logger.info(f"Style {style} is not supported. Using default style: vivid")
+        #     style = "vivid"
+        
+        headers = {
+            "x-key": os.environ.get('BFL_API_KEY', ''),
+            "Content-Type": "application/json"
+        }
+        self.logger.info(f"Submitting the bfl image generation request...")
+        task_id = self.bfl_generate_image(headers, prompt)
+        self.logger.info(f"Task ID: {task_id} Waiting for the image to be generated...")
+        result = self.bfl_get_result(task_id, headers)
+        if "sample" in result:
+            image_url = result["sample"]
+            # response = client.images.generate(
+            #     model="dall-e-3",
+            #     prompt=prompt,
+            #     style=style,
+            #     size="1024x1024",            
+            #     quality="hd",
+            #     user=chat_id,
+            #     n=1,
+            # )
+            # self.logger.info(f"ImagePlotterTool response: {response}")
+            # image_url = response.data[0].url
+
+            # Download the image
+            image_data = requests.get(image_url).content
+
+            # caption = f"||{escape_markdown(response.data[0].revised_prompt)}||"
+            caption = f"||{escape_markdown(prompt)}||"
+            self.logger.info(f"ImagePlotterTool caption: {caption}")
+
+            # Send the photo
+            bot.send_photo(
+                chat_id=chat_id, 
+                photo=image_data, 
+                reply_to_message_id=message_id, 
+                caption=caption,
+                parse_mode="MarkdownV2"
+                )
+            
+            return "Image generated and sent to the chat"
+        else:
+            return f"Image generation failed: {result}"
+    
+    async def ImagePlotterTool_x(self, prompt: str, style: str, chat_id: str, message_id: str) -> str:
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
         style = style.lower()
         if style not in ["vivid", "natural"]:
