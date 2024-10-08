@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 # from telebot import TeleBot
 import telebot
 from telebot.formatting import escape_markdown
+from telebot.types import InlineQueryResultPhoto
 
 # Initialize FastAPI
 app = FastAPI()
@@ -438,35 +439,77 @@ async def call_inline(request: Request, authorization: str = Header(None)):
     message = await request.json()
     logger.info(f'inline content: {message}')
     inline_query_id = message['inline_query_id']
-    # Check is path ./data/{user_id}/ exists. If not, return 'no data'
-    data_folder = f"data/chats/{message['from_user_id']}/"
-    if not os.path.exists(data_folder):
-        logger.info(f"Folder is not exist: {data_folder}")
-        return JSONResponse(content={"status": "ok"})
-    # Is path ./data/{user_id}/ have files. If not, return 'no data'
-    files = os.listdir(data_folder)
-    if not files:
-        logger.info(f"Folder is empty: {data_folder}")
-        return JSONResponse(content={"status": "ok"})
-    # Reads the latest file, sorted by name
-    files.sort()
-    # Latest file is json. Load and read the message['text']
-    with open(data_folder + files[-1]) as f:
-        data = json.load(f)
-    # Returns the file content
-    logger.info(f"inline data: {data}")
-    inline_elements = []
-    element = telebot.types.InlineQueryResultArticle(
-        0,
-        data['text'],
-        telebot.types.InputTextMessageContent(data['text']),
-    )
-    inline_elements.append(element)
+    
+    query = message.get('query', '').lower()
+    user_id = message['from_user_id']
 
-    bot.answer_inline_query(
+    if 'photo' in query:
+        image_dir = f"data/users/{user_id}/images"
+        if not os.path.exists(image_dir):
+            logger.info(f"No images found for user {user_id}")
+            return JSONResponse(content={"status": "ok"})
+
+        image_files = os.listdir(image_dir)
+        if not image_files:
+            logger.info(f"No images found in {image_dir}")
+            return JSONResponse(content={"status": "ok"})
+
+        inline_elements = []
+        for idx, image_file in enumerate(sorted(image_files, reverse=True)):
+            image_path = os.path.join(image_dir, image_file)
+            with open(image_path, 'rb') as f:
+                image_data = f.read()
+            # Upload the image to Telegram to get a file_id
+            sent_message = bot.send_photo(chat_id=user_id, photo=image_data)
+            file_id = sent_message.photo[-1].file_id
+            # Create InlineQueryResultPhoto
+            element = InlineQueryResultPhoto(
+                id=str(idx),
+                photo_file_id=file_id,
+                thumb_url=image_url,
+                photo_url=image_url,
+                caption="Your generated image",
+            )
+            inline_elements.append(element)
+
+        bot.answer_inline_query(
             inline_query_id,
             inline_elements,
             cache_time=0,
             is_personal=True
         )
-    return JSONResponse(content={"status": "ok"})
+        return JSONResponse(content={"status": "ok"})
+    
+    else:
+        # Check is path ./data/{user_id}/ exists. If not, return 'no data'
+        data_folder = f"data/chats/{message['from_user_id']}/"
+        if not os.path.exists(data_folder):
+            logger.info(f"Folder is not exist: {data_folder}")
+            return JSONResponse(content={"status": "ok"})
+        # Is path ./data/{user_id}/ have files. If not, return 'no data'
+        files = os.listdir(data_folder)
+        if not files:
+            logger.info(f"Folder is empty: {data_folder}")
+            return JSONResponse(content={"status": "ok"})
+        # Reads the latest file, sorted by name
+        files.sort()
+        # Latest file is json. Load and read the message['text']
+        with open(data_folder + files[-1]) as f:
+            data = json.load(f)
+        # Returns the file content
+        logger.info(f"inline data: {data}")
+        inline_elements = []
+        element = telebot.types.InlineQueryResultArticle(
+            0,
+            data['text'],
+            telebot.types.InputTextMessageContent(data['text']),
+        )
+        inline_elements.append(element)
+
+        bot.answer_inline_query(
+                inline_query_id,
+                inline_elements,
+                cache_time=0,
+                is_personal=True
+            )
+        return JSONResponse(content={"status": "ok"})

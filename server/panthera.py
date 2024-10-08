@@ -8,29 +8,19 @@ import json
 import logging
 from pydantic import BaseModel, Field
 from typing import List
-# from langchain.agents import Tool, initialize_agent
 from langchain.agents import Tool
-# from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_openai import ChatOpenAI
-# from langchain_community.document_loaders import TextLoader, DirectoryLoader
-# from langchain.text_splitter import RecursiveCharacterTextSplitter
-# from langchain_community.vectorstores import DocArrayInMemorySearch
 from langchain_core.tools import StructuredTool
-# from langchain.schema import HumanMessage, SystemMessage, AIMessage
 from langchain.schema import HumanMessage, AIMessage
-# from langchain_community.tools import DuckDuckGoSearchRun
-# from langchain_community.tools import DuckDuckGoSearchResults
 from langchain.tools import YouTubeSearchTool
 from langchain.utilities import GoogleSerperAPIWrapper
 from langchain.tools import WikipediaQueryRun
 from langchain.utilities import WikipediaAPIWrapper
 from langchain_community.utilities.wolfram_alpha import WolframAlphaAPIWrapper
-# from langchain.chains import RetrievalQA
 from langchain_experimental.utilities import PythonREPL
 import time as py_time
 from pathlib import Path
 import tiktoken
-# from langchain.agents import AgentExecutor, create_tool_calling_agent, tool
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain.prompts.chat import ChatPromptTemplate
 import base64
@@ -106,8 +96,6 @@ class ChatAgent:
         self.retriever = retriever
         self.bot_instance = bot_instance  # Passing the Bot instance to the ChatAgent
         self.agent_executor = None
-        # self.logger.info(f"ChatAgent function: {self.bot_instance.bot_action_come}")
-        # self.agent = self.initialize_agent()
         self.initialize_agent()
         
 
@@ -256,9 +244,6 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         )
         
         agent = create_tool_calling_agent(llm, tools, prompt)
-        # self.agent_executor = AgentExecutor(
-        #     agent=agent, tools=tools, verbose=True, handle_parsing_errors=True, early_stopping_method="generate", max_iterations=20
-        # )
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
     def bfl_generate_image(self, headers, prompt, width=1024, height=768):
@@ -311,8 +296,14 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             image_url = result["sample"]
             # Download the image
             image_data = requests.get(image_url).content
+            
+            # Save the image to the user's images directory
+            image_dir = f"data/users/{chat_id}/images"
+            os.makedirs(image_dir, exist_ok=True)
+            image_path = os.path.join(image_dir, f"{int(time.time())}.jpg")
+            with open(image_path, 'wb') as f:
+                f.write(image_data)
 
-            # caption = f"||{escape_markdown(response.data[0].revised_prompt)}||"
             caption = f"||{escape_markdown(prompt)}||"
             self.logger.info(f"ImagePlotterTool caption: {caption}")
 
@@ -646,6 +637,27 @@ class Panthera:
                 os.remove(file)
        
     def save_to_chat_history(
+        self,
+        chat_id,
+        message_text,
+        message_id,
+        type,
+        message_date=None,
+        name_of_user='AI'
+    ):
+        user_id = chat_id  # Assuming chat_id corresponds to user_id in private chats
+        chat_log_path = os.path.join('data', 'users', str(user_id), 'chats', str(chat_id))
+        os.makedirs(chat_log_path, exist_ok=True)
+        if message_date is None:
+            message_date = py_time.strftime('%Y-%m-%d-%H-%M-%S', py_time.localtime())
+        log_file_name = f'{message_date}_{message_id}.json'
+        with open(os.path.join(chat_log_path, log_file_name), 'w') as log_file:
+            json.dump({
+                "type": type,
+                "text": f"{message_text}"
+            }, log_file)
+
+    def save_to_chat_history_x(
             self, 
             chat_id, 
             message_text, 
@@ -702,6 +714,27 @@ class Panthera:
         return ''
 
     def read_chat_history(self, chat_id: str):
+        '''Reads the chat history from a folder.'''
+        user_id = chat_id  # Assuming chat_id corresponds to user_id in private chats
+        chat_log_path = os.path.join('data', 'users', str(user_id), 'chats', str(chat_id))
+        if not os.path.exists(chat_log_path):
+            return
+        self.chat_history = []
+        self.crop_queue(chat_id=chat_id)
+        for log_file in sorted(os.listdir(chat_log_path)):
+            with open(os.path.join(chat_log_path, log_file), 'r') as file:
+                try:
+                    message = json.load(file)
+                    if message['type'] == 'AIMessage':
+                        self.chat_history.append(AIMessage(content=message['text']))
+                    elif message['type'] == 'HumanMessage':
+                        self.chat_history.append(HumanMessage(content=message['text']))
+                except Exception as e:
+                    self.logger.error(f'Error reading chat history: {e}')
+                    # Remove corrupted file
+                    os.remove(os.path.join(chat_log_path, log_file))
+
+    def read_chat_history_x(self, chat_id: str):
         '''Reads the chat history from a folder.'''
         self.chat_history = []
         chat_log_path = os.path.join(self.data_dir, str(chat_id))
