@@ -466,9 +466,9 @@ async def call_inline(request: Request, authorization: str = Header(None)):
             element = InlineQueryResultPhoto(
                 id=str(idx),
                 photo_file_id=file_id,
-                thumb_url=image_url,
-                photo_url=image_url,
-                caption="Your generated image",
+                thumb_url=image_path,
+                photo_url=image_path,
+                # caption="Your generated image",
             )
             inline_elements.append(element)
 
