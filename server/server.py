@@ -457,18 +457,22 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         inline_elements = []
         for idx, image_file in enumerate(sorted(image_files, reverse=True)):
             image_path = os.path.join(image_dir, image_file)
-            with open(image_path, 'rb') as f:
-                image_data = f.read()
-            # Upload the image to Telegram to get a file_id
-            sent_message = bot.send_photo(chat_id=user_id, photo=image_data)
-            file_id = sent_message.photo[-1].file_id
+            # Generate a unique ID for each image
+            image_id = hashlib.md5(image_file.encode()).hexdigest()
+
+            # Construct the image URL
+            # Assume you have set up a web server to serve files from 'data/users/{user_id}/images/'
+            # For example, if you're serving files at 'http://yourserver.com/images/{user_id}/'
+            # Adjust the URL accordingly
+            image_url = f"http://yourserver.com/images/{user_id}/{image_file}"
+            thumb_url = image_url  # You can use the same URL for thumbnail or generate a smaller image
+
             # Create InlineQueryResultPhoto
             element = InlineQueryResultPhoto(
-                id=str(idx),
-                photo_file_id=file_id,
-                thumb_url=image_path,
-                photo_url=image_path,
-                # caption="Your generated image",
+                id=image_id,
+                photo_url=image_url,
+                thumb_url=thumb_url,
+                caption="Your generated image",
             )
             inline_elements.append(element)
 
