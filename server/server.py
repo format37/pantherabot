@@ -429,7 +429,14 @@ async def call_message(request: Request, authorization: str = Header(None)):
         "type": "empty",
         "body": ''
         })
-  
+
+def get_group_name(chat_id):
+    try:
+        chat = bot.get_chat(chat_id)
+        return chat.title  # This will return the name of the group
+    except Exception as e:
+        return str(e)  # Handle exceptions, e.g., invalid chat_id
+
 # Post inline query
 @app.post("/inline")
 async def call_inline(request: Request, authorization: str = Header(None)):
@@ -497,11 +504,9 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         # await call_llm_response(user_session, message, message_text)
         logger.info(f"*** message: {message}")
         logger.info(f"*** authorization: {authorization}")
-        # Check if it's an inline query
-        if 'inline_query' in message:
-            inline_query = message['inline_query']            
-            # Get user ID from the inline query
-            user_id = inline_query['from']['id']
+        chat_id = "-888407449"
+        group_name = get_group_name(chat_id)
+        logger.info(f"*** group_name: {group_name}")        
 
     else:
         # Check is path ./data/{user_id}/ exists. If not, return 'no data'
