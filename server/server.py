@@ -183,8 +183,8 @@ def user_access(message):
     
     return False
 
-async def call_llm_response(user_session, message, message_text):
-    chat_id = message['chat']['id']
+async def call_llm_response(message, message_text, chat_id):
+    # chat_id = message['chat']['id']
     # if 'topic' in user_session:
             # with open ('data/topics.json') as f:
             #     topics = json.load(f)
@@ -194,7 +194,7 @@ async def call_llm_response(user_session, message, message_text):
     # -3h from the current_date
     current_date = current_date - pd.Timedelta(hours=3)
     logger.info(f'current_date: {current_date}')
-    answer = await panthera.llm_request(bot, user_session, message, message_text)
+    answer = await panthera.llm_request(bot, message, message_text)
     # logger.info(f'<< llm_request answer ({type(answer)}): {answer}')
     # answer = str(answer)
 
@@ -359,6 +359,13 @@ async def call_message(request: Request, authorization: str = Header(None)):
                 "type": "text",
                 "body": str(answer)
                 })
+        elif text.startswith('response:'):
+            # example: text == "response:-888407449"
+            chat_id = text.split(':')[1]
+            user_session = panthera.get_user_session(user_id)
+            message_text = ""
+            await call_llm_response(message, message_text, chat_id)
+
         
     chat_id = message['chat']['id']
 
@@ -423,7 +430,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         or text.startswith('/*') \
         or text.startswith('/.') \
         or panthera.is_reply_to_ai_message(message):
-        await call_llm_response(user_session, message, message_text)
+        await call_llm_response(message, message_text, message['chat']['id'])
         
     return JSONResponse(content={
         "type": "empty",
