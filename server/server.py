@@ -12,6 +12,7 @@ import telebot
 from telebot.formatting import escape_markdown
 # from telebot.types import InlineQueryResultPhoto
 import hashlib
+from datetime import datetime
 
 # Initialize FastAPI
 app = FastAPI()
@@ -456,44 +457,27 @@ async def call_inline(request: Request, authorization: str = Header(None)):
             return JSONResponse(content={"status": "ok"})
 
         inline_elements = []
-        for idx, image_file in enumerate(sorted(image_files, reverse=True)):
+        image_files = os.listdir(image_dir)
+
+        # Sort files by creation time, newest first
+        sorted_files = sorted(image_files, 
+                            key=lambda x: os.path.getctime(os.path.join(image_dir, x)), 
+                            reverse=True)
+        file_number = 0
+        for idx, image_file in enumerate(sorted_files):
             image_path = os.path.join(image_dir, image_file)
             logger.info(f"[+] image_file: {image_file}")
-            # Generate a unique ID for each image
-            # image_id = hashlib.md5(image_file.encode()).hexdigest()
-
-            # Construct the image URL
-            # Assume you have set up a web server to serve files from 'data/users/{user_id}/images/'
-            # For example, if you're serving files at 'http://yourserver.com/images/{user_id}/'
-            # Adjust the URL accordingly
-            # image_url = f"http://yourserver.com/images/{user_id}/{image_file}"
-            # thumb_url = image_url  # You can use the same URL for thumbnail or generate a smaller image
-
-            
-            # file_info = bot.get_file(image_file)
-            # file_url = f"https://api.telegram.org/file/bot{bot.token}/{file_info.file_path}"
-            # logger.info(f"[+] file_url: {file_url}")
-
-            # Create InlineQueryResultPhoto
-            # element = InlineQueryResultPhoto(
-            #     id=image_file,
-            #     photo_url=file_url,
-            #     thumbnail_url=file_url,
-            #     caption="Your generated image",
-            # )
-
-            # element = telebot.types.InlineQueryResultArticle(
-            #     0,
-            #     data['text'],
-            #     telebot.types.InputTextMessageContent(data['text']),
-            # )
             uid = hashlib.md5(image_file.encode()).hexdigest()
             element = telebot.types.InlineQueryResultCachedPhoto(
                 id = uid,
                 photo_file_id = image_file
             )
-
             inline_elements.append(element)
+            file_number += 1
+            # Remove all files that have more than 6
+            if file_number > 6:
+                os.remove(image_path)
+                logger.info(f"[-] image_file: {image_file}")
 
         bot.answer_inline_query(
             inline_query_id,
