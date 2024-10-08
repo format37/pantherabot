@@ -308,13 +308,15 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             self.logger.info(f"ImagePlotterTool caption: {caption}")
 
             # Send the photo
-            bot.send_photo(
+            sent_message = bot.send_photo(
                 chat_id=chat_id, 
                 photo=image_data, 
                 reply_to_message_id=message_id, 
                 caption=caption,
                 parse_mode="MarkdownV2"
                 )
+            file_id = sent_message.photo[-1].file_id
+            logger.info(f"sent_message file_id: {file_id}")
             
             return "Image generated and sent to the chat"
         else:
