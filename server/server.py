@@ -183,7 +183,7 @@ def user_access(message):
     
     return False
 
-async def call_llm_response(user_session, message, message_text, system_content):
+async def call_llm_response(user_session, message, message_text):
     # if 'topic' in user_session:
             # with open ('data/topics.json') as f:
             #     topics = json.load(f)
