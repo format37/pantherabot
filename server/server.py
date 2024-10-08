@@ -505,8 +505,10 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         logger.info(f"*** message: {message}")
         logger.info(f"*** authorization: {authorization}")
         chat_id = "-888407449"
-        group_name = get_group_name(chat_id)
-        logger.info(f"*** group_name: {group_name}")        
+        # group_name = get_group_name(chat_id)
+        chat = bot.get_chat(chat_id)
+        logger.info(f"*** chat.title: {chat.title}")
+        logger.info(f"*** chat.type: {chat.type}")
 
     else:
         # Check is path ./data/{user_id}/ exists. If not, return 'no data'
