@@ -466,18 +466,19 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         file_number = 0
         for idx, image_file in enumerate(sorted_files):
             image_path = os.path.join(image_dir, image_file)
-            logger.info(f"[+] image_file: {image_file}")
-            uid = hashlib.md5(image_file.encode()).hexdigest()
-            element = telebot.types.InlineQueryResultCachedPhoto(
-                id = uid,
-                photo_file_id = image_file
-            )
-            inline_elements.append(element)
             file_number += 1
             # Remove all files that have more than 6
             if file_number > 6:
                 os.remove(image_path)
                 logger.info(f"[-] image_file: {image_file}")
+            else:                
+                logger.info(f"[+] image_file: {image_file}")
+                uid = hashlib.md5(image_file.encode()).hexdigest()
+                element = telebot.types.InlineQueryResultCachedPhoto(
+                    id = uid,
+                    photo_file_id = image_file
+                )
+                inline_elements.append(element)
 
         bot.answer_inline_query(
             inline_query_id,
