@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import telebot
 from telebot.formatting import escape_markdown
 from telebot.types import InlineQueryResultPhoto
+import hashlib
 
 # Initialize FastAPI
 app = FastAPI()
