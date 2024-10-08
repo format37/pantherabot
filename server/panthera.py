@@ -300,9 +300,9 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             # Save the image to the user's images directory
             image_dir = f"data/users/{chat_id}/images"
             os.makedirs(image_dir, exist_ok=True)
-            image_path = os.path.join(image_dir, f"{int(time.time())}.jpg")
-            with open(image_path, 'wb') as f:
-                f.write(image_data)
+            # image_path = os.path.join(image_dir, f"{int(time.time())}.jpg")
+            # with open(image_path, 'wb') as f:
+            #     f.write(image_data)
 
             caption = f"||{escape_markdown(prompt)}||"
             self.logger.info(f"ImagePlotterTool caption: {caption}")
@@ -317,10 +317,14 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 )
             file_id = sent_message.photo[-1].file_id
             self.logger.info(f"sent_message file_id: {file_id}")
-            file_info = bot.get_file(file_id)
-            file_url = f"https://api.telegram.org/file/bot{bot.token}/{file_info.file_path}"
-            self.logger.info(f"file_url: {file_url}")
+            # file_info = bot.get_file(file_id)
+            # file_url = f"https://api.telegram.org/file/bot{bot.token}/{file_info.file_path}"
+            # self.logger.info(f"file_url: {file_url}")
 
+            image_path = os.path.join(image_dir, f"{file_id}")
+            # write empty file
+            with open(image_path, 'w') as f:
+                f.write("")
             
             return "Image generated and sent to the chat"
         else:
