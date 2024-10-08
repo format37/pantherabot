@@ -317,6 +317,10 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 )
             file_id = sent_message.photo[-1].file_id
             self.logger.info(f"sent_message file_id: {file_id}")
+            file_info = bot.get_file(file_id)
+            file_url = f"https://api.telegram.org/file/bot{bot.token}/{file_info.file_path}"
+            self.logger.info(f"file_url: {file_url}")
+
             
             return "Image generated and sent to the chat"
         else:
