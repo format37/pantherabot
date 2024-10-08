@@ -183,7 +183,7 @@ def user_access(message):
     
     return False
 
-async def call_llm_response(message, message_text, chat_id):
+async def call_llm_response(message, message_text, chat_id, reply):
     # chat_id = message['chat']['id']
     # if 'topic' in user_session:
             # with open ('data/topics.json') as f:
@@ -223,12 +223,18 @@ async def call_llm_response(message, message_text, chat_id):
     answer = answer.replace('~~~', '~') # strikethrough
     try:
         logger.info(f'### sending MarkdownV2: {answer}')
-        bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
+        if reply:
+            bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
+        else:
+            bot.send_message(chat_id, answer, parse_mode='MarkdownV2')
     except Exception as e:
         logger.error(f'Error sending markdown: {e}')
         answer = escape_markdown(answer)
         logger.info(f'### sending escaped: {answer}')
-        bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
+        if reply:
+            bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
+        else:
+            bot.send_message(chat_id, answer, parse_mode='MarkdownV2')
 
 @app.post("/message")
 async def call_message(request: Request, authorization: str = Header(None)):
@@ -364,7 +370,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
             chat_id = text.split(':')[1]
             # user_session = panthera.get_user_session(user_id)
             message_text = ""
-            await call_llm_response(message, message_text, chat_id)
+            await call_llm_response(message, message_text, chat_id, False)
 
         
     chat_id = message['chat']['id']
@@ -430,7 +436,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         or text.startswith('/*') \
         or text.startswith('/.') \
         or panthera.is_reply_to_ai_message(message):
-        await call_llm_response(message, message_text, message['chat']['id'])
+        await call_llm_response(message, message_text, message['chat']['id'], True)
         
     return JSONResponse(content={
         "type": "empty",
