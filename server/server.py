@@ -493,7 +493,8 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         # There the LLM is answering what they think without prompt
         user_session = panthera.get_user_session(user_id)
         message_text = ""
-        await call_llm_response(user_session, message, message_text)
+        # await call_llm_response(user_session, message, message_text)
+        logger.info(f"*** message: {message}")
 
     else:
         # Check is path ./data/{user_id}/ exists. If not, return 'no data'
