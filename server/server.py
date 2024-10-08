@@ -184,6 +184,7 @@ def user_access(message):
     return False
 
 async def call_llm_response(user_session, message, message_text):
+    chat_id = message['chat']['id']
     # if 'topic' in user_session:
             # with open ('data/topics.json') as f:
             #     topics = json.load(f)
@@ -495,6 +496,12 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         message_text = ""
         # await call_llm_response(user_session, message, message_text)
         logger.info(f"*** message: {message}")
+        logger.info(f"*** authorization: {authorization}")
+        # Check if it's an inline query
+        if 'inline_query' in message:
+            inline_query = message['inline_query']            
+            # Get user ID from the inline query
+            user_id = inline_query['from']['id']
 
     else:
         # Check is path ./data/{user_id}/ exists. If not, return 'no data'
