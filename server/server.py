@@ -465,14 +465,14 @@ async def call_inline(request: Request, authorization: str = Header(None)):
             # Assume you have set up a web server to serve files from 'data/users/{user_id}/images/'
             # For example, if you're serving files at 'http://yourserver.com/images/{user_id}/'
             # Adjust the URL accordingly
-            image_url = f"http://yourserver.com/images/{user_id}/{image_file}"
-            thumb_url = image_url  # You can use the same URL for thumbnail or generate a smaller image
+            # image_url = f"http://yourserver.com/images/{user_id}/{image_file}"
+            # thumb_url = image_url  # You can use the same URL for thumbnail or generate a smaller image
 
             # Create InlineQueryResultPhoto
             element = InlineQueryResultPhoto(
                 id=image_id,
-                photo_url=image_url,
-                thumb_url=thumb_url,
+                photo_url=image_path,
+                thumb_url=image_path,
                 caption="Your generated image",
             )
             inline_elements.append(element)
