@@ -183,6 +183,52 @@ def user_access(message):
     
     return False
 
+async def call_llm_response(user_session, message, message_text, system_content):
+    # if 'topic' in user_session:
+            # with open ('data/topics.json') as f:
+            #     topics = json.load(f)
+            # system_content = topics[user_session['topic']]['system']
+    # Log the current_date
+    current_date = pd.Timestamp.now()
+    # -3h from the current_date
+    current_date = current_date - pd.Timedelta(hours=3)
+    logger.info(f'current_date: {current_date}')
+    answer = await panthera.llm_request(bot, user_session, message, message_text)
+    # logger.info(f'<< llm_request answer ({type(answer)}): {answer}')
+    # answer = str(answer)
+
+    if answer == '':
+        return JSONResponse(content={
+        "type": "empty",
+        "body": ''
+        })
+    
+    formatting = {
+        "&&&": "u447a0a7930e94a888a86a9ee09042458",
+        "@@@": "u4cf178c998d04dfb88897ac3e49630bf",
+        "%%%": "u9604214d2ab14a539623d63f4a3b7e3b",
+        "~~~": "u06f4b328e72240c8b2909652a70af831",
+        "||": "u955ba36d498a48119ac522100978f861",
+        "```": "u795fe7bde93a4aaf9351a2064b1ab484"
+    }
+    for key, value in formatting.items():
+        answer = answer.replace(key, value)
+    answer = escape_markdown(answer)
+    for key, value in formatting.items():
+        answer = answer.replace(value, key)
+    answer = answer.replace('&&&', '*') # bold
+    answer = answer.replace('%%%', '_') # italic
+    answer = answer.replace('@@@', '__') # underline
+    answer = answer.replace('~~~', '~') # strikethrough
+    try:
+        logger.info(f'### sending MarkdownV2: {answer}')
+        bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
+    except Exception as e:
+        logger.error(f'Error sending markdown: {e}')
+        answer = escape_markdown(answer)
+        logger.info(f'### sending escaped: {answer}')
+        bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
+
 @app.post("/message")
 async def call_message(request: Request, authorization: str = Header(None)):
     logger.info('call_message')
@@ -376,51 +422,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         or text.startswith('/*') \
         or text.startswith('/.') \
         or panthera.is_reply_to_ai_message(message):
-        # Read the system_content from the topics by user_session['topic'] if it is set
-        if 'topic' in user_session:
-            with open ('data/topics.json') as f:
-                topics = json.load(f)
-            system_content = topics[user_session['topic']]['system']
-        # Log the current_date
-        current_date = pd.Timestamp.now()
-        # -3h from the current_date
-        current_date = current_date - pd.Timedelta(hours=3)
-        logger.info(f'current_date: {current_date}')
-        answer = await panthera.llm_request(bot, user_session, message, message_text, system_content=system_content)
-        # logger.info(f'<< llm_request answer ({type(answer)}): {answer}')
-        # answer = str(answer)
-
-        if answer == '':
-            return JSONResponse(content={
-            "type": "empty",
-            "body": ''
-            })
-        
-        formatting = {
-            "&&&": "u447a0a7930e94a888a86a9ee09042458",
-            "@@@": "u4cf178c998d04dfb88897ac3e49630bf",
-            "%%%": "u9604214d2ab14a539623d63f4a3b7e3b",
-            "~~~": "u06f4b328e72240c8b2909652a70af831",
-            "||": "u955ba36d498a48119ac522100978f861",
-            "```": "u795fe7bde93a4aaf9351a2064b1ab484"
-        }
-        for key, value in formatting.items():
-            answer = answer.replace(key, value)
-        answer = escape_markdown(answer)
-        for key, value in formatting.items():
-            answer = answer.replace(value, key)
-        answer = answer.replace('&&&', '*') # bold
-        answer = answer.replace('%%%', '_') # italic
-        answer = answer.replace('@@@', '__') # underline
-        answer = answer.replace('~~~', '~') # strikethrough
-        try:
-            logger.info(f'### sending MarkdownV2: {answer}')
-            bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
-        except Exception as e:
-            logger.error(f'Error sending markdown: {e}')
-            answer = escape_markdown(answer)
-            logger.info(f'### sending escaped: {answer}')
-            bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
+        await call_llm_response(user_session, message, message_text)
         
     return JSONResponse(content={
         "type": "empty",
@@ -445,7 +447,7 @@ async def call_inline(request: Request, authorization: str = Header(None)):
     query = message.get('query', '').lower()
     user_id = message['from_user_id']
 
-    if 'photo' in query:
+    if query.endswith('photo'):
         image_dir = f"data/users/{user_id}/images"
         if not os.path.exists(image_dir):
             logger.info(f"No images found for user {user_id}")
@@ -487,7 +489,12 @@ async def call_inline(request: Request, authorization: str = Header(None)):
             is_personal=True
         )
         return JSONResponse(content={"status": "ok"})
-    
+    elif query.endswith('***'):
+        # There the LLM is answering what they think without prompt
+        user_session = panthera.get_user_session(user_id)
+        message_text = ""
+        await call_llm_response(user_session, message, message_text)
+
     else:
         # Check is path ./data/{user_id}/ exists. If not, return 'no data'
         data_folder = f"data/chats/{message['from_user_id']}/"
