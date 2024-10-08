@@ -498,17 +498,27 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         )
         return JSONResponse(content={"status": "ok"})
     elif query.endswith('***'):
-        # There the LLM is answering what they think without prompt
-        user_session = panthera.get_user_session(user_id)
-        message_text = ""
-        # await call_llm_response(user_session, message, message_text)
-        logger.info(f"*** message: {message}")
-        logger.info(f"*** authorization: {authorization}")
-        chat_id = "-888407449"
-        # group_name = get_group_name(chat_id)
-        chat = bot.get_chat(chat_id)
-        logger.info(f"*** chat.title: {chat.title}")
-        logger.info(f"*** chat.type: {chat.type}")
+        # # There the LLM is answering what they think without prompt
+        # user_session = panthera.get_user_session(user_id)
+        # message_text = ""
+        # # await call_llm_response(user_session, message, message_text)
+        # logger.info(f"*** message: {message}")
+        # logger.info(f"*** authorization: {authorization}")
+        # chat_id = "-888407449"
+        # # group_name = get_group_name(chat_id)
+        # chat = bot.get_chat(chat_id)
+        # logger.info(f"*** chat.title: {chat.title}")
+        # logger.info(f"*** chat.type: {chat.type}")
+
+        # Iterate all possible chats that bot participate in
+        chats_folder = 'data/chats/'
+        # Read list of folders in chats_folder
+        folders = os.listdir(chats_folder)
+        # Iterate all folders
+        for folder in folders:
+            chat = bot.get_chat(folder)
+            if chat.type == 'group':
+                logger.info(f"*** chat.title: {chat.title}")
 
     else:
         # Check is path ./data/{user_id}/ exists. If not, return 'no data'
