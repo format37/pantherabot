@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 # from telebot import TeleBot
 import telebot
 from telebot.formatting import escape_markdown
-from telebot.types import InlineQueryResultPhoto
+# from telebot.types import InlineQueryResultPhoto
 import hashlib
 
 # Initialize FastAPI
@@ -458,7 +458,7 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         inline_elements = []
         for idx, image_file in enumerate(sorted(image_files, reverse=True)):
             image_path = os.path.join(image_dir, image_file)
-            logger.info(f"[+] image_path: {image_path}")
+            logger.info(f"[+] image_file: {image_file}")
             # Generate a unique ID for each image
             # image_id = hashlib.md5(image_file.encode()).hexdigest()
 
@@ -470,17 +470,29 @@ async def call_inline(request: Request, authorization: str = Header(None)):
             # thumb_url = image_url  # You can use the same URL for thumbnail or generate a smaller image
 
             
-            file_info = bot.get_file(image_file)
-            file_url = f"https://api.telegram.org/file/bot{bot.token}/{file_info.file_path}"
-            logger.info(f"[+] file_url: {file_url}")
+            # file_info = bot.get_file(image_file)
+            # file_url = f"https://api.telegram.org/file/bot{bot.token}/{file_info.file_path}"
+            # logger.info(f"[+] file_url: {file_url}")
 
             # Create InlineQueryResultPhoto
-            element = InlineQueryResultPhoto(
-                id=image_file,
-                photo_url=file_url,
-                thumbnail_url=file_url,
-                caption="Your generated image",
+            # element = InlineQueryResultPhoto(
+            #     id=image_file,
+            #     photo_url=file_url,
+            #     thumbnail_url=file_url,
+            #     caption="Your generated image",
+            # )
+
+            # element = telebot.types.InlineQueryResultArticle(
+            #     0,
+            #     data['text'],
+            #     telebot.types.InputTextMessageContent(data['text']),
+            # )
+            uid = hashlib.md5(image_file.encode()).hexdigest()
+            element = telebot.types.InlineQueryResultCachedPhoto(
+                id = uid,
+                photo_file_id = image_file
             )
+
             inline_elements.append(element)
 
         bot.answer_inline_query(
