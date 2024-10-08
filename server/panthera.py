@@ -316,7 +316,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 parse_mode="MarkdownV2"
                 )
             file_id = sent_message.photo[-1].file_id
-            logger.info(f"sent_message file_id: {file_id}")
+            self.logger.info(f"sent_message file_id: {file_id}")
             
             return "Image generated and sent to the chat"
         else:
