@@ -514,11 +514,29 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         chats_folder = 'data/chats/'
         # Read list of folders in chats_folder
         folders = os.listdir(chats_folder)
+        
+        inline_elements = []
+        folder_id = 0
         # Iterate all folders
         for folder in folders:
             chat = bot.get_chat(folder)
             if chat.type == 'group':
-                logger.info(f"*** chat.title: {chat.title}")
+                # logger.info(f"*** chat.title: {chat.title}")
+                element = telebot.types.InlineQueryResultArticle(
+                    folder_id,
+                    chat.title,
+                    f"response:{folder}",
+                )
+                inline_elements.append(element)
+                folder_id += 1
+
+        bot.answer_inline_query(
+                inline_query_id,
+                inline_elements,
+                cache_time=0,
+                is_personal=True
+            )
+        return JSONResponse(content={"status": "ok"})
 
     else:
         # Check is path ./data/{user_id}/ exists. If not, return 'no data'
