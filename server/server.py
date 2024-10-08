@@ -524,8 +524,8 @@ async def call_inline(request: Request, authorization: str = Header(None)):
                 # logger.info(f"*** chat.title: {chat.title}")
                 element = telebot.types.InlineQueryResultArticle(
                     folder_id,
-                    f"response:{chat.title}",
-                    telebot.types.InputTextMessageContent(data['text']),
+                    chat.title,
+                    telebot.types.InputTextMessageContent(f"response:{folder}"),
                 )
                 inline_elements.append(element)
                 folder_id += 1
