@@ -362,7 +362,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         elif text.startswith('response:'):
             # example: text == "response:-888407449"
             chat_id = text.split(':')[1]
-            user_session = panthera.get_user_session(user_id)
+            # user_session = panthera.get_user_session(user_id)
             message_text = ""
             await call_llm_response(message, message_text, chat_id)
 
