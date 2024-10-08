@@ -194,7 +194,10 @@ async def call_llm_response(message, message_text, chat_id, reply):
     # -3h from the current_date
     current_date = current_date - pd.Timedelta(hours=3)
     logger.info(f'current_date: {current_date}')
-    answer = await panthera.llm_request(bot, message, message_text)
+    if reply:
+        answer = await panthera.llm_request(bot, message, message_text)
+    else:
+        answer = await panthera.llm_request(bot, message, "Ваше сообщение:")
     # logger.info(f'<< llm_request answer ({type(answer)}): {answer}')
     # answer = str(answer)
 
