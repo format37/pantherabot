@@ -408,7 +408,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
 
 Commands:
 /* or ./ prefix in a group chat to call me.
-@gptaidbot to cite my last personal message in a group chat.
+"@gptaidbot" to cite my last personal message in a group chat.
+"@gptaidbot photo" to cite my last photo from personal message in a group chat.
 """
 # @gptaidbot *** in other group to choose a group where to send the message.
 
