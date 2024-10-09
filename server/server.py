@@ -393,7 +393,25 @@ async def call_message(request: Request, authorization: str = Header(None)):
 
     # if message text is /start
     if text == '/start':
-        answer = 'Welcome to the conversational gpt bot.\nPlease, send me a regular message in private chat, or use /* or ./ prefix in a group chat to call me.'
+        answer = """Hi. I am Janet, conversational GPT bot with langchain tools:
+* Python
+* Google search
+* Youtube search
+* Wolfram alpha
+* Wikipedia search
+* Image understanding
+* Flux 1.1 pro image generator
+* Reading text & json files
+* Updating system prompt
+* Reseting system prompt
+* Asking reasoning o1-preview expert
+
+Commands:
+/* or ./ prefix in a group chat to call me.
+@gptaidbot to cite my last personal message in a group chat.
+"""
+# @gptaidbot *** in other group to choose a group where to send the message.
+
         bot.send_message(chat_id, answer)
         # return empty
         return JSONResponse(content={
