@@ -183,7 +183,8 @@ def user_access(message):
     
     return False
 
-async def call_llm_response(message, message_text, chat_id, reply):
+# async def call_llm_response(message, message_text, chat_id, reply):
+async def call_llm_response(chat_id, message_id, message_text, reply):
     # chat_id = message['chat']['id']
     # if 'topic' in user_session:
             # with open ('data/topics.json') as f:
@@ -194,10 +195,11 @@ async def call_llm_response(message, message_text, chat_id, reply):
     # -3h from the current_date
     current_date = current_date - pd.Timedelta(hours=3)
     logger.info(f'current_date: {current_date}')
-    if reply:
-        answer = await panthera.llm_request(bot, message, message_text)
-    else:
-        answer = await panthera.llm_request(bot, message, "Ваше сообщение:")
+    # if reply:
+        # answer = await panthera.llm_request(bot, message, message_text)
+    answer = await panthera.llm_request(chat_id, message_id, message_text)
+    # else:
+    #     answer = await panthera.llm_request(bot, message, "Ваше сообщение:")
     # logger.info(f'<< llm_request answer ({type(answer)}): {answer}')
     # answer = str(answer)
 
@@ -227,7 +229,8 @@ async def call_llm_response(message, message_text, chat_id, reply):
     try:
         logger.info(f'### sending MarkdownV2: {answer}')
         if reply:
-            bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
+            # bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
+            bot.send_message(chat_id, answer, reply_to_message_id=message_id, parse_mode='MarkdownV2')
         else:
             bot.send_message(chat_id, answer, parse_mode='MarkdownV2')
     except Exception as e:
@@ -235,7 +238,8 @@ async def call_llm_response(message, message_text, chat_id, reply):
         answer = escape_markdown(answer)
         logger.info(f'### sending escaped: {answer}')
         if reply:
-            bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
+            # bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
+            bot.send_message(chat_id, answer, reply_to_message_id=message_id, parse_mode='MarkdownV2')
         else:
             bot.send_message(chat_id, answer, parse_mode='MarkdownV2')
 
@@ -373,7 +377,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
             chat_id = text.split(':')[1]
             # user_session = panthera.get_user_session(user_id)
             message_text = ""
-            await call_llm_response(message, message_text, chat_id, False)
+            # await call_llm_response(message, message_text, chat_id, False)
+            await call_llm_response(chat_id, message["message_id"], message_text, False)
 
         
     chat_id = message['chat']['id']
@@ -439,7 +444,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
         or text.startswith('/*') \
         or text.startswith('/.') \
         or panthera.is_reply_to_ai_message(message):
-        await call_llm_response(message, message_text, message['chat']['id'], True)
+        # await call_llm_response(message, message_text, message['chat']['id'], True)
+        await call_llm_response(chat_id, message["message_id"], message_text, True)
         
     return JSONResponse(content={
         "type": "empty",

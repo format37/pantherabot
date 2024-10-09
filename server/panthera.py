@@ -798,9 +798,10 @@ You can determine the current date from the message_date field in the current me
 For the formatting you can use the telegram MarkdownV2 format. For example: {markdown_sample}."""
         return system_prompt
 
-    async def llm_request(self, bot, message, message_text):
+    # async def llm_request(self, bot, message, message_text):
+    async def llm_request(self, chat_id, message_id, message_text):
         # message_text may have augmentations
-        chat_id = message['chat']['id']
+        # chat_id = message['chat']['id']
         self.logger.info(f'llm_request: {chat_id}')
 
         # Read chat history
@@ -817,9 +818,11 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         response = result["output"]
         
         self.save_to_chat_history(
-            message['chat']['id'],
+            # message['chat']['id'],
+            chat_id,
             response,
-            message["message_id"],
+            # message["message_id"],
+            message_id,
             'AIMessage'
             )
 
