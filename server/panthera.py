@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from typing import List
 from langchain.agents import Tool
 from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
 from langchain_core.tools import StructuredTool
 from langchain.schema import HumanMessage, AIMessage
 from langchain.tools import YouTubeSearchTool
@@ -104,11 +105,20 @@ class ChatAgent:
         # model = 'gpt-4o-2024-05-13'
         model = 'gpt-4o'
         temperature = 0.7
-        llm = ChatOpenAI(
-            openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
-            model=model,
-            temperature=temperature,
+        # llm = ChatOpenAI(
+        #     openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
+        #     model=model,
+        #     temperature=temperature,
+        # )
+
+        llm = ChatAnthropic(
+            model="claude-3"  # Specify the model name you want to use
         )
+        if "ANTHROPIC_API_KEY" not in os.environ:
+            self.logger.error("ANTHROPIC_API_KEY is not set")
+        # temperature=0.7,
+        #     max_tokens=150,
+        #     max_retries=2,
         # llm = Ollama(model="llama2")
         # llm = Ollama(model="mistral")
         tools = []
