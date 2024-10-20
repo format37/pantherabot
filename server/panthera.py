@@ -808,6 +808,18 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             }
         )
         response = result["output"]
+        
+        
+        # if response is a list
+        if isinstance(response, list):
+            response = response[0]
+            # if resonse is a dict
+            if isinstance(response, dict):
+                try:
+                    response = response['text']
+                except:
+                    self.logger.info(f'llm_request response has no "text": {response}')
+                    response = str(response)
 
         self.logger.info(f'llm_request response type: {type(response)}')
         self.logger.info(f'llm_request response: {response}')
