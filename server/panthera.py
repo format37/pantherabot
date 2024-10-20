@@ -112,7 +112,7 @@ class ChatAgent:
         # )
 
         llm = ChatAnthropic(
-            model="claude-3"  # Specify the model name you want to use
+            model="claude-3-5-sonnet-20240620"  # Specify the model name you want to use
         )
         if "ANTHROPIC_API_KEY" not in os.environ:
             self.logger.error("ANTHROPIC_API_KEY is not set")
