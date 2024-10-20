@@ -245,7 +245,7 @@ async def call_llm_response(chat_id, message_id, message_text, reply):
     
     if len(answer) > 4096:
         try:
-            filename = generate_filename(answer)
+            filename = await generate_filename(answer)
         except Exception as e:
             logger.info(f"Error generating filename: {e}")
             filename = "response.txt"
