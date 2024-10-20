@@ -184,6 +184,43 @@ def user_access(message):
     
     return False
 
+import openai
+import re
+
+async def generate_filename(content, model="gpt-3.5-turbo"):
+    # Truncate content if it's too long
+    max_content_length = 1000
+    truncated_content = content[:max_content_length] + "..." if len(content) > max_content_length else content
+
+    # Prepare the messages for the OpenAI API
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant that generates concise and relevant file names based on given content."},
+        {"role": "user", "content": f"Generate a short, descriptive filename (without extension) for a text file containing the following content:\n\n{truncated_content}\n\nThe filename should be concise, relevant, and use underscores instead of spaces."}
+    ]
+
+    try:
+        # Make the API call
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=messages,
+            max_tokens=50,
+            n=1,
+            temperature=0.7,
+        )
+
+        # Extract the generated filename
+        filename = response.choices[0].message['content'].strip()
+
+        # Clean the filename
+        filename = re.sub(r'[^\w\-_\.]', '_', filename)  # Replace invalid characters with underscore
+        filename = re.sub(r'_+', '_', filename)  # Replace multiple underscores with single underscore
+        filename = filename.strip('_')  # Remove leading/trailing underscores
+
+        return filename + ".txt"
+    except Exception as e:
+        print(f"Error generating filename: {e}")
+        return "response.txt"  # Fallback to default name if there's an error
+
 # async def call_llm_response(message, message_text, chat_id, reply):
 async def call_llm_response(chat_id, message_id, message_text, reply):
     # chat_id = message['chat']['id']
@@ -207,11 +244,23 @@ async def call_llm_response(chat_id, message_id, message_text, reply):
         })
     
     if len(answer) > 4096:
+        try:
+            filename = generate_filename(answer)
+        except Exception as e:
+            logger.info(f"Error generating filename: {e}")
+            filename = "response.txt"
+        if not filename.endswith(".txt"):
+            logger.info(f"Filename [{filename}] does not end with '.txt'. Appending '.txt'...")
+            filename += ".txt"
+        if len(filename) > 64:
+            logger.info(f"Filename [{filename}] is too long. Truncating...")
+            filename = "response.txt"
         # Create in-memory file-like object
         buffer = BytesIO(answer.encode())
-        buffer.name = 'response.txt'  # Give a name to the file
+        # buffer.name = 'response.txt'  # Give a name to the file
+        buffer.name = filename  # Give a name to the file
         buffer.seek(0)  # Move to the beginning of the BytesIO buffer
-        bot.send_document(chat_id, buffer)
+        bot.send_document(chat_id, buffer, reply_to_message_id=message_id)
         return JSONResponse(content={
             "type": "empty",
             "body": ''
