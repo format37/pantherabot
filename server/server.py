@@ -13,6 +13,7 @@ from telebot.formatting import escape_markdown
 # from telebot.types import InlineQueryResultPhoto
 import hashlib
 from datetime import datetime
+from io import BytesIO
 
 # Initialize FastAPI
 app = FastAPI()
@@ -198,15 +199,22 @@ async def call_llm_response(chat_id, message_id, message_text, reply):
     # if reply:
         # answer = await panthera.llm_request(bot, message, message_text)
     answer = await panthera.llm_request(chat_id, message_id, message_text)
-    # else:
-    #     answer = await panthera.llm_request(bot, message, "Ваше сообщение:")
-    # logger.info(f'<< llm_request answer ({type(answer)}): {answer}')
-    # answer = str(answer)
 
     if answer == '':
         return JSONResponse(content={
         "type": "empty",
         "body": ''
+        })
+    
+    if len(answer) > 4096:
+        # Create in-memory file-like object
+        buffer = BytesIO(answer.encode())
+        buffer.name = 'response.txt'  # Give a name to the file
+        buffer.seek(0)  # Move to the beginning of the BytesIO buffer
+        bot.send_document(chat_id, buffer)
+        return JSONResponse(content={
+            "type": "empty",
+            "body": ''
         })
     
     formatting = {
@@ -242,6 +250,11 @@ async def call_llm_response(chat_id, message_id, message_text, reply):
             bot.send_message(chat_id, answer, reply_to_message_id=message_id, parse_mode='MarkdownV2')
         else:
             bot.send_message(chat_id, answer, parse_mode='MarkdownV2')
+
+    return JSONResponse(content={
+        "type": "empty",
+        "body": ''
+        })
 
 @app.post("/message")
 async def call_message(request: Request, authorization: str = Header(None)):
