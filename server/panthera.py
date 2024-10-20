@@ -105,17 +105,18 @@ class ChatAgent:
         # model = 'gpt-4o-2024-05-13'
         model = 'gpt-4o'
         temperature = 0.7
-        # llm = ChatOpenAI(
-        #     openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
-        #     model=model,
-        #     temperature=temperature,
-        # )
-
-        llm = ChatAnthropic(
-            model="claude-3-5-sonnet-20240620"  # Specify the model name you want to use
+        llm = ChatOpenAI(
+            openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
+            model=model,
+            temperature=temperature,
         )
-        if "ANTHROPIC_API_KEY" not in os.environ:
-            self.logger.error("ANTHROPIC_API_KEY is not set")
+
+        # llm = ChatAnthropic(
+        #     model="claude-3-5-sonnet-20240620"  # Specify the model name you want to use
+        # )
+        # if "ANTHROPIC_API_KEY" not in os.environ:
+        #     self.logger.error("ANTHROPIC_API_KEY is not set")
+
         # temperature=0.7,
         #     max_tokens=150,
         #     max_retries=2,
@@ -753,26 +754,6 @@ class Panthera:
                 except Exception as e:
                     self.logger.error(f'Error reading chat history: {e}')
                     # Remove corrupted file
-                    os.remove(os.path.join(chat_log_path, log_file))
-
-    def read_chat_history_x(self, chat_id: str):
-        '''Reads the chat history from a folder.'''
-        self.chat_history = []
-        chat_log_path = os.path.join(self.data_dir, str(chat_id))
-        # Create the chat log path if not exist
-        Path(chat_log_path).mkdir(parents=True, exist_ok=True)
-        self.crop_queue(chat_id=chat_id)
-        for log_file in sorted(os.listdir(chat_log_path)):
-            with open(os.path.join(chat_log_path, log_file), 'r') as file:
-                try:
-                    message = json.load(file)
-                    if message['type'] == 'AIMessage':
-                        self.chat_history.append(AIMessage(content=message['text']))
-                    elif message['type'] == 'HumanMessage':
-                        self.chat_history.append(HumanMessage(content=message['text']))
-                except Exception as e:
-                    self.logger.error(f'Error reading chat history: {e}')
-                    # Remove
                     os.remove(os.path.join(chat_log_path, log_file))
 
     def get_first_name(self, message):
