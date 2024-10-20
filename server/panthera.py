@@ -28,6 +28,7 @@ from openai import OpenAI
 import telebot
 from telebot.formatting import escape_markdown
 import logging
+import re
 
 with open('config.json') as config_file:
     bot = telebot.TeleBot(json.load(config_file)['TOKEN'])
@@ -827,3 +828,41 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             )
 
         return response
+
+    class Filename(BaseModel):
+        name: str = Field(..., description="The generated filename without extension")
+
+    async def generate_filename(self, content):
+        # Truncate content if it's too long
+        max_content_length = 1000
+        truncated_content = content[:max_content_length] + "..." if len(content) > max_content_length else content
+
+        # client = OpenAI()
+        client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+        try:
+            completion = client.beta.chat.completions.parse(
+                model="gpt-4o-2024-08-06",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant that generates concise and relevant file names based on given content."},
+                    {"role": "user", "content": f"Generate a short, descriptive filename (without extension) for a text file containing the following content:\n\n{truncated_content}\n\nThe filename should be concise, relevant, and use underscores instead of spaces."}
+                ],
+                response_format=self.Filename,
+            )
+
+            message = completion.choices[0].message
+            if message.parsed:
+                filename = message.parsed.name
+
+                # Clean the filename
+                filename = re.sub(r'[^\w\-_\.]', '_', filename)  # Replace invalid characters with underscore
+                filename = re.sub(r'_+', '_', filename)  # Replace multiple underscores with single underscore
+                filename = filename.strip('_')  # Remove leading/trailing underscores
+
+                return filename + ".txt"
+            else:
+                print(f"Error generating filename: {message.refusal}")
+                return "response.txt"  # Fallback to default name if there's an error
+        except Exception as e:
+            print(f"Error generating filename: {e}")
+            return "response.txt"  # Fallback to default name if there's an error
