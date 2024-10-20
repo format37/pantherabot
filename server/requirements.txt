@@ -15,7 +15,7 @@ wolframalpha==5.0.0
 langchain==0.3.4
 langchain_openai==0.2.3
 langchain-community==0.3.3
-pydantic==1.10.10
+pydantic==2.9.2
 langchain-anthropic==0.2.3
 langchain-experimental==0.0.59
 tavily-python==0.3.3
