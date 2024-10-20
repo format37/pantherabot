@@ -808,6 +808,9 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             }
         )
         response = result["output"]
+
+        self.logger.info(f'llm_request response type: {type(response)}')
+        self.logger.info(f'llm_request response: {response}')
         
         self.save_to_chat_history(
             # message['chat']['id'],
