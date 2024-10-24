@@ -110,9 +110,9 @@ class ChatAgent:
         #     model=model,
         #     temperature=temperature,
         # )
-
+        # model="claude-3-5-sonnet-20240620",  # Specify the model name you want to use
         llm = ChatAnthropic(
-            model="claude-3-5-sonnet-20240620",  # Specify the model name you want to use
+            model="claude-3-5-sonnet-20241022",
             temperature = 0.7,
             max_tokens=4096,
         )
