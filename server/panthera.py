@@ -105,17 +105,17 @@ class ChatAgent:
         # model = 'gpt-4o-2024-05-13'
         model = 'gpt-4o'
         temperature = 0.7
-        # llm = ChatOpenAI(
-        #     openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
-        #     model=model,
-        #     temperature=temperature,
-        # )
-        # model="claude-3-5-sonnet-20240620",  # Specify the model name you want to use
-        llm = ChatAnthropic(
-            model="claude-3-5-sonnet-20241022",
-            temperature = 0.7,
-            max_tokens=4096,
+        llm = ChatOpenAI(
+            openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
+            model=model,
+            temperature=temperature,
         )
+        # model="claude-3-5-sonnet-20240620",  # Specify the model name you want to use
+        # llm = ChatAnthropic(
+        #     model="claude-3-5-sonnet-20241022",
+        #     temperature = 0.7,
+        #     max_tokens=4096,
+        # )
         # if "ANTHROPIC_API_KEY" not in os.environ:
         #     self.logger.error("ANTHROPIC_API_KEY is not set")
 
