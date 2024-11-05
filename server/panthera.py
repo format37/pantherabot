@@ -62,7 +62,7 @@ class ImagePlotterArgs(BaseModel):
 
 class BFL_ImagePlotterArgs(BaseModel):
     prompt: str = Field(description="The prompt to generate the image")
-    chat_id: str = Field(description="chat_id")
+    chat_id: int = Field(description="chat_id")
     message_id: int = Field(description="message_id")
 
 class ask_reasoning_args(BaseModel):
@@ -297,7 +297,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             
             time.sleep(5)  # Wait for 5 seconds before checking again
 
-    async def BFL_ImagePlotterTool(self, prompt: str, chat_id: str, message_id: int) -> str:        
+    async def BFL_ImagePlotterTool(self, prompt: str, chat_id: int, message_id: int) -> str:        
         headers = {
             "x-key": os.environ.get('BFL_API_KEY', ''),
             "Content-Type": "application/json"
