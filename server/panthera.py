@@ -261,7 +261,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         agent = create_tool_calling_agent(llm, tools, prompt)
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-    def bfl_generate_image(self, headers, prompt, width=1024, height=768):
+    def bfl_generate_image(self, headers, prompt, width=1024, height=768, raw_mode):
         """
         Submit an image generation request to the API.
         """
@@ -273,7 +273,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             "width": width,
             "height": height,
             "safety_tolerance": 6,
-            "raw": True,
+            "raw": raw_mode,
             "output_format": "png",
         }
 
