@@ -180,70 +180,28 @@ class ChatAgent:
         
         # bfl_tool_description = "A tool to generate and send to user images based on a given prompt"
         bfl_tool_description = """This tool can generate image from text request.
-To maximize the potential of FLUX1.1 [pro] for image generation, consider the following prompting strategies:
+1. Be Specific and Descriptive
+Instead of "A portrait of a woman," use "A close-up portrait of a middle-aged woman with curly red hair, green eyes, wearing a blue silk blouse."
 
-**1. Be Specific and Descriptive**
+2. Incorporate Artistic References
+Reference specific artists or styles: "Create an image in the style of Van Gogh's 'Starry Night,' but with a futuristic cityscape."
 
-Provide detailed descriptions to guide the model effectively. For example:
+3. Specify Technical Details
+Include camera settings and angles: "Wide-angle lens (24mm) at f/1.8, shallow depth of field, focus on subject."
 
-- *General Prompt*: "A portrait of a woman."
-- *Enhanced Prompt*: "A close-up portrait of a middle-aged woman with curly red hair, green eyes, and freckles, wearing a blue silk blouse." 
+4. Add Mood and Atmosphere
+Describe emotional tone: "Cozy, warmly lit bookstore cafe on a rainy evening."
 
-**2. Incorporate Artistic References**
+5. Use Contrast and Perspective
+- Combine contrasting elements for visual impact
+- Experiment with unique viewpoints (bird's-eye, worm's-eye)
+- Mix different themes or time periods
 
-Mention specific artists, art movements, or styles to influence the output. For instance:
-
-- "Create an image in the style of Vincent van Gogh’s 'Starry Night,' but replace the village with a futuristic cityscape." 
-
-**3. Specify Technical Details**
-
-Including camera settings, angles, and other technical aspects can significantly influence the final image. For example:
-
-- "Capture a street food vendor in Tokyo at night, shot with a wide-angle lens (24mm) at f/1.8. Use a shallow depth of field to focus on the vendor’s hands preparing takoyaki, with the glowing street signs and bustling crowd blurred in the background." 
-
-**4. Blend Concepts**
-
-Combine different ideas or themes to create unique images. For example:
-
-- "Illustrate 'The Last Supper' by Leonardo da Vinci, but reimagine it with robots in a futuristic setting." 
-
-**5. Use Contrast and Juxtaposition**
-
-Creating contrast within your prompt can lead to visually striking and thought-provoking images. For example:
-
-- "Create an image that juxtaposes the delicate beauty of nature with the harsh reality of urban decay." 
-
-**6. Incorporate Mood and Atmosphere**
-
-Describing the emotional tone or atmosphere can help FLUX1.1 [pro] generate images with the desired feel. For example:
-
-- "Depict a cozy, warmly lit bookstore cafe on a rainy evening." 
-
-**7. Leverage FLUX1.1 [pro]'s Text Rendering Capabilities**
-
-FLUX1.1 [pro] has superior text rendering capabilities, allowing for creative use of text within images. For example:
-
-- "Create a surreal advertisement poster for a fictional time travel agency." 
-
-**8. Experiment with Unusual Perspectives**
-
-Challenging FLUX1.1 [pro] with unique viewpoints can result in visually interesting images. For example:
-
-- "Illustrate a 'bug’s-eye view' of a picnic in a lush garden." 
-
-**Additional Tips:**
-
-- **Natural Language Prompts**: FLUX1.1 [pro] works excellently with instructions written in natural language. 
-
-- **Layered Images**: Be clear about what you want to see in each layer and convey it to the AI in an organized, hierarchical manner. 
-
-- **Contrasting Colors and Aesthetics**: Contrasts can make for a striking image, whether photorealistic or digital art. 
-
-- **See-through Materials and Textures**: FLUX1.1 [pro] can effectively render objects or text visible behind transparent materials. 
-
-- **Incorporating Text onto Images**: FLUX1.1 [pro] excels in typography; describe the font, style, size, color, and placement of the text for tailored results. 
-
-By applying these strategies, you can craft prompts that fully leverage the capabilities of FLUX1.1 [pro], resulting in high-quality, detailed, and creative images.
+Tips:
+- Write prompts in natural language
+- Describe specific lighting conditions
+- Include details about materials and textures
+- Be clear about text placement and styling when needed
 """
 
         image_plotter_tool = StructuredTool.from_function(
