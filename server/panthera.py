@@ -64,6 +64,7 @@ class BFL_ImagePlotterArgs(BaseModel):
     prompt: str = Field(description="The prompt to generate the image")
     chat_id: int = Field(description="chat_id")
     message_id: int = Field(description="message_id")
+    raw_mode: bool = Field(description="raw_mode Generate less processed, more natural-looking images")
 
 class ask_reasoning_args(BaseModel):
     request: str = Field(description="Request for the Reasoning expert")
@@ -265,12 +266,15 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         Submit an image generation request to the API.
         """
         API_URL = "https://api.bfl.ml"
-        endpoint = f"{API_URL}/v1/flux-pro-1.1"
+        # endpoint = f"{API_URL}/v1/flux-pro-1.1"
+        endpoint = f"{API_URL}/v1/flux-pro-1.1-ultra"
         payload = {
             "prompt": prompt,
             "width": width,
             "height": height,
-            "safety_tolerance": 6
+            "safety_tolerance": 6,
+            "raw": True,
+            "output_format": "png",
         }
 
         response = requests.post(endpoint, json=payload, headers=headers)
@@ -297,13 +301,13 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             
             time.sleep(5)  # Wait for 5 seconds before checking again
 
-    async def BFL_ImagePlotterTool(self, prompt: str, chat_id: int, message_id: int) -> str:        
+    async def BFL_ImagePlotterTool(self, prompt: str, chat_id: int, message_id: int, raw_mode: bool) -> str:        
         headers = {
             "x-key": os.environ.get('BFL_API_KEY', ''),
             "Content-Type": "application/json"
         }
         self.logger.info(f"Submitting the bfl image generation request...")
-        task_id = self.bfl_generate_image(headers, prompt, 1280, 1280)
+        task_id = self.bfl_generate_image(headers, prompt, 1280, 1280, raw_mode)
         self.logger.info(f"Task ID: {task_id} Waiting for the image to be generated...")
         result = self.bfl_get_result(task_id, headers)
         if "sample" in result:
