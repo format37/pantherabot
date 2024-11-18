@@ -353,7 +353,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             self.logger.info(f"ImagePlotterTool caption: {caption}")
 
             # For Telegram bot API's send_photo method, the caption length limit is 1024 characters. This applies to both regular text and MarkdownV2-formatted captions.
-            caption = caption[:1024]
+            caption = caption[:1000]
 
             # Send the photo
             sent_message = bot.send_photo(
