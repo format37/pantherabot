@@ -338,6 +338,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         result = self.bfl_get_result(task_id, headers)
         if "sample" in result:
             image_url = result["sample"]
+            self.logger.info(f"Image URL: {image_url}")
             # Download the image
             image_data = requests.get(image_url).content
             
@@ -350,6 +351,9 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
 
             caption = f"||{escape_markdown(prompt)}||"
             self.logger.info(f"ImagePlotterTool caption: {caption}")
+
+            # For Telegram bot API's send_photo method, the caption length limit is 1024 characters. This applies to both regular text and MarkdownV2-formatted captions.
+            caption = caption[:1024]
 
             # Send the photo
             sent_message = bot.send_photo(
