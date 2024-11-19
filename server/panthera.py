@@ -187,21 +187,16 @@ class ChatAgent:
         bfl_tool_description = """A tool to generate and send to user images based on a given prompt.
 1. Be Specific and Descriptive
 Instead of "A portrait of a woman," use "A close-up portrait of a middle-aged woman with curly red hair, green eyes, wearing a blue silk blouse."
-
-2. Incorporate Artistic References
+2. Use Artistic References
 Reference specific artists or styles: "Create an image in the style of Van Gogh's 'Starry Night,' but with a futuristic cityscape."
-
 3. Specify Technical Details
 Include camera settings and angles: "Wide-angle lens (24mm) at f/1.8, shallow depth of field, focus on subject."
-
 4. Add Mood and Atmosphere
 Describe emotional tone: "Cozy, warmly lit bookstore cafe on a rainy evening."
-
 5. Use Contrast and Perspective
 - Combine contrasting elements for visual impact
 - Experiment with unique viewpoints (bird's-eye, worm's-eye)
 - Mix different themes or time periods
-
 Tips:
 - Write prompts in natural language
 - Describe specific lighting conditions
