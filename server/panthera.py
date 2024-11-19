@@ -208,7 +208,7 @@ Tips:
 - Be clear about text placement and styling when needed
 """
 
-bfl_tool_description = """A tool to generate and send to user images based on a given prompt.
+        bfl_tool_description = """A tool to generate and send to user images based on a given prompt.
 1. Be Specific and Descriptive
 2. Incorporate Artistic References
 3. Specify Technical Details
