@@ -292,15 +292,28 @@ You are Artificial Intelligence and the participant in the multi-user or persona
 Your model is {model} with temperature: {temperature}.
 You can determine the current date from the message_date field in the current message.
 For the formatting you can use the telegram MarkdownV2 format. For example: {markdown_sample}."""
-        prompt = ChatPromptTemplate.from_messages(
-            [
-                # ("system", system_prompt),
+        # prompt = ChatPromptTemplate.from_messages(
+        #     [
+        #         # ("system", system_prompt),
+        #         ("system", "{system_prompt}"),
+        #         ("placeholder", "{chat_history}"),
+        #         ("human", "{input}"),
+        #         ("placeholder", "{agent_scratchpad}"),
+        #     ]
+        # )
+        if model == 'o1-mini':
+            prompt_messages = [
+                ("human", "{system_prompt}\n\n{chat_history}\n\n{input}"),
+                ("placeholder", "{agent_scratchpad}"),
+            ]
+        else:
+            prompt_messages = [
                 ("system", "{system_prompt}"),
                 ("placeholder", "{chat_history}"),
                 ("human", "{input}"),
                 ("placeholder", "{agent_scratchpad}"),
             ]
-        )
+        prompt = ChatPromptTemplate.from_messages(prompt_messages)
         
         agent = create_tool_calling_agent(llm, tools, prompt)
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
