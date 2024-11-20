@@ -183,7 +183,6 @@ class ChatAgent:
             verbose=True,
         )
         
-        # bfl_tool_description = "A tool to generate and send to user images based on a given prompt"
         bfl_tool_description = """A tool to generate and send to user images based on a given prompt.
 1. Be Specific and Descriptive
 Instead of "A portrait of a woman," use "A close-up portrait of a middle-aged woman with curly red hair, green eyes, wearing a blue silk blouse."
@@ -203,19 +202,6 @@ Tips:
 - Include details about materials and textures
 - Be clear about text placement and styling when needed
 """
-
-#         bfl_tool_description = """A tool to generate and send to user images based on a given prompt.
-# 1. Be Specific and Descriptive
-# 2. Incorporate Artistic References
-# 3. Specify Technical Details
-# 4. Add Mood and Atmosphere
-# 5. Use Contrast and Perspective
-# Tips:
-# - Write prompts in natural language
-# - Describe specific lighting conditions
-# - Include details about materials and textures
-# - Be clear about text placement and styling when needed
-# """
 
         image_plotter_tool = StructuredTool.from_function(
             coroutine=self.BFL_ImagePlotterTool,
