@@ -785,6 +785,81 @@ class Panthera:
         return ''
 
     def read_chat_history(self, chat_id: str):
+        '''Reads the chat history from a folder with improved message limit handling.'''
+        user_id = chat_id  # Assuming chat_id corresponds to user_id in private chats
+        chat_log_path = os.path.join('data', 'users', str(user_id), 'chats', str(chat_id))
+        if not os.path.exists(chat_log_path):
+            return
+
+        self.chat_history = []
+        
+        # First, get all files and sort them by creation time (newest first)
+        files = []
+        for log_file in os.listdir(chat_log_path):
+            file_path = os.path.join(chat_log_path, log_file)
+            try:
+                files.append((file_path, os.path.getctime(file_path)))
+            except Exception as e:
+                self.logger.error(f'Error getting file creation time: {e}')
+                continue
+        
+        files.sort(key=lambda x: x[1], reverse=True)
+        
+        # Initialize counters
+        message_count = 0
+        token_count = 0
+        MAX_MESSAGES = 1000  # Setting a conservative limit well below OpenAI's 2048
+        MAX_TOKENS = self.config['token_limit'] if 'token_limit' in self.config else 4000
+
+        # Process files from newest to oldest
+        for file_path, _ in files:
+            if message_count >= MAX_MESSAGES:
+                # Remove older files that won't be used
+                try:
+                    os.remove(file_path)
+                    self.logger.info(f'Removed old chat history file: {file_path}')
+                except Exception as e:
+                    self.logger.error(f'Error removing file: {e}')
+                continue
+
+            try:
+                with open(file_path, 'r') as file:
+                    message = json.load(file)
+                    
+                    # Calculate tokens for this message
+                    message_tokens = self.token_counter(message['text']) if hasattr(self, 'token_counter') else len(message['text'])
+                    
+                    # Check if adding this message would exceed token limit
+                    if token_count + message_tokens > MAX_TOKENS:
+                        # Remove the file if it's too old to be included
+                        try:
+                            os.remove(file_path)
+                            self.logger.info(f'Removed file exceeding token limit: {file_path}')
+                        except Exception as e:
+                            self.logger.error(f'Error removing file: {e}')
+                        continue
+                    
+                    # Add message to history
+                    if message['type'] == 'AIMessage':
+                        self.chat_history.insert(0, AIMessage(content=message['text']))
+                    elif message['type'] == 'HumanMessage':
+                        self.chat_history.insert(0, HumanMessage(content=message['text']))
+                    
+                    message_count += 1
+                    token_count += message_tokens
+
+            except Exception as e:
+                self.logger.error(f'Error reading chat history file {file_path}: {e}')
+                # Remove corrupted file
+                try:
+                    os.remove(file_path)
+                    self.logger.error(f'Removed corrupted file: {file_path}')
+                except Exception as remove_error:
+                    self.logger.error(f'Error removing corrupted file: {remove_error}')
+
+        self.logger.info(f'Loaded {message_count} messages with {token_count} tokens for chat {chat_id}')
+
+    def read_chat_history_x(self, chat_id: str):
         '''Reads the chat history from a folder.'''
         user_id = chat_id  # Assuming chat_id corresponds to user_id in private chats
         chat_log_path = os.path.join('data', 'users', str(user_id), 'chats', str(chat_id))
