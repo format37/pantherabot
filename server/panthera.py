@@ -284,7 +284,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         #         ("placeholder", "{agent_scratchpad}"),
         #     ]
         # )
-        if model == 'o1-mini':
+        if 'o1' in model:
             prompt_messages = [
                 ("human", "{system_prompt}\n\n{chat_history}\n\n{input}"),
                 ("placeholder", "{agent_scratchpad}"),
