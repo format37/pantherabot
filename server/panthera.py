@@ -291,9 +291,8 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             ]
         else:
             prompt_messages = [
-                ("system", "{system_prompt}"),
+                ("human", "{system_prompt}\n\n{input}"),
                 ("placeholder", "{chat_history}"),
-                ("human", "{input}"),
                 ("placeholder", "{agent_scratchpad}"),
             ]
         prompt = ChatPromptTemplate.from_messages(prompt_messages)
