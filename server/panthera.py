@@ -445,7 +445,8 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}"
         }
-        model = "gpt-4o"
+        # model = "gpt-4o"
+        model = "o1-preview"
 
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
@@ -808,7 +809,7 @@ class Panthera:
         # Initialize counters
         message_count = 0
         token_count = 0
-        MAX_MESSAGES = 1000  # Setting a conservative limit well below OpenAI's 2048
+        MAX_MESSAGES = 2040  # Setting a conservative limit well below OpenAI's 2048
         MAX_TOKENS = self.config['token_limit'] if 'token_limit' in self.config else 4000
 
         # Process files from newest to oldest
