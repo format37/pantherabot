@@ -106,7 +106,8 @@ class ChatAgent:
         # model = 'gpt-4o-2024-05-13'
         
         # model = 'gpt-4o'
-        model = 'gpt-4o-2024-11-20'
+        # model = 'gpt-4o-2024-11-20'
+        model = 'o1-preview'
         # model = 'o1-mini'
         temperature = 1.0
         llm = ChatOpenAI(
@@ -445,8 +446,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}"
         }
-        # model = "gpt-4o"
-        model = "o1"
+        model = "gpt-4o"
 
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
