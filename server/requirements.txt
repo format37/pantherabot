@@ -1,4 +1,4 @@
-langchain_core==0.3.19
+langchain_core==0.3.27
 fastapi==0.103.2
 uvicorn==0.23.2
 requests==2.31.0
