@@ -446,7 +446,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             "Authorization": f"Bearer {api_key}"
         }
         # model = "gpt-4o"
-        model = "o1-preview"
+        model = "o1"
 
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
