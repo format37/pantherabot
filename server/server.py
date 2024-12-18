@@ -14,6 +14,7 @@ from telebot.formatting import escape_markdown
 import hashlib
 from datetime import datetime
 from io import BytesIO
+from pathlib import Path
 
 # Initialize FastAPI
 app = FastAPI()
