@@ -380,6 +380,50 @@ async def call_message(request: Request, authorization: str = Header(None)):
             "body": str(answer)
             })
 
+    # Help command
+    elif text == '/help':
+        logger.info('Help CMD')
+        help_text = """🤖 *Janet Bot Features*
+
+*Basic Interaction*
+• Chat naturally in private messages
+• Use /\* or /\. prefix in group chats
+• Reply to my messages to continue conversation
+
+*Smart Tools*
+• Python code execution & debugging
+• Google search with links
+• YouTube video search
+• Wikipedia lookups
+• Wolfram Alpha calculations
+• Image understanding & analysis
+• Image generation with Flux Pro 1\.1
+
+*Memory & Context*
+• Maintains conversation history
+• /reset \- Clear chat memory
+• Custom system prompts
+
+*File Handling*
+• Reads text & JSON files
+• Generates detailed responses
+• Auto\-splits long responses into files
+
+*Group Chat Features*
+• @gptaidbot \- Quote my last message
+• @gptaidbot photo \- Quote my last image
+• Authorized group access control
+
+*Admin Commands*
+• /add <user\_id> \- Add user access
+• /remove <user\_id> \- Remove user access"""
+
+        bot.send_message(message['chat']['id'], help_text, parse_mode='MarkdownV2')
+        return JSONResponse(content={
+            "type": "empty",
+            "body": ''
+        })
+
     answer = 'empty'
 
     if 'text' in message:

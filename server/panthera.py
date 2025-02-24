@@ -30,7 +30,7 @@ import telebot
 from telebot.formatting import escape_markdown
 import logging
 import re
-from fastapi import JSONResponse
+# from fastapi import JSONResponse
 
 with open('config.json') as config_file:
     bot = telebot.TeleBot(json.load(config_file)['TOKEN'])
@@ -998,81 +998,3 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         except Exception as e:
             print(f"Error generating filename: {e}")
             return "response.txt"  # Fallback to default name if there's an error
-
-    def call_message(self, message, text):
-        # Remove user CMD
-        if text.startswith('/remove'):
-            logger.info(f'Remove user CMD: {text}')
-            # Check is current user in atdmins.txt
-            admins = []
-            with open(data_path + 'admins.txt', 'r') as f:
-                admins = f.read().splitlines()
-            if str(message['from']['id']) not in admins:
-                answer = "You are not authorized to use this command."
-                return JSONResponse(content={
-                    "type": "text",
-                    "body": str(answer)
-                    })
-            # split cmd from format /remove <user_id>
-            cmd = text.split(' ')
-            if len(cmd) != 2:
-                answer = "Invalid command format. Please use /remove <user_id>."
-                return JSONResponse(content={
-                    "type": "text",
-                    "body": str(answer)
-                    })
-            # remove user_id from user_list
-            user_id = cmd[1]
-            user_list.remove(user_id)
-            # write user_list to ./data/users.txt
-            with open(data_path + 'users.txt', 'w') as f:
-                f.write('\n'.join(user_list))
-            answer = f'User {user_id} removed successfully.'
-            return JSONResponse(content={
-                "type": "text",
-                "body": str(answer)
-                })
-
-        # Help command
-        elif text == '/help':
-            help_text = """Here's what I can do:
-
-🛠 Available Tools:
-• Python REPL - Execute Python commands
-• Google Search - Search the web and provide links
-• YouTube Search - Find videos on YouTube
-• Wolfram Alpha - Solve mathematical and scientific problems
-• Wikipedia Search - Look up information from Wikipedia
-• Image Understanding - Analyze and explain images
-• Flux 1.1 Pro - Generate images based on text descriptions
-• Text & JSON Reader - Read and process text files
-• System Prompt Management - Update or reset my behavior
-
-💬 Chat Commands:
-• /start - Initialize the bot
-• /help - Show this help message
-• /reset - Clear chat history
-• /* or ./ - Prefix in group chats to call me
-• @gptaidbot - Cite my last message in group chats
-• @gptaidbot photo - Cite my last photo in group chats
-
-🎨 Image Generation:
-To generate images, simply ask me to draw or create an image with a detailed description.
-
-🔄 System Prompt:
-You can customize my behavior by:
-1. Updating the system prompt: Ask me to "update system prompt to [your prompt]"
-2. Resetting to default: Ask me to "reset system prompt"
-
-📝 Best Practices:
-• Be specific in your requests
-• For image generation, provide detailed descriptions
-• Use reply feature for contextual conversations"""
-
-            bot.send_message(chat_id, help_text)
-            return JSONResponse(content={
-                "type": "empty",
-                "body": ''
-            })
-
-        answer = 'empty'
