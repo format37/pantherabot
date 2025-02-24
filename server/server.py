@@ -308,7 +308,14 @@ async def call_message(request: Request, authorization: str = Header(None)):
         text = message['caption']
     else:
         text = ''
-    
+
+    # Skip processing if text starts with "response:"
+    if text.startswith('response:'):
+        return JSONResponse(content={
+            "type": "empty",
+            "body": ''
+        })
+
     data_path = 'data/'
     # Read user_list from ./data/users.txt
     with open(data_path + 'users.txt', 'r') as f:
@@ -416,7 +423,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
 
 *Admin Commands*
 • /add \<user\_id\> \- Add user access
-• /remove \<user\_id\> \- Remove user access"""
+• /remove \<user\_id\> \- Remove user access
+• @gptaidbot \*\*\* \- Select a group to send bot's thoughts"""
 
         bot.send_message(message['chat']['id'], help_text, parse_mode='MarkdownV2')
         return JSONResponse(content={
@@ -609,6 +617,14 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         )
         return JSONResponse(content={"status": "ok"})
     elif query.endswith('***'):
+        # Check if user is in admins.txt
+        admins = []
+        with open('data/admins.txt', 'r') as f:
+            admins = f.read().splitlines()
+        
+        if str(user_id) not in admins:
+            logger.info(f"User {user_id} is not an admin")
+            return JSONResponse(content={"status": "ok"})
         # # There the LLM is answering what they think without prompt
         # user_session = panthera.get_user_session(user_id)
         # message_text = ""
