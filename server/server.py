@@ -383,7 +383,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
     # Help command
     elif text == '/help':
         logger.info('Help CMD')
-        help_text = """🤖 *Janet Bot Features*
+        help_text = """🤖 *Bot Features*
 
 *Basic Interaction*
 • Chat naturally in private messages
@@ -410,13 +410,13 @@ async def call_message(request: Request, authorization: str = Header(None)):
 • Auto\-splits long responses into files
 
 *Group Chat Features*
-• @gptaidbot \- Quote my last message
+• @gptaidbot \- Quote bot's last pm message
 • @gptaidbot photo \- Quote my last image
 • Authorized group access control
 
 *Admin Commands*
-• /add <user\_id> \- Add user access
-• /remove <user\_id> \- Remove user access"""
+• /add \<user\_id\> \- Add user access
+• /remove \<user\_id\> \- Remove user access"""
 
         bot.send_message(message['chat']['id'], help_text, parse_mode='MarkdownV2')
         return JSONResponse(content={
