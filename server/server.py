@@ -409,7 +409,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
 *Memory & Context*
 • Maintains conversation history
 • /reset \- Clear chat memory
-• Custom system prompts
+• /update\_prompt \<text\> \- Update system prompt
+• /reset\_prompt \- Reset to default prompt
 
 *File Handling*
 • Reads text & JSON files
