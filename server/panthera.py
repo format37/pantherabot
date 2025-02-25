@@ -121,9 +121,10 @@ class ChatAgent:
             self.logger.error("ANTHROPIC_API_KEY is not set")
         # model="claude-3-5-sonnet-20240620",
         temperature = 1.0
-        model="claude-3-5-sonnet-20241022",  # Specify the model name you want to use
+        # model="claude-3-5-sonnet-20241022"
+        model="claude-3-7-sonnet-20250219"
         llm = ChatAnthropic(
-            model="claude-3-5-sonnet-20241022",
+            model=model,
             temperature = temperature
             # max_tokens=8192,
         )        
