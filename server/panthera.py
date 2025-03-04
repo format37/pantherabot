@@ -934,6 +934,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 "system_prompt": system_prompt,
             }
         )
+        self.logger.info(f'result: {result}')
         response = result["output"]
         
         
