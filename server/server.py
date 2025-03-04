@@ -309,12 +309,12 @@ async def call_message(request: Request, authorization: str = Header(None)):
     else:
         text = ''
 
-    # Skip processing if text starts with "response:"
-    if text.startswith('response:'):
-        return JSONResponse(content={
-            "type": "empty",
-            "body": ''
-        })
+    # # Skip processing if text starts with "response:"
+    # if text.startswith('response:'):
+    #     return JSONResponse(content={
+    #         "type": "empty",
+    #         "body": ''
+    #     })
 
     data_path = 'data/'
     # Read user_list from ./data/users.txt
