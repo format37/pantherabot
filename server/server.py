@@ -309,13 +309,6 @@ async def call_message(request: Request, authorization: str = Header(None)):
     else:
         text = ''
 
-    # # Skip processing if text starts with "response:"
-    # if text.startswith('response:'):
-    #     return JSONResponse(content={
-    #         "type": "empty",
-    #         "body": ''
-    #     })
-
     data_path = 'data/'
     # Read user_list from ./data/users.txt
     with open(data_path + 'users.txt', 'r') as f:
@@ -459,6 +452,12 @@ async def call_message(request: Request, authorization: str = Header(None)):
             message_text = ""
             # await call_llm_response(message, message_text, chat_id, False)
             await call_llm_response(chat_id, message["message_id"], message_text, False)
+            # Skip processing if text starts with "response:"
+            # if text.startswith('response:'):
+            return JSONResponse(content={
+                "type": "empty",
+                "body": ''
+            })
 
         
     chat_id = message['chat']['id']
