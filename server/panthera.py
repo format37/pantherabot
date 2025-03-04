@@ -106,28 +106,28 @@ class ChatAgent:
     def initialize_agent(self):
         # model = 'gpt-4o-2024-05-13'
         
-        model = 'gpt-4o'
+        # model = 'gpt-4o'
+        model = 'gpt-4.5-preview'
         # model = 'gpt-4o-2024-11-20'
         # model = 'o1-preview'
         # model = 'o1-mini'
-        # temperature = 1.0
-        # llm = ChatOpenAI(
-        #     openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
-        #     model=model,
-        #     # temperature=temperature,
-        # )
-
-        if "ANTHROPIC_API_KEY" not in os.environ:
-            self.logger.error("ANTHROPIC_API_KEY is not set")
-        # model="claude-3-5-sonnet-20240620",
-        temperature = 1.0
-        # model="claude-3-5-sonnet-20241022"
-        model="claude-3-7-sonnet-20250219"
-        llm = ChatAnthropic(
+        llm = ChatOpenAI(
+            openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
             model=model,
-            temperature = temperature
-            # max_tokens=8192,
-        )        
+            # temperature=temperature,
+        )
+
+        # if "ANTHROPIC_API_KEY" not in os.environ:
+        #     self.logger.error("ANTHROPIC_API_KEY is not set")
+        # # model="claude-3-5-sonnet-20240620",
+        # temperature = 1.0
+        # # model="claude-3-5-sonnet-20241022"
+        # model="claude-3-7-sonnet-20250219"
+        # llm = ChatAnthropic(
+        #     model=model,
+        #     temperature = temperature
+        #     # max_tokens=8192,
+        # )        
 
         # temperature=0.7,
         #     max_tokens=150,
@@ -982,8 +982,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
 
         try:
             completion = client.beta.chat.completions.parse(
-                # model="gpt-4o-2024-08-06",
-                model="gpt-4.5-preview",
+                model="gpt-4o-2024-08-06",
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant that generates concise and relevant file names based on given content."},
                     {"role": "user", "content": f"Generate a short, descriptive filename (without extension) for a text file containing the following content:\n\n{truncated_content}\n\nThe filename should be concise, relevant, and use underscores instead of spaces."}
