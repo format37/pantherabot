@@ -450,27 +450,28 @@ async def call_message(request: Request, authorization: str = Header(None)):
             # example: text == "response:-888407449"
             chat_id = text.split(':')[1]
             
-            # Get the user's personal ID for reading their chat history
-            user_id = message['from']['id']
-            logger.info(f"Getting personal chat history for user_id: {user_id}")
+            # # Get the user's personal ID for reading their chat history
+            # user_id = message['from']['id']
+            # logger.info(f"Getting personal chat history for user_id: {user_id}")
             
-            # Read the user's personal chat history
-            panthera.read_chat_history(str(user_id))
+            # # Read the user's personal chat history
+            # panthera.read_chat_history(str(user_id))
             
-            # Concatenate chat history into a single text to guide the response
-            message_text = "Respond based on our previous conversation: "
-            for msg in panthera.chat_history:
-                if isinstance(msg, HumanMessage):
-                    message_text += f"\nUser: {msg.content}"
-                elif isinstance(msg, AIMessage):
-                    message_text += f"\nAssistant: {msg.content}"
+            # # Concatenate chat history into a single text to guide the response
+            # message_text = "Respond based on our previous conversation: "
+            # for msg in panthera.chat_history:
+            #     if isinstance(msg, HumanMessage):
+            #         message_text += f"\nUser: {msg.content}"
+            #     elif isinstance(msg, AIMessage):
+            #         message_text += f"\nAssistant: {msg.content}"
             
-            # Limit the message_text to a reasonable size if needed
-            if len(message_text) > 4000:
-                message_text = message_text[-4000:]
+            # # Limit the message_text to a reasonable size if needed
+            # if len(message_text) > 4000:
+            #     message_text = message_text[-4000:]
             
-            logger.info(f"Prepared message_text with personal chat history: {message_text[:100]}...")
-            
+            # logger.info(f"Prepared message_text with personal chat history: {message_text[:100]}...")
+
+            message_text = ''
             await call_llm_response(chat_id, message["message_id"], message_text, False)
             return JSONResponse(content={
                 "type": "empty",
