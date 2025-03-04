@@ -982,7 +982,8 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
 
         try:
             completion = client.beta.chat.completions.parse(
-                model="gpt-4o-2024-08-06",
+                # model="gpt-4o-2024-08-06",
+                model="gpt-4.5-preview",
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant that generates concise and relevant file names based on given content."},
                     {"role": "user", "content": f"Generate a short, descriptive filename (without extension) for a text file containing the following content:\n\n{truncated_content}\n\nThe filename should be concise, relevant, and use underscores instead of spaces."}
