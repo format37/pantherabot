@@ -30,6 +30,8 @@ import telebot
 from telebot.formatting import escape_markdown
 import logging
 import re
+import tenacity
+import httpx
 # from fastapi import JSONResponse
 
 with open('config.json') as config_file:
@@ -921,54 +923,91 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
     # async def llm_request(self, bot, message, message_text):
     async def llm_request(self, chat_id, message_id, message_text):
         # message_text may have augmentations
-        # chat_id = message['chat']['id']
         self.logger.info(f'llm_request: {chat_id}')
 
         # Read chat history
         self.read_chat_history(chat_id=chat_id)
         self.logger.info(f'invoking message_text: {message_text}')
         system_prompt = self.get_system_prompt(chat_id)
-        result = await self.chat_agent.agent_executor.ainvoke(
-            {
-                "input": message_text,
-                "chat_history": self.chat_history,
-                "system_prompt": system_prompt,
-            }
-        )
-        self.logger.info(f'result: {result}')
-        response = result["output"]
         
-        
-        # if response is a list
-        if isinstance(response, list):
-            if len(response) > 0:  # Check if list has elements before accessing
-                response = response[0]
-            else:
-                self.logger.info(f'llm_request received empty list response')
-                # response = "I'm sorry, I couldn't generate a response. Please try again."
-                response = ''
-                
-            # if response is a dict
-            if isinstance(response, dict):
-                try:
-                    response = response['text']
-                except:
-                    self.logger.info(f'llm_request response has no "text": {response}')
-                    response = str(response)
+        # Add retries and error handling
+        try:
+            # Using tenacity to retry with exponential backoff
+            @tenacity.retry(
+                stop=tenacity.stop_after_attempt(3),  # Try 3 times
+                wait=tenacity.wait_exponential(multiplier=1, min=2, max=10),  # Wait between retries
+                retry=tenacity.retry_if_exception_type((httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.ConnectTimeout)),
+                reraise=True,
+                before_sleep=lambda retry_state: self.logger.info(f"API call failed, retrying in {retry_state.next_action.sleep} seconds...")
+            )
+            async def execute_with_retry():
+                return await self.chat_agent.agent_executor.ainvoke(
+                    {
+                        "input": message_text,
+                        "chat_history": self.chat_history,
+                        "system_prompt": system_prompt,
+                    }
+                )
+            
+            result = await execute_with_retry()
+            self.logger.info(f'result: {result}')
+            response = result["output"]
+            
+            # if response is a list
+            if isinstance(response, list):
+                if len(response) > 0:  # Check if list has elements before accessing
+                    response = response[0]
+                else:
+                    self.logger.info(f'llm_request received empty list response')
+                    response = ''
+                    
+                # if response is a dict
+                if isinstance(response, dict):
+                    try:
+                        response = response['text']
+                    except:
+                        self.logger.info(f'llm_request response has no "text": {response}')
+                        response = str(response)
 
-        self.logger.info(f'llm_request response type: {type(response)}')
-        self.logger.info(f'llm_request response: {response}')
-        
-        self.save_to_chat_history(
-            # message['chat']['id'],
-            chat_id,
-            response,
-            # message["message_id"],
-            message_id,
-            'AIMessage'
+            self.logger.info(f'llm_request response type: {type(response)}')
+            self.logger.info(f'llm_request response: {response}')
+            
+            self.save_to_chat_history(
+                chat_id,
+                response,
+                message_id,
+                'AIMessage'
             )
 
-        return response
+            return response
+            
+        except (httpx.RemoteProtocolError, httpx.ReadTimeout, httpx.ConnectTimeout) as e:
+            error_message = f"I apologize, but I couldn't complete your request due to a connection issue with my backend services. Error: {str(e)}"
+            self.logger.error(f"API connection error: {str(e)}")
+            
+            # Save the error to chat history so we have a record
+            self.save_to_chat_history(
+                chat_id,
+                error_message,
+                message_id,
+                'AIMessage'
+            )
+            
+            return error_message
+            
+        except Exception as e:
+            error_message = f"I encountered an unexpected error while processing your request. Please try again later."
+            self.logger.error(f"Unexpected error in llm_request: {str(e)}", exc_info=True)
+            
+            # Save the error to chat history
+            self.save_to_chat_history(
+                chat_id,
+                error_message,
+                message_id,
+                'AIMessage'
+            )
+            
+            return error_message
 
     class Filename(BaseModel):
         name: str = Field(..., description="The generated filename without extension")
