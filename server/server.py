@@ -657,6 +657,8 @@ async def call_inline(request: Request, authorization: str = Header(None)):
                 )
                 inline_elements.append(element)
                 folder_id += 1
+            else:
+                logger.info(f"*** not included chat.type: {chat.type}")
 
         bot.answer_inline_query(
                 inline_query_id,
