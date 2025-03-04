@@ -940,8 +940,14 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         
         # if response is a list
         if isinstance(response, list):
-            response = response[0]
-            # if resonse is a dict
+            if len(response) > 0:  # Check if list has elements before accessing
+                response = response[0]
+            else:
+                self.logger.info(f'llm_request received empty list response')
+                # response = "I'm sorry, I couldn't generate a response. Please try again."
+                response = ''
+                
+            # if response is a dict
             if isinstance(response, dict):
                 try:
                     response = response['text']
