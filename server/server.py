@@ -648,8 +648,8 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         # Iterate all folders
         for folder in folders:
             chat = bot.get_chat(folder)
-            if chat.type == 'group':
-                logger.info(f"*** chat.title: {chat.title}")
+            if chat.type == 'group' or chat.type == 'supergroup':
+                # logger.info(f"*** chat.title: {chat.title}")
                 element = telebot.types.InlineQueryResultArticle(
                     folder_id,
                     chat.title,
@@ -657,8 +657,8 @@ async def call_inline(request: Request, authorization: str = Header(None)):
                 )
                 inline_elements.append(element)
                 folder_id += 1
-            else:
-                logger.info(f"*** not included chat.type: {chat.type}")
+            # else:
+            #     logger.info(f"*** not included chat.type: {chat.type}")
 
         bot.answer_inline_query(
                 inline_query_id,
