@@ -452,6 +452,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
                 "body": str(answer)
                 })
         elif text.startswith('response:'):
+            logger.info(f"response: {text}")
             # example: text == "response:-888407449"
             chat_id = text.split(':')[1]
             # user_session = panthera.get_user_session(user_id)
