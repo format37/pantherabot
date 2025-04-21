@@ -218,6 +218,14 @@ Tips:
             # return_direct=False,
         )
 
+        image_plotter_openai_tool = StructuredTool.from_function(
+            coroutine=self.ImagePlotterTool_openai,
+            name="image_plotter_openai",
+            description="Generate and send an image using OpenAI DALL-E 3 based on a prompt and style. Style must be 'vivid' or 'natural'.",
+            args_schema=ImagePlotterArgs,
+            # return_direct=False,
+        )
+
         text_file_reader_tool = StructuredTool.from_function(
             coroutine=self.text_file_reader,
             name="read_text_file",
@@ -254,6 +262,7 @@ Tips:
         tools.append(wikipedia_tool)
         tools.append(image_context_conversation_tool)
         tools.append(image_plotter_tool)
+        tools.append(image_plotter_openai_tool)
         tools.append(text_file_reader_tool)
         tools.append(update_system_prompt_tool)
         tools.append(reset_system_prompt_tool)
@@ -396,7 +405,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         else:
             return f"Image generation failed: {result}"
     
-    async def ImagePlotterTool_x(self, prompt: str, style: str, chat_id: str, message_id: str) -> str:
+    async def ImagePlotterTool_openai(self, prompt: str, style: str, chat_id: str, message_id: str) -> str:
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
         style = style.lower()
         if style not in ["vivid", "natural"]:
@@ -405,6 +414,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
 
         response = client.images.generate(
             model="dall-e-3",
+            # model = "gpt-4o"
             prompt=prompt,
             style=style,
             size="1024x1024",            
