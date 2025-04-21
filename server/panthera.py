@@ -414,7 +414,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
 
         response = client.images.generate(
             # model="dall-e-3",
-            model = "gpt-4o"
+            model = "gpt-4o",
             prompt=prompt,
             style=style,
             size="1024x1024",            
