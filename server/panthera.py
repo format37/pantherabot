@@ -406,6 +406,63 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             return f"Image generation failed: {result}"
     
     async def ImagePlotterTool_openai(self, prompt: str, style: str, chat_id: str, message_id: str) -> str:
+        from openai import APIConnectionError, RateLimitError, APIStatusError
+        client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        style = style.lower()
+        if style not in ["vivid", "natural"]:
+            self.logger.info(f"Style {style} is not supported. Using default style: vivid")
+            style = "vivid"
+
+        try:
+            response = client.images.generate(
+                model = "gpt-image-1",
+                prompt=prompt,
+                user=chat_id
+            )
+            self.logger.info(f"ImagePlotterTool response: {response}")
+
+            # Defensive: check response structure
+            if not hasattr(response, "data") or not response.data or not isinstance(response.data, list):
+                self.logger.error(f"ImagePlotterTool: No data in response: {response}")
+                return "Image generation failed: No image data returned by OpenAI."
+
+            image_data_obj = response.data[0]
+            image_url = getattr(image_data_obj, "url", None)
+            revised_prompt = getattr(image_data_obj, "revised_prompt", None)
+
+            if not image_url:
+                self.logger.error(f"ImagePlotterTool: No image URL in response: {response}")
+                return "Image generation failed: No image URL returned by OpenAI."
+
+            # Download the image
+            try:
+                image_data = requests.get(image_url).content
+            except Exception as e:
+                self.logger.error(f"ImagePlotterTool: Failed to download image from {image_url}: {e}")
+                return f"Image generation failed: Could not download image from OpenAI."
+
+            # Use revised_prompt if available, else fallback to original prompt
+            caption_text = revised_prompt if revised_prompt else prompt
+            caption = f"||{escape_markdown(caption_text)}||"
+            self.logger.info(f"ImagePlotterTool caption: {caption}")
+
+            # Send the photo
+            bot.send_photo(
+                chat_id=chat_id, 
+                photo=image_data, 
+                reply_to_message_id=message_id, 
+                caption=caption,
+                parse_mode="MarkdownV2"
+            )
+            return "Image generated and sent to the chat"
+        except (APIConnectionError, RateLimitError, APIStatusError) as e:
+            self.logger.error(f"ImagePlotterTool: OpenAI API error: {e}")
+            return f"Image generation failed: OpenAI API error: {str(e)}"
+        except Exception as e:
+            self.logger.error(f"ImagePlotterTool: Unexpected error: {e}", exc_info=True)
+            return "Image generation failed due to an unexpected error. Please try again later."
+    
+    async def ImagePlotterTool_openai_dalle(self, prompt: str, style: str, chat_id: str, message_id: str) -> str:
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
         style = style.lower()
         if style not in ["vivid", "natural"]:
