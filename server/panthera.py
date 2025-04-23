@@ -416,10 +416,9 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         try:
             # Request image with b64_json format instead of url
             response = client.images.generate(
-                model = "gpt-image-1",
+                model="gpt-image-1",
                 prompt=prompt,
-                user=chat_id,
-                response_format="b64_json"  # Get base64 encoded image instead of URL
+                user=chat_id
             )
             # Only log metadata, not the full response which may contain large binary data
             response_meta = {
@@ -479,14 +478,9 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             style = "vivid"
 
         response = client.images.generate(
-            # model="dall-e-3",
-            model = "gpt-image-1",
+            model="gpt-image-1",
             prompt=prompt,
-            # style=style,
-            # size="1024x1024",            
-            # quality="hd",
-            user=chat_id,
-            # n=1,
+            user=chat_id
         )
         self.logger.info(f"ImagePlotterTool response: {response}")
         image_url = response.data[0].url
