@@ -414,32 +414,41 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             style = "vivid"
 
         try:
+            # Request image with b64_json format instead of url
             response = client.images.generate(
                 model = "gpt-image-1",
                 prompt=prompt,
-                user=chat_id
+                user=chat_id,
+                response_format="b64_json"  # Get base64 encoded image instead of URL
             )
-            self.logger.info(f"ImagePlotterTool response: {response}")
+            # Only log metadata, not the full response which may contain large binary data
+            response_meta = {
+                "created": getattr(response, "created", None),
+                "data_length": len(response.data) if hasattr(response, "data") else 0,
+                "usage": getattr(response, "usage", None)
+            }
+            self.logger.info(f"ImagePlotterTool response metadata: {response_meta}")
 
             # Defensive: check response structure
             if not hasattr(response, "data") or not response.data or not isinstance(response.data, list):
-                self.logger.error(f"ImagePlotterTool: No data in response: {response}")
+                self.logger.error(f"ImagePlotterTool: No data in response metadata: {response_meta}")
                 return "Image generation failed: No image data returned by OpenAI."
 
             image_data_obj = response.data[0]
-            image_url = getattr(image_data_obj, "url", None)
+            b64_json = getattr(image_data_obj, "b64_json", None)
             revised_prompt = getattr(image_data_obj, "revised_prompt", None)
 
-            if not image_url:
-                self.logger.error(f"ImagePlotterTool: No image URL in response: {response}")
-                return "Image generation failed: No image URL returned by OpenAI."
+            if not b64_json:
+                self.logger.error(f"ImagePlotterTool: No b64_json in response metadata: {response_meta}")
+                return "Image generation failed: No image data returned by OpenAI."
 
-            # Download the image
+            # Convert base64 to binary
             try:
-                image_data = requests.get(image_url).content
+                import base64
+                image_data = base64.b64decode(b64_json)
             except Exception as e:
-                self.logger.error(f"ImagePlotterTool: Failed to download image from {image_url}: {e}")
-                return f"Image generation failed: Could not download image from OpenAI."
+                self.logger.error(f"ImagePlotterTool: Failed to decode base64 image: {e}")
+                return f"Image generation failed: Could not decode image data from OpenAI."
 
             # Use revised_prompt if available, else fallback to original prompt
             caption_text = revised_prompt if revised_prompt else prompt
