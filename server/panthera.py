@@ -422,9 +422,12 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 self.logger.info(f"Using image editing with {len(file_list)} images")
                 
                 # Open all image files
-                images = []
+                multiple_images = []
                 for file_path in file_list:
-                    images.append(open(file_path, "rb"))
+                    # images.append(open(file_path, "rb"))
+                    base64_image = encode_image(file_path)
+                    image_url = f"data:image/jpeg;base64,{base64_image}"
+                    multiple_images.append(image_url)
                     # with open(file_path, "rb") as img_file:
                     #     images.append(img_file.read())
                     self.logger.info(f"+ image: {file_path}")
@@ -433,7 +436,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 edit_response = client.images.edit(
                     model="gpt-image-1",
                     # image=[BytesIO(img) for img in images[:10]],  # Max 10 images
-                    image = images,
+                    image = multiple_images,
                     prompt=prompt,
                 )
                 
