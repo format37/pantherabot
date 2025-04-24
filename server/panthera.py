@@ -222,7 +222,7 @@ Tips:
         image_plotter_openai_tool = StructuredTool.from_function(
             coroutine=self.ImagePlotterTool_openai,
             name="image_plotter_openai",
-            description="Generate and send an image using OpenAI DALL-E 3 based on a prompt and style. Style must be 'vivid' or 'natural'.",
+            description="Generate image using OpenAI image model and send back to user.",
             args_schema=ImagePlotterArgs,
             # return_direct=False,
         )
