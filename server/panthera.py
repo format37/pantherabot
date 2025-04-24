@@ -412,10 +412,6 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         from io import BytesIO
 
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-        style = style.lower()
-        if style not in ["vivid", "natural"]:
-            self.logger.info(f"Style {style} is not supported. Using default style: vivid")
-            style = "vivid"
 
         try:
             image_data = None
@@ -436,7 +432,6 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                     model="gpt-image-1",
                     image=[BytesIO(img) for img in images[:10]],  # Max 10 images
                     prompt=prompt,
-                    style=style
                 )
                 
                 image_data_obj = edit_response.data[0]
@@ -449,7 +444,6 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 response = client.images.generate(
                     model="gpt-image-1",
                     prompt=prompt,
-                    style=style,
                     user=chat_id
                 )
                 
