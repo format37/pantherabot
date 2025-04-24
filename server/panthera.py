@@ -424,13 +424,16 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 # Open all image files
                 images = []
                 for file_path in file_list:
-                    with open(file_path, "rb") as img_file:
-                        images.append(img_file.read())
+                    images.append(open(file_path, "rb"))
+                    # with open(file_path, "rb") as img_file:
+                    #     images.append(img_file.read())
+                    self.logger.info(f"+ image: {file_path}")
                 
                 # Use images.edit when images are provided
                 edit_response = client.images.edit(
                     model="gpt-image-1",
-                    image=[BytesIO(img) for img in images[:10]],  # Max 10 images
+                    # image=[BytesIO(img) for img in images[:10]],  # Max 10 images
+                    image = images,
                     prompt=prompt,
                 )
                 
