@@ -425,9 +425,9 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 multiple_images = []
                 for file_path in file_list:
                     # images.append(open(file_path, "rb"))
-                    base64_image = encode_image(file_path)
-                    image_url = f"data:image/jpeg;base64,{base64_image}"
-                    multiple_images.append(image_url)
+                    # base64_image = encode_image(file_path)
+                    # image_url = f"data:image/jpeg;base64,{base64_image}"
+                    # multiple_images.append(image_url)
                     # with open(file_path, "rb") as img_file:
                     #     images.append(img_file.read())
                     self.logger.info(f"+ image: {file_path}")
@@ -436,7 +436,8 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 edit_response = client.images.edit(
                     model="gpt-image-1",
                     # image=[BytesIO(img) for img in images[:10]],  # Max 10 images
-                    image = multiple_images,
+                    # image = multiple_images,
+                    image = open(file_path, "rb"),
                     prompt=prompt,
                 )
                 
