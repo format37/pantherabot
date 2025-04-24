@@ -437,7 +437,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                     model="gpt-image-1",
                     # image=[BytesIO(img) for img in images[:10]],  # Max 10 images
                     # image = multiple_images,
-                    image = open(file_path, "rb"),
+                    image = [open(file_list[0], "rb"), open(file_list[1], "rb")],
                     prompt=prompt,
                 )
                 
