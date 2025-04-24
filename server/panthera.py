@@ -59,9 +59,10 @@ class reset_system_prompt_args(BaseModel):
 
 class ImagePlotterArgs(BaseModel):
     prompt: str = Field(description="The prompt to generate the image")
-    style: str = Field(description="The style of the generated images. Must be one of vivid or natural. Vivid causes the model to lean towards generating hyper-real and dramatic images. Natural causes the model to produce more natural, less hyper-real looking images.")
+    # style: str = Field(description="The style of the generated images. Must be one of vivid or natural. Vivid causes the model to lean towards generating hyper-real and dramatic images. Natural causes the model to produce more natural, less hyper-real looking images.")
     chat_id: str = Field(description="chat_id")
     message_id: str = Field(description="message_id")
+    file_list: List[str] = Field(default_factory=list, description="Optional list of image file paths to use for editing or composition.")
 
 class BFL_ImagePlotterArgs(BaseModel):
     prompt: str = Field(description="The prompt to generate the image")
@@ -405,8 +406,11 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         else:
             return f"Image generation failed: {result}"
     
-    async def ImagePlotterTool_openai(self, prompt: str, style: str, chat_id: str, message_id: str) -> str:
+    async def ImagePlotterTool_openai(self, prompt: str, chat_id: str, message_id: str, file_list: List[str] = None) -> str:
         from openai import APIConnectionError, RateLimitError, APIStatusError
+        import base64
+        from io import BytesIO
+
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
         style = style.lower()
         if style not in ["vivid", "natural"]:
@@ -414,41 +418,50 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             style = "vivid"
 
         try:
-            # Request image with b64_json format instead of url
-            response = client.images.generate(
-                model="gpt-image-1",
-                prompt=prompt,
-                user=chat_id
-            )
-            # Only log metadata, not the full response which may contain large binary data
-            response_meta = {
-                "created": getattr(response, "created", None),
-                "data_length": len(response.data) if hasattr(response, "data") else 0,
-                "usage": getattr(response, "usage", None)
-            }
-            self.logger.info(f"ImagePlotterTool response metadata: {response_meta}")
-
-            # Defensive: check response structure
-            if not hasattr(response, "data") or not response.data or not isinstance(response.data, list):
-                self.logger.error(f"ImagePlotterTool: No data in response metadata: {response_meta}")
-                return "Image generation failed: No image data returned by OpenAI."
-
-            image_data_obj = response.data[0]
-            b64_json = getattr(image_data_obj, "b64_json", None)
-            revised_prompt = getattr(image_data_obj, "revised_prompt", None)
-
-            if not b64_json:
-                self.logger.error(f"ImagePlotterTool: No b64_json in response metadata: {response_meta}")
-                return "Image generation failed: No image data returned by OpenAI."
-
-            # Convert base64 to binary
-            try:
-                import base64
+            image_data = None
+            revised_prompt = None
+            
+            if file_list and len(file_list) > 0:
+                # Image editing mode - combine or edit images
+                self.logger.info(f"Using image editing with {len(file_list)} images")
+                
+                # Open all image files
+                images = []
+                for file_path in file_list:
+                    with open(file_path, "rb") as img_file:
+                        images.append(img_file.read())
+                
+                # Use images.edit when images are provided
+                edit_response = client.images.edit(
+                    model="gpt-image-1",
+                    image=[BytesIO(img) for img in images[:10]],  # Max 10 images
+                    prompt=prompt,
+                    style=style
+                )
+                
+                image_data_obj = edit_response.data[0]
+                b64_json = image_data_obj.b64_json
+                revised_prompt = getattr(image_data_obj, "revised_prompt", prompt)
                 image_data = base64.b64decode(b64_json)
-            except Exception as e:
-                self.logger.error(f"ImagePlotterTool: Failed to decode base64 image: {e}")
-                return f"Image generation failed: Could not decode image data from OpenAI."
-
+            else:
+                # Standard image generation
+                self.logger.info("Using standard image generation")
+                response = client.images.generate(
+                    model="gpt-image-1",
+                    prompt=prompt,
+                    style=style,
+                    user=chat_id
+                )
+                
+                image_data_obj = response.data[0]
+                b64_json = image_data_obj.b64_json
+                revised_prompt = getattr(image_data_obj, "revised_prompt", prompt)
+                image_data = base64.b64decode(b64_json)
+            
+            if not image_data:
+                self.logger.error("ImagePlotterTool: Failed to generate image data")
+                return "Image generation failed: No image data returned by OpenAI."
+                
             # Use revised_prompt if available, else fallback to original prompt
             caption_text = revised_prompt if revised_prompt else prompt
             caption = f"||{escape_markdown(caption_text)}||"
@@ -463,6 +476,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 parse_mode="MarkdownV2"
             )
             return "Image generated and sent to the chat"
+            
         except (APIConnectionError, RateLimitError, APIStatusError) as e:
             self.logger.error(f"ImagePlotterTool: OpenAI API error: {e}")
             return f"Image generation failed: OpenAI API error: {str(e)}"
