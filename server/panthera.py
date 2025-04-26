@@ -109,11 +109,12 @@ class ChatAgent:
     def initialize_agent(self):
         # model = 'gpt-4o-2024-05-13'
         
-        model = 'gpt-4o'
+        # model = 'gpt-4o'
         # model = 'gpt-4.5-preview'
         # model = 'gpt-4o-2024-11-20'
         # model = 'o1-preview'
         # model = 'o1-mini'
+        model = 'gpt-4.1'
         temperature = 1.0
         llm = ChatOpenAI(
             openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
