@@ -262,7 +262,7 @@ Tips:
         # tools.append(youtube_tool)
         # tools.append(google_search_tool)
         # tools.append(wikipedia_tool)
-        # tools.append(image_context_conversation_tool)
+        tools.append(image_context_conversation_tool)
         # tools.append(image_plotter_tool)
         tools.append(image_plotter_openai_tool)
         # tools.append(text_file_reader_tool)
@@ -536,7 +536,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}"
         }
-        model = "gpt-4o"
+        model = "gpt-4.1"
 
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
