@@ -117,8 +117,8 @@ class ChatAgent:
         # model = 'gpt-4o-2024-11-20'
         # model = 'o1-preview'
         # model = 'o1-mini'
-        model = 'gpt-4.1'
-        temperature = 1.0
+        model = 'gpt-5'
+        temperature = 0.5
         llm = ChatOpenAI(
             openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
             model=model,
@@ -260,7 +260,7 @@ Tips:
         )
 
         tools = []
-        # tools.append(repl_tool)
+        tools.append(repl_tool)
         tools.append(wolfram_tool)
         # tools.append(youtube_tool)
         # tools.append(google_search_tool)
@@ -615,6 +615,9 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
         messages = []
         for file_path in file_list:
+            # Remove user_name prefix
+            # Example: '/6014837471:AAE5.../photos/file_2525.jpg' -> '/AAE5.../photos/file_2525.jpg'
+            file_path = re.sub(r'^/[^/]+:', '/', file_path)
             self.logger.info(f"file_path: {file_path}")
             base64_image = encode_image(file_path)
             image_url = f"data:image/jpeg;base64,{base64_image}"    
@@ -629,7 +632,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}"
         }
-        model = "gpt-4.1"
+        model = "gpt-5"
 
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
@@ -1201,7 +1204,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
 
         try:
             completion = client.beta.chat.completions.parse(
-                model="gpt-4o-2024-08-06",
+                model="gpt-5-nano",
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant that generates concise and relevant file names based on given content."},
                     {"role": "user", "content": f"Generate a short, descriptive filename (without extension) for a text file containing the following content:\n\n{truncated_content}\n\nThe filename should be concise, relevant, and use underscores instead of spaces."}
