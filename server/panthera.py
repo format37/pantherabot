@@ -317,13 +317,16 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         # )
         if 'o1' in model:
             prompt_messages = [
-                ("human", "{system_prompt}\n\n{chat_history}\n\n{input}"),
+                ("system", "{system_prompt}"),
+                ("placeholder", "{chat_history}"),
+                ("human", "{input}"),
                 ("placeholder", "{agent_scratchpad}"),
             ]
         else:
             prompt_messages = [
-                ("human", "{system_prompt}\n\n{input}"),
+                ("system", "{system_prompt}"),
                 ("placeholder", "{chat_history}"),
+                ("human", "{input}"),
                 ("placeholder", "{agent_scratchpad}"),
             ]
         prompt = ChatPromptTemplate.from_messages(prompt_messages)
