@@ -9,8 +9,8 @@ services:
       - ./data:/server/data
       - ./config.json:/server/config.json
       - type: bind
-        source: /TELEGRAM_BOT_TOKEN
-        target: /TELEGRAM_BOT_TOKEN
+        source: /mnt/BOT_TOKEN_WITHOUT_PREFIX
+        target: /BOT_TOKEN_WITHOUT_PREFIX
     build: server
     logging:
       options:

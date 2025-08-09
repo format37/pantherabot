@@ -351,11 +351,11 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         """
         try:
             self.logger.info(f">> Web search: {request}")
-            api_key = os.getenv('PERPLEXITY_KEY')
+            api_key = os.getenv('PERPLEXITY_API_KEY')
             if not api_key:
-                self.logger.error("PERPLEXITY_KEY is not set")
+                self.logger.error("PERPLEXITY_API_KEY is not set")
                 return {
-                    "answer": "Web search unavailable: missing PERPLEXITY_KEY.",
+                    "answer": "Web search unavailable: missing PERPLEXITY_API_KEY.",
                     "citations": []
                 }
 
