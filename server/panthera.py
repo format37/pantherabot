@@ -708,14 +708,18 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         )
 
 class Panthera:
-    
+
     def __init__(self):
         # Initialize logging
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(logging.INFO)
-        
+
         self.config = json.load(open('./data/users/default.json', 'r'))
+        # Force model override regardless of stored config
+        self.config['model'] = 'gpt-5'
+        self.logger.info(f'Overriding default config model to: {self.config["model"]}')
+
         self.chat_agent = ChatAgent(None, self)
         self.data_dir = './data/chats'
         Path(self.data_dir).mkdir(parents=True, exist_ok=True)  # Ensure data directory exists
@@ -780,6 +784,11 @@ class Panthera:
             self.save_user_session(user_id, session)
 
         session = json.load(open(user_path, 'r'))
+        # Force model override in the user session and persist
+        if session.get('model') != 'gpt-5':
+            session['model'] = 'gpt-5'
+            self.logger.info(f'Overriding user session model to: {session["model"]}')
+            self.save_user_session(user_id, session)
         # Return the user json file as dict
         return session
 
@@ -795,7 +804,11 @@ class Panthera:
             os.remove(os.path.join(chat_path, f))
 
     def token_counter(self, text):
-        enc = tiktoken.encoding_for_model(self.config['model'])
+        model_for_tokens = self.config.get('model', 'gpt-4o')
+        try:
+            enc = tiktoken.encoding_for_model(model_for_tokens)
+        except Exception:
+            enc = tiktoken.get_encoding("cl100k_base")
         tokens = enc.encode(text)
         return len(tokens)
     
