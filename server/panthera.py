@@ -17,7 +17,6 @@ from langchain.tools import YouTubeSearchTool
 from langchain.utilities import GoogleSerperAPIWrapper
 from langchain.tools import WikipediaQueryRun
 from langchain.utilities import WikipediaAPIWrapper
-from langchain_community.utilities.wolfram_alpha import WolframAlphaAPIWrapper
 from langchain_experimental.utilities import PythonREPL
 import time as py_time
 from pathlib import Path
@@ -75,6 +74,9 @@ class ask_reasoning_args(BaseModel):
 
 class perplexity_web_search_args(BaseModel):
     request: str = Field(description="The search query or question to run via Perplexity Pro web search")
+
+class WolframQueryArgs(BaseModel):
+    request: str = Field(description="Wolfram|Alpha query, e.g., 'solve x^2 + 2*x^2 + 8 = 0'")
 
 def append_message(messages, role, text, image_url):
     messages.append(
@@ -168,12 +170,17 @@ class ChatAgent:
             # return_direct=False,
         )
 
-        wolfram = WolframAlphaAPIWrapper()
-        wolfram_tool = Tool(
-                name="wolfram_alpha",
-                func=wolfram.run,
-                description="Useful when need to calculate the math expression or solve any scientific task. Provide the solution details if possible.",
-            )
+        # Robust Wolfram|Alpha tool via JSON API to avoid brittle XML client assertion
+        wolfram_tool = StructuredTool.from_function(
+            coroutine=self.wolfram_alpha_json,
+            name="wolfram_alpha",
+            description=(
+                "Query Wolfram|Alpha for math/science. Provide a concise query, e.g., "
+                "'solve x^2+2*x^2+8=0'. Returns plaintext results with key pods."
+            ),
+            args_schema=WolframQueryArgs,
+            handle_tool_error=True,
+        )
         
         wikipedia = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
         wikipedia_tool = Tool(
@@ -333,6 +340,62 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         
         agent = create_tool_calling_agent(llm, tools, prompt)
         self.agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+
+    async def wolfram_alpha_json(self, request: str) -> str:
+        """
+        Call Wolfram|Alpha v2 query API using JSON output and return plaintext pods.
+        Requires env var WOLFRAM_ALPHA_APPID or WOLFRAM_ALPHA_APP_ID.
+        """
+        appid = os.getenv("WOLFRAM_ALPHA_APPID") or os.getenv("WOLFRAM_ALPHA_APP_ID")
+        if not appid:
+            return "Wolfram|Alpha is not configured: missing WOLFRAM_ALPHA_APPID."
+
+        try:
+            params = {
+                "appid": appid,
+                "input": request,
+                "output": "json",
+                "format": "plaintext",
+                "reinterpret": "true",
+            }
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.get("https://api.wolframalpha.com/v2/query", params=params)
+                resp.raise_for_status()
+                data = resp.json()
+
+            qr = data.get("queryresult", {})
+            if not qr.get("success"):
+                # Try to surface a meaningful message
+                err = qr.get("error") or {}
+                msg = err.get("msg") or qr.get("didyoumeans") or "query was not successful"
+                return f"Wolfram|Alpha could not answer: {msg}"
+
+            pods = qr.get("pods", []) or []
+            # Prefer key result pods early
+            preferred = {"result", "results", "solutions", "solution", "root", "roots", "definite integral", "derivative"}
+            lines = []
+            tail = []
+            for pod in pods:
+                title = (pod.get("title") or "").strip()
+                subpods = pod.get("subpods", []) or []
+                texts = [sp.get("plaintext", "").strip() for sp in subpods]
+                texts = [t for t in texts if t]
+                if not texts:
+                    continue
+                entry = f"{title}: {texts[0]}" if title else texts[0]
+                if title.lower() in preferred:
+                    lines.append(entry)
+                else:
+                    tail.append(entry)
+
+            output = "\n".join(lines + tail).strip()
+            return output if output else "No plaintext results."
+        except httpx.HTTPError as e:
+            self.logger.error(f"Wolfram|Alpha HTTP error: {e}")
+            return "Wolfram|Alpha request failed due to a network error."
+        except Exception as e:
+            self.logger.error(f"Wolfram|Alpha unexpected error: {e}", exc_info=True)
+            return "Wolfram|Alpha request failed due to an unexpected error."
 
     async def perplexity_web_search(self, request: str) -> Dict[str, Any]:
         """
