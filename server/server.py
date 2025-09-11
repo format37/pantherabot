@@ -657,34 +657,47 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         # logger.info(f"*** chat.title: {chat.title}")
         # logger.info(f"*** chat.type: {chat.type}")
 
-        # Iterate all possible chats that bot participate in
+        # Iterate all possible chats that bot participates in
         chats_folder = 'data/chats/'
-        # Read list of folders in chats_folder
-        folders = os.listdir(chats_folder)
-        
+        # Ensure folder exists; otherwise nothing to return
+        if not os.path.isdir(chats_folder):
+            logger.info(f"Chats folder not found: {chats_folder}")
+            return JSONResponse(content={"status": "ok"})
+
+        # Read list of entries in chats_folder
+        entries = os.listdir(chats_folder)
+
         inline_elements = []
-        folder_id = 0
-        # Iterate all folders
-        for folder in folders:
-            chat = bot.get_chat(folder)
-            if chat.type == 'group' or chat.type == 'supergroup':
+        # Iterate all entries and treat only valid numeric chat IDs as candidates
+        for entry in entries:
+            folder = entry.strip()
+            # Only accept Telegram chat IDs like "-100123..." or "12345"
+            if not re.fullmatch(r"-?\d+", folder):
+                logger.debug(f"Skipping non-chat entry: {folder}")
+                continue
+            try:
+                chat = bot.get_chat(int(folder))
+            except Exception as e:
+                logger.warning(f"Skipping entry {folder}: cannot get chat ({e})")
+                continue
+
+            if chat.type in ('group', 'supergroup'):
                 logger.info(f"*** chat.title: {chat.title}")
+                uid = hashlib.md5(folder.encode()).hexdigest()
                 element = telebot.types.InlineQueryResultArticle(
-                    folder_id,
-                    chat.title,
-                    telebot.types.InputTextMessageContent(f"response:{folder}"),
+                    id=uid,
+                    title=chat.title,
+                    input_message_content=telebot.types.InputTextMessageContent(f"response:{folder}"),
                 )
                 inline_elements.append(element)
-                folder_id += 1
-            # else:
-            #     logger.info(f"*** not included chat.type: {chat.type}")
+            # else: skipped non-group chat types
 
         bot.answer_inline_query(
-                inline_query_id,
-                inline_elements,
-                cache_time=0,
-                is_personal=True
-            )
+            inline_query_id,
+            inline_elements,
+            cache_time=0,
+            is_personal=True
+        )
         return JSONResponse(content={"status": "ok"})
 
     else:
