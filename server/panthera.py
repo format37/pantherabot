@@ -120,7 +120,7 @@ class ChatAgent:
         # model = 'gpt-4o-2024-11-20'
         # model = 'o1-preview'
         # model = 'o1-mini'
-        model = config.get('primary_model', 'gpt-5')
+        model = config.get('primary_model')
         temperature = 0.5
         llm = ChatOpenAI(
             openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
@@ -699,7 +699,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}"
         }
-        model = config.get('primary_model', 'gpt-5')
+        model = config.get('primary_model')
 
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
@@ -781,7 +781,7 @@ class Panthera:
 
         self.config = json.load(open('./data/users/default.json', 'r'))
         # Force model override regardless of stored config
-        self.config['model'] = config.get('primary_model', 'gpt-5')
+        self.config['model'] = config.get('primary_model')
         self.logger.info(f'Overriding default config model to: {self.config["model"]}')
 
         self.chat_agent = ChatAgent(None, self)
@@ -849,7 +849,7 @@ class Panthera:
 
         session = json.load(open(user_path, 'r'))
         # Force model override in the user session and persist
-        primary_model = config.get('primary_model', 'gpt-5')
+        primary_model = config.get('primary_model')
         if session.get('model') != primary_model:
             session['model'] = primary_model
             self.logger.info(f'Overriding user session model to: {session["model"]}')
