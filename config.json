@@ -1,3 +1,4 @@
 {
-    "TOKEN": "TELEGRAM-BOT-TOKEN"
+    "TOKEN": "TELEGRAM-BOT-TOKEN",
+    "primary_model": "gpt-5.1"
 }

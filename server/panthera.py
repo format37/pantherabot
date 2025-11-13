@@ -34,7 +34,8 @@ import httpx
 # from fastapi import JSONResponse
 
 with open('config.json') as config_file:
-    bot = telebot.TeleBot(json.load(config_file)['TOKEN'])
+    config = json.load(config_file)
+    bot = telebot.TeleBot(config['TOKEN'])
 
 class TextOutput(BaseModel):
     text: str = Field(description="Text output")
@@ -119,7 +120,7 @@ class ChatAgent:
         # model = 'gpt-4o-2024-11-20'
         # model = 'o1-preview'
         # model = 'o1-mini'
-        model = 'gpt-5'
+        model = config.get('primary_model', 'gpt-5')
         temperature = 0.5
         llm = ChatOpenAI(
             openai_api_key=os.environ.get('OPENAI_API_KEY', ''),
@@ -698,7 +699,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}"
         }
-        model = "gpt-5"
+        model = config.get('primary_model', 'gpt-5')
 
         response = requests.post(
             "https://api.openai.com/v1/chat/completions",
@@ -780,7 +781,7 @@ class Panthera:
 
         self.config = json.load(open('./data/users/default.json', 'r'))
         # Force model override regardless of stored config
-        self.config['model'] = 'gpt-5'
+        self.config['model'] = config.get('primary_model', 'gpt-5')
         self.logger.info(f'Overriding default config model to: {self.config["model"]}')
 
         self.chat_agent = ChatAgent(None, self)
@@ -848,8 +849,9 @@ class Panthera:
 
         session = json.load(open(user_path, 'r'))
         # Force model override in the user session and persist
-        if session.get('model') != 'gpt-5':
-            session['model'] = 'gpt-5'
+        primary_model = config.get('primary_model', 'gpt-5')
+        if session.get('model') != primary_model:
+            session['model'] = primary_model
             self.logger.info(f'Overriding user session model to: {session["model"]}')
             self.save_user_session(user_id, session)
         # Return the user json file as dict
