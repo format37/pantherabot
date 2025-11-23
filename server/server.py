@@ -543,7 +543,9 @@ Commands:
     if "reply_to_message" in message:
         message_text += f"\nreply_to_message: {message['reply_to_message']['message_id']}"
     message_text += f"\nmessage_date: {message_date}"
-    # Note: image paths are now stored separately, not embedded in message_text
+    # Include file paths in metadata so LLM can reference them when calling tools
+    if image_paths:
+        message_text += f"\nfile_list: {image_paths}"
     if text != '':
         message_text += f"\nmessage_text: {text}"
     panthera.save_to_chat_history(
