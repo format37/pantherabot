@@ -522,6 +522,9 @@ Commands:
     image_paths = []
     if 'photo' in message or 'document' in message:
         image_paths = panthera.get_message_file_list(bot, message)
+        # Sanitize file paths by removing Telegram user prefix
+        # Example: '/6014837471:AAE5.../file.jpg' -> '/AAE5.../file.jpg'
+        image_paths = [re.sub(r'^/[^/]+:', '/', path) for path in image_paths]
 
     # Save message to the Chat history
     first_name = panthera.get_first_name(message)
