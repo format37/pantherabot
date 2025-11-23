@@ -684,7 +684,8 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             if file_list and len(file_list) > 0:
                 self.logger.info(f"NanoBanana: Using {len(file_list)} input images")
                 for file_path in file_list:
-                    with open(file_path, "rb") as img_file:
+                    file_path_cropped = re.sub(r'^/[^/]+:', '/', file_path)
+                    with open(file_path_cropped, "rb") as img_file:
                         image_bytes = img_file.read()
 
                     # Detect MIME type
@@ -698,7 +699,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                             data=image_bytes
                         )
                     )
-                    self.logger.info(f"+ image: {file_path} (mime: {mime_type})")
+                    self.logger.info(f"+ image: {file_path_cropped} (mime: {mime_type})")
 
             # Add text prompt
             parts.append(types.Part.from_text(text=prompt))
