@@ -187,7 +187,7 @@ def user_access(message):
     return False
 
 # async def call_llm_response(message, message_text, chat_id, reply):
-async def call_llm_response(chat_id, message_id, message_text, reply):
+async def call_llm_response(chat_id, message_id, message_text, reply, image_paths=None):
     # chat_id = message['chat']['id']
     # if 'topic' in user_session:
             # with open ('data/topics.json') as f:
@@ -200,7 +200,7 @@ async def call_llm_response(chat_id, message_id, message_text, reply):
     logger.info(f'current_date: {current_date}')
     # if reply:
         # answer = await panthera.llm_request(bot, message, message_text)
-    answer = await panthera.llm_request(chat_id, message_id, message_text)
+    answer = await panthera.llm_request(chat_id, message_id, message_text, image_paths=image_paths)
 
     if answer == '':
         return JSONResponse(content={
@@ -518,11 +518,11 @@ Commands:
             "body": ''
             })
     
-    # Extractinf file list from the message
-    file_list = ''
+    # Extract file list from the message (now returns a list)
+    image_paths = []
     if 'photo' in message or 'document' in message:
-        file_list = panthera.get_message_file_list(bot, message)
-    
+        image_paths = panthera.get_message_file_list(bot, message)
+
     # Save message to the Chat history
     first_name = panthera.get_first_name(message)
     # if 'first_name' in message['chat']:
@@ -540,15 +540,15 @@ Commands:
     if "reply_to_message" in message:
         message_text += f"\nreply_to_message: {message['reply_to_message']['message_id']}"
     message_text += f"\nmessage_date: {message_date}"
-    if file_list != '':
-        message_text += f"\nfile_list: {file_list}"
+    # Note: image paths are now stored separately, not embedded in message_text
     if text != '':
         message_text += f"\nmessage_text: {text}"
     panthera.save_to_chat_history(
         chat_id,
         f"{message_text}",
         message["message_id"],
-        "HumanMessage"
+        "HumanMessage",
+        image_paths=image_paths if image_paths else None
     )
 
     if text == '':
@@ -562,7 +562,7 @@ Commands:
         or text.startswith('/.') \
         or panthera.is_reply_to_ai_message(message):
         # await call_llm_response(message, message_text, message['chat']['id'], True)
-        await call_llm_response(chat_id, message["message_id"], message_text, True)
+        await call_llm_response(chat_id, message["message_id"], message_text, True, image_paths=image_paths if image_paths else None)
         
     return JSONResponse(content={
         "type": "empty",

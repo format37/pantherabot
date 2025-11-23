@@ -43,9 +43,10 @@ class TextOutput(BaseModel):
 class BotActionType(BaseModel):
     val: str = Field(description="Tool parameter value")
 
-class image_context_conversation_args(BaseModel):
-    text_request: str = Field(description="Text request in context of images")
-    file_list: List[str] = Field(description="List of file_id")
+# COMMENTED OUT: Native multimodal support replaces this tool
+# class image_context_conversation_args(BaseModel):
+#     text_request: str = Field(description="Text request in context of images")
+#     file_list: List[str] = Field(description="List of file_id")
 
 class text_file_reader_args(BaseModel):
     file_list: List[str] = Field(description="List of file_id")
@@ -101,9 +102,32 @@ def append_message(messages, role, text, image_url):
         }
     )
 
-def encode_image(image_path):
-    with open(image_path, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode('utf-8')
+def encode_image(image_path, logger=None):
+    """
+    Encode an image file to base64 format.
+
+    Args:
+        image_path: Path to the image file (may include Telegram user prefix)
+        logger: Optional logger instance for warning messages
+
+    Returns:
+        Base64-encoded image string, or None if file doesn't exist
+    """
+    # Remove user_name prefix from Telegram file paths
+    # Example: '/6014837471:AAE5.../photos/file_2525.jpg' -> '/AAE5.../photos/file_2525.jpg'
+    clean_path = re.sub(r'^/[^/]+:', '/', image_path)
+
+    try:
+        with open(clean_path, "rb") as image_file:
+            return base64.b64encode(image_file.read()).decode('utf-8')
+    except FileNotFoundError:
+        if logger:
+            logger.warning(f"Image file not found: {clean_path} (original: {image_path})")
+        return None
+    except Exception as e:
+        if logger:
+            logger.warning(f"Error encoding image {clean_path}: {str(e)}")
+        return None
 
 class ChatAgent:
     def __init__(self, retriever, bot_instance):
@@ -196,18 +220,20 @@ class ChatAgent:
                 description="Useful when users request biographies or historical moments. Provide links if possible.",
             )
 
+        # COMMENTED OUT: Replaced with native multimodal support
+        # OpenAI GPT models now support images directly in chat history
         # coroutine=self.image_context_conversation, # may be used instead of func
-        image_context_conversation_tool = StructuredTool.from_function(
-            # func=self.image_context_conversation,
-            coroutine=self.image_context_conversation,
-            name="image_context_conversation",
-            description="Answering on your text request about provided images",
-            args_schema=image_context_conversation_args,
-            return_direct=False,
-            handle_tool_error=True,
-            handle_validation_error=True,
-            verbose=True,
-        )
+        # image_context_conversation_tool = StructuredTool.from_function(
+        #     # func=self.image_context_conversation,
+        #     coroutine=self.image_context_conversation,
+        #     name="image_context_conversation",
+        #     description="Answering on your text request about provided images",
+        #     args_schema=image_context_conversation_args,
+        #     return_direct=False,
+        #     handle_tool_error=True,
+        #     handle_validation_error=True,
+        #     verbose=True,
+        # )
         
         bfl_tool_description = """A tool to generate and send to user images based on a given prompt.
 1. Be Specific and Descriptive
@@ -287,7 +313,8 @@ Tips:
         # tools.append(youtube_tool)
         # tools.append(google_search_tool)
         # tools.append(wikipedia_tool)
-        tools.append(image_context_conversation_tool)
+        # COMMENTED OUT: Native multimodal support replaces this tool
+        # tools.append(image_context_conversation_tool)
         # tools.append(image_plotter_tool)
         # tools.append(image_plotter_openai_tool)
         tools.append(image_plotter_nanobanana_tool)
@@ -805,42 +832,44 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         
         return "Image generated and sent to the chat"
     
-    async def image_context_conversation(self, text_request: str, file_list: List[str]):
-        self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
-        messages = []
-        for file_path in file_list:
-            # Remove user_name prefix
-            # Example: '/6014837471:AAE5.../photos/file_2525.jpg' -> '/AAE5.../photos/file_2525.jpg'
-            file_path = re.sub(r'^/[^/]+:', '/', file_path)
-            self.logger.info(f"file_path: {file_path}")
-            base64_image = encode_image(file_path)
-            image_url = f"data:image/jpeg;base64,{base64_image}"    
-            append_message(
-                messages, 
-                "user",
-                text_request,
-                image_url
-            )
-        api_key = os.environ.get('OPENAI_API_KEY', '')
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {api_key}"
-        }
-        model = config.get('primary_model')
-
-        response = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers=headers,
-            json={
-                "model": model,
-                "messages": messages,
-                # "max_tokens": 2000
-            }
-        )
-        self.logger.info(f"image_context_conversation response text: {response.text}")
-        response_text = json.loads(response.text)['choices'][0]['message']['content']
-        return response_text
-        # return "Это кот"
+    # COMMENTED OUT: Replaced with native multimodal support
+    # OpenAI GPT models now support images directly in chat history
+    # async def image_context_conversation(self, text_request: str, file_list: List[str]):
+    #     self.logger.info(f"image_context_conversation request: {text_request}; file_list: {file_list}")
+    #     messages = []
+    #     for file_path in file_list:
+    #         # Remove user_name prefix
+    #         # Example: '/6014837471:AAE5.../photos/file_2525.jpg' -> '/AAE5.../photos/file_2525.jpg'
+    #         file_path = re.sub(r'^/[^/]+:', '/', file_path)
+    #         self.logger.info(f"file_path: {file_path}")
+    #         base64_image = encode_image(file_path)
+    #         image_url = f"data:image/jpeg;base64,{base64_image}"
+    #         append_message(
+    #             messages,
+    #             "user",
+    #             text_request,
+    #             image_url
+    #         )
+    #     api_key = os.environ.get('OPENAI_API_KEY', '')
+    #     headers = {
+    #         "Content-Type": "application/json",
+    #         "Authorization": f"Bearer {api_key}"
+    #     }
+    #     model = config.get('primary_model')
+    #
+    #     response = requests.post(
+    #         "https://api.openai.com/v1/chat/completions",
+    #         headers=headers,
+    #         json={
+    #             "model": model,
+    #             "messages": messages,
+    #             # "max_tokens": 2000
+    #         }
+    #     )
+    #     self.logger.info(f"image_context_conversation response text: {response.text}")
+    #     response_text = json.loads(response.text)['choices'][0]['message']['content']
+    #     return response_text
+    #     # return "Это кот"
     
     async def text_file_reader(self, file_list: List[str]):
         self.logger.info(f"text_file_reader request: file_list: {file_list}")
@@ -1110,7 +1139,8 @@ class Panthera:
         message_id,
         type,
         message_date=None,
-        name_of_user='AI'
+        name_of_user='AI',
+        image_paths=None
     ):
         user_id = chat_id  # Assuming chat_id corresponds to user_id in private chats
         chat_log_path = os.path.join('data', 'users', str(user_id), 'chats', str(chat_id))
@@ -1121,7 +1151,8 @@ class Panthera:
         with open(os.path.join(chat_log_path, log_file_name), 'w') as log_file:
             json.dump({
                 "type": type,
-                "text": f"{message_text}"
+                "text": f"{message_text}",
+                "images": image_paths or []
             }, log_file)
 
     def save_to_chat_history_x(
@@ -1150,8 +1181,14 @@ class Panthera:
                 }, log_file)
             
     def get_message_file_list(self, bot, message):
+        """
+        Extract file paths from a Telegram message.
+
+        Returns:
+            list: List of file paths, or empty list if no files present
+        """
         if 'photo' in message or 'document' in message:
-            file_id = ''            
+            file_id = ''
             if 'photo' in message:
                 photo = message['photo']
                 self.logger.info(f"photo in message: {len(photo)}")
@@ -1177,8 +1214,8 @@ class Panthera:
                 file_info = bot.get_file(file_id)
                 file_path = file_info.file_path
                 self.logger.info(f'file_path: {file_path}')
-                return f'[{file_path}]'
-        return ''
+                return [file_path]  # Return as list
+        return []  # Return empty list instead of empty string
 
     def read_chat_history(self, chat_id: str):
         '''Reads the chat history from a folder with improved message limit handling.'''
@@ -1239,8 +1276,21 @@ class Panthera:
                     if message['type'] == 'AIMessage':
                         self.chat_history.insert(0, AIMessage(content=message['text']))
                     elif message['type'] == 'HumanMessage':
-                        self.chat_history.insert(0, HumanMessage(content=message['text']))
-                    
+                        # Check if message has images - reconstruct multimodal content
+                        if 'images' in message and message['images']:
+                            content_parts = [{"type": "text", "text": message['text']}]
+                            for image_path in message['images']:
+                                base64_image = encode_image(image_path, self.logger)
+                                if base64_image:  # Only add if image was successfully encoded
+                                    content_parts.append({
+                                        "type": "image_url",
+                                        "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+                                    })
+                            self.chat_history.insert(0, HumanMessage(content=content_parts))
+                        else:
+                            # Simple text message (backward compatible)
+                            self.chat_history.insert(0, HumanMessage(content=message['text']))
+
                     message_count += 1
                     token_count += message_tokens
 
@@ -1311,7 +1361,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         return system_prompt
 
     # async def llm_request(self, bot, message, message_text):
-    async def llm_request(self, chat_id, message_id, message_text):
+    async def llm_request(self, chat_id, message_id, message_text, image_paths=None):
         # message_text may have augmentations
         self.logger.info(f'llm_request: {chat_id}')
 
@@ -1319,7 +1369,23 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         self.read_chat_history(chat_id=chat_id)
         self.logger.info(f'invoking message_text: {message_text}')
         system_prompt = self.get_system_prompt(chat_id)
-        
+
+        # Construct input - multimodal if images present, text otherwise
+        if image_paths:
+            self.logger.info(f'Creating multimodal input with {len(image_paths)} images')
+            content_parts = [{"type": "text", "text": message_text}]
+            for image_path in image_paths:
+                base64_image = encode_image(image_path, self.logger)
+                if base64_image:  # Only add if image was successfully encoded
+                    content_parts.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+                    })
+            agent_input = content_parts
+        else:
+            # Keep simple text input for backward compatibility
+            agent_input = message_text
+
         # Add retries and error handling
         try:
             # Using tenacity to retry with exponential backoff
@@ -1333,7 +1399,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             async def execute_with_retry():
                 return await self.chat_agent.agent_executor.ainvoke(
                     {
-                        "input": message_text,
+                        "input": agent_input,
                         "chat_history": self.chat_history,
                         "system_prompt": system_prompt,
                     }
