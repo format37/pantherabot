@@ -1,4 +1,4 @@
-FROM python:3.9.16
+FROM python:3.10
 WORKDIR /server
 COPY requirements.txt /server
 RUN pip3 install -r requirements.txt --no-cache-dir
