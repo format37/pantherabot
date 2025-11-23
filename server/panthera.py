@@ -31,7 +31,9 @@ import logging
 import re
 import tenacity
 import httpx
-# from fastapi import JSONResponse
+from google import genai
+from google.genai import types
+import mimetypes
 
 with open('config.json') as config_file:
     config = json.load(config_file)
@@ -689,9 +691,11 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             return "Image generation failed due to an unexpected error. Please try again later."
 
     async def ImagePlotterTool_nanobanana(self, prompt: str, chat_id: str, message_id: str, file_list: List[str] = None) -> str:
-        from google import genai
-        from google.genai import types
-        import mimetypes
+        log_message = f"==> ImagePlotterTool_nanobanana:\nprompt: {prompt}\nfile_list:\n"
+        for file_path in file_list or []:
+            log_message += f" - {file_path}\n"
+
+        self.logger.info(log_message)
 
         # Initialize Gemini client
         api_key = os.environ.get("GEMINI_API_KEY")
