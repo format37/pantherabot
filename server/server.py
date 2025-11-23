@@ -16,6 +16,7 @@ from datetime import datetime
 from io import BytesIO
 from pathlib import Path
 from langchain.schema import HumanMessage, AIMessage
+import asyncio
 
 # Initialize FastAPI
 app = FastAPI()
@@ -37,6 +38,10 @@ with open('config.json') as config_file:
     bot = telebot.TeleBot(json.load(config_file)['TOKEN'])
 
 panthera = Panthera()
+
+# Media group buffer for handling Telegram albums
+# Structure: {media_group_id: {"images": [], "text": "", "chat_id": int, "message_id": int, "first_name": str, "task": asyncio.Task}}
+media_group_buffers = {}
 
 
 @app.get("/test")
@@ -269,6 +274,56 @@ async def call_llm_response(chat_id, message_id, message_text, reply, image_path
         "type": "empty",
         "body": ''
         })
+
+async def flush_media_group(media_group_id: str):
+    """
+    Flush accumulated media group messages after a timeout.
+    Combines all images and text from the media group and processes them together.
+    """
+    # Wait for all images to arrive
+    await asyncio.sleep(2)
+
+    # Check if this media group still exists in buffer (could have been cancelled)
+    if media_group_id not in media_group_buffers:
+        logger.info(f"Media group {media_group_id} already processed or cancelled")
+        return
+
+    # Get the buffered data
+    buffer_data = media_group_buffers[media_group_id]
+    chat_id = buffer_data['chat_id']
+    message_id = buffer_data['message_id']  # Use the first message_id
+    first_name = buffer_data['first_name']
+    text = buffer_data['text']
+    image_paths = buffer_data['images']
+
+    logger.info(f"Flushing media group {media_group_id} with {len(image_paths)} images")
+
+    # Remove from buffer
+    del media_group_buffers[media_group_id]
+
+    # Prepare metadata message
+    message_date = pd.Timestamp.now()
+    message_text = f"user_name: {first_name}"
+    message_text += f"\nchat_id: {chat_id}"
+    message_text += f"\nmessage_id: {message_id}"
+    message_text += f"\nmessage_date: {message_date}"
+    # Include file paths in metadata so LLM can reference them when calling tools
+    if image_paths:
+        message_text += f"\nfile_list: {image_paths}"
+    if text != '':
+        message_text += f"\nmessage_text: {text}"
+
+    # Save to chat history with all images
+    panthera.save_to_chat_history(
+        chat_id,
+        f"{message_text}",
+        message_id,
+        "HumanMessage",
+        image_paths=image_paths
+    )
+
+    # Process the complete media group
+    await call_llm_response(chat_id, message_id, message_text, True, image_paths=image_paths)
 
 @app.post("/message")
 async def call_message(request: Request, authorization: str = Header(None)):
@@ -525,6 +580,51 @@ Commands:
         # Sanitize file paths by removing Telegram user prefix
         # Example: '/6014837471:AAE5.../file.jpg' -> '/AAE5.../file.jpg'
         image_paths = [re.sub(r'^/[^/]+:', '/', path) for path in image_paths]
+
+    # Handle media groups (Telegram albums)
+    if 'media_group_id' in message:
+        media_group_id = message['media_group_id']
+        chat_id = message['chat']['id']
+        first_name = panthera.get_first_name(message)
+
+        logger.info(f"Media group detected: {media_group_id}")
+
+        # Initialize or update buffer for this media group
+        if media_group_id not in media_group_buffers:
+            media_group_buffers[media_group_id] = {
+                'images': [],
+                'text': text,
+                'chat_id': chat_id,
+                'message_id': message['message_id'],  # Store first message_id
+                'first_name': first_name,
+                'task': None
+            }
+
+        # Add images from this message to the buffer
+        if image_paths:
+            media_group_buffers[media_group_id]['images'].extend(image_paths)
+            logger.info(f"Added {len(image_paths)} image(s) to media group buffer. Total: {len(media_group_buffers[media_group_id]['images'])}")
+
+        # Update text if this message has a caption (usually only first or last message has it)
+        if text and len(text) > len(media_group_buffers[media_group_id]['text']):
+            media_group_buffers[media_group_id]['text'] = text
+
+        # Cancel existing flush task if any
+        if media_group_buffers[media_group_id]['task'] is not None:
+            media_group_buffers[media_group_id]['task'].cancel()
+            logger.info(f"Cancelled previous flush task for media group {media_group_id}")
+
+        # Create new flush task with 2-second timeout
+        media_group_buffers[media_group_id]['task'] = asyncio.create_task(
+            flush_media_group(media_group_id)
+        )
+        logger.info(f"Created new flush task for media group {media_group_id}")
+
+        # Return immediately - don't save to history or call LLM yet
+        return JSONResponse(content={
+            "type": "empty",
+            "body": ''
+        })
 
     # Save message to the Chat history
     first_name = panthera.get_first_name(message)
