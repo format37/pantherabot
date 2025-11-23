@@ -70,6 +70,12 @@ class BFL_ImagePlotterArgs(BaseModel):
     message_id: int = Field(description="message_id")
     raw_mode: bool = Field(description="raw_mode Generate less processed, more natural-looking images")
 
+class NanoBananaImagePlotterArgs(BaseModel):
+    prompt: str = Field(description="The prompt to generate the image")
+    chat_id: str = Field(description="chat_id")
+    message_id: str = Field(description="message_id")
+    file_list: List[str] = Field(default_factory=list, description="Optional list of image file paths to use for editing or composition.")
+
 class ask_reasoning_args(BaseModel):
     request: str = Field(description="Request for the Reasoning expert")
 
@@ -239,6 +245,14 @@ Tips:
             # return_direct=False,
         )
 
+        image_plotter_nanobanana_tool = StructuredTool.from_function(
+            coroutine=self.ImagePlotterTool_nanobanana,
+            name="image_plotter_nanobanana",
+            description="Generate image using Gemini (NanoBanana) model and send back to user. Supports multiple input images and text prompt.",
+            args_schema=NanoBananaImagePlotterArgs,
+            # return_direct=False,
+        )
+
         text_file_reader_tool = StructuredTool.from_function(
             coroutine=self.text_file_reader,
             name="read_text_file",
@@ -275,7 +289,8 @@ Tips:
         # tools.append(wikipedia_tool)
         tools.append(image_context_conversation_tool)
         # tools.append(image_plotter_tool)
-        tools.append(image_plotter_openai_tool)
+        # tools.append(image_plotter_openai_tool)
+        tools.append(image_plotter_nanobanana_tool)
         # tools.append(text_file_reader_tool)
         tools.append(update_system_prompt_tool)
         tools.append(reset_system_prompt_tool)
@@ -645,7 +660,118 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         except Exception as e:
             self.logger.error(f"ImagePlotterTool: Unexpected error: {e}", exc_info=True)
             return "Image generation failed due to an unexpected error. Please try again later."
-    
+
+    async def ImagePlotterTool_nanobanana(self, prompt: str, chat_id: str, message_id: str, file_list: List[str] = None) -> str:
+        from google import genai
+        from google.genai import types
+        import mimetypes
+
+        # Initialize Gemini client
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            self.logger.error("GEMINI_API_KEY not found in environment variables")
+            return "Image generation failed: GEMINI_API_KEY not configured"
+
+        client = genai.Client(api_key=api_key)
+
+        try:
+            self.logger.info("NanoBanana: Starting image generation request")
+
+            # Build content parts
+            parts = []
+
+            # Add images if provided
+            if file_list and len(file_list) > 0:
+                self.logger.info(f"NanoBanana: Using {len(file_list)} input images")
+                for file_path in file_list:
+                    with open(file_path, "rb") as img_file:
+                        image_bytes = img_file.read()
+
+                    # Detect MIME type
+                    mime_type, _ = mimetypes.guess_type(file_path)
+                    if not mime_type or not mime_type.startswith('image/'):
+                        mime_type = "image/jpeg"  # Default fallback
+
+                    parts.append(
+                        types.Part.from_bytes(
+                            mime_type=mime_type,
+                            data=image_bytes
+                        )
+                    )
+                    self.logger.info(f"+ image: {file_path} (mime: {mime_type})")
+
+            # Add text prompt
+            parts.append(types.Part.from_text(text=prompt))
+
+            # Build content
+            contents = [
+                types.Content(
+                    role="user",
+                    parts=parts,
+                ),
+            ]
+
+            # Configure generation
+            generate_content_config = types.GenerateContentConfig(
+                response_modalities=["IMAGE", "TEXT"],
+                image_config=types.ImageConfig(
+                    image_size="1K",
+                ),
+                tools=[types.Tool(googleSearch=types.GoogleSearch())],
+            )
+
+            # Call API (streaming)
+            self.logger.info("NanoBanana: Submitting request to Gemini API...")
+            image_data = None
+            text_response = None
+
+            for chunk in client.models.generate_content_stream(
+                model="gemini-3-pro-image-preview",
+                contents=contents,
+                config=generate_content_config,
+            ):
+                if (chunk.candidates and
+                    chunk.candidates[0].content and
+                    chunk.candidates[0].content.parts):
+
+                    for part in chunk.candidates[0].content.parts:
+                        # Check for image data
+                        if part.inline_data and part.inline_data.data:
+                            image_data = part.inline_data.data
+                            self.logger.info("NanoBanana: Image data received")
+                        # Check for text response
+                        elif part.text:
+                            text_response = part.text
+                            self.logger.info(f"NanoBanana: Text response: {part.text}")
+
+            if not image_data:
+                self.logger.error("NanoBanana: No image data returned from API")
+                return "Image generation failed: No image data returned by Gemini"
+
+            # Prepare caption (use text response if available, otherwise use prompt)
+            caption_text = text_response if text_response else prompt
+            # Truncate if too long (Telegram limit is 1024 characters)
+            if len(caption_text) > 1000:
+                caption_text = caption_text[:1000]
+            caption = f"||{escape_markdown(caption_text)}||"
+            self.logger.info(f"NanoBanana: Caption: {caption}")
+
+            # Send the photo via Telegram
+            bot.send_photo(
+                chat_id=chat_id,
+                photo=image_data,
+                reply_to_message_id=message_id,
+                caption=caption,
+                parse_mode="MarkdownV2"
+            )
+
+            self.logger.info("NanoBanana: Image sent successfully")
+            return "Image generated and sent to the chat"
+
+        except Exception as e:
+            self.logger.error(f"NanoBanana: API error: {e}", exc_info=True)
+            return f"Image generation failed: {str(e)}"
+
     async def ImagePlotterTool_openai_dalle(self, prompt: str, style: str, chat_id: str, message_id: str) -> str:
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
         style = style.lower()
