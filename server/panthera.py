@@ -63,8 +63,8 @@ class reset_system_prompt_args(BaseModel):
 class ImagePlotterArgs(BaseModel):
     prompt: str = Field(description="The prompt to generate the image")
     # style: str = Field(description="The style of the generated images. Must be one of vivid or natural. Vivid causes the model to lean towards generating hyper-real and dramatic images. Natural causes the model to produce more natural, less hyper-real looking images.")
-    chat_id: str = Field(description="chat_id")
-    message_id: str = Field(description="message_id")
+    chat_id: int = Field(description="chat_id")
+    message_id: int = Field(description="message_id")
     file_list: List[str] = Field(default_factory=list, description="Optional list of image file paths to use for editing or composition.")
 
 class BFL_ImagePlotterArgs(BaseModel):
@@ -75,8 +75,8 @@ class BFL_ImagePlotterArgs(BaseModel):
 
 class NanoBananaImagePlotterArgs(BaseModel):
     prompt: str = Field(description="The prompt to generate the image")
-    chat_id: str = Field(description="chat_id")
-    message_id: str = Field(description="message_id")
+    chat_id: int = Field(description="chat_id")
+    message_id: int = Field(description="message_id")
     file_list: List[str] = Field(default_factory=list, description="Optional list of image file paths to use for editing or composition.")
 
 class ask_reasoning_args(BaseModel):
@@ -611,7 +611,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         else:
             return f"Image generation failed: {result}"
     
-    async def ImagePlotterTool_openai(self, prompt: str, chat_id: str, message_id: str, file_list: List[str] = None) -> str:
+    async def ImagePlotterTool_openai(self, prompt: str, chat_id: int, message_id: int, file_list: List[str] = None) -> str:
         from openai import APIConnectionError, RateLimitError, APIStatusError
         import base64
         from io import BytesIO
@@ -690,7 +690,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             self.logger.error(f"ImagePlotterTool: Unexpected error: {e}", exc_info=True)
             return "Image generation failed due to an unexpected error. Please try again later."
 
-    async def ImagePlotterTool_nanobanana(self, prompt: str, chat_id: str, message_id: str, file_list: List[str] = None) -> str:
+    async def ImagePlotterTool_nanobanana(self, prompt: str, chat_id: int, message_id: int, file_list: List[str] = None) -> str:
         log_message = f"==> ImagePlotterTool_nanobanana:\nprompt: {prompt}\nfile_list:\n"
         for file_path in file_list or []:
             log_message += f" - {file_path}\n"
@@ -805,7 +805,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             self.logger.error(f"NanoBanana: API error: {e}", exc_info=True)
             return f"Image generation failed: {str(e)}"
 
-    async def ImagePlotterTool_openai_dalle(self, prompt: str, style: str, chat_id: str, message_id: str) -> str:
+    async def ImagePlotterTool_openai_dalle(self, prompt: str, style: str, chat_id: int, message_id: int) -> str:
         client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
         style = style.lower()
         if style not in ["vivid", "natural"]:
