@@ -88,6 +88,10 @@ class perplexity_web_search_args(BaseModel):
 class WolframQueryArgs(BaseModel):
     request: str = Field(description="Wolfram|Alpha query, e.g., 'solve x^2 + 2*x^2 + 8 = 0'")
 
+class ReadImageArgs(BaseModel):
+    """Arguments for reading an image file."""
+    image_path: str = Field(description="Path to the image file to read and view")
+
 def append_message(messages, role, text, image_url):
     messages.append(
         {
@@ -337,6 +341,19 @@ Tips:
         )
         tools.append(perplexity_tool)
 
+        # Read image tool for lazy loading of historical images
+        read_image_tool = StructuredTool.from_function(
+            coroutine=self.read_image,
+            name="read_image",
+            description=(
+                "Read and view an image file. Use this when you need to see the contents of an image "
+                "that was sent in the chat history. The image path can be found in the file_list field "
+                "of previous messages."
+            ),
+            args_schema=ReadImageArgs,
+        )
+        tools.append(read_image_tool)
+
         """tools.append(
             Tool(
                 args_schema=DocumentInput,
@@ -519,6 +536,33 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 "answer": "Web search failed due to an unexpected error.",
                 "citations": []
             }
+
+    async def read_image(self, image_path: str) -> list:
+        """
+        Read and return an image for the LLM to view.
+
+        Args:
+            image_path: Path to the image file
+
+        Returns:
+            Multimodal content with the image for viewing, or error message
+        """
+        self.logger.info(f"read_image tool called with path: {image_path}")
+
+        base64_image = encode_image(image_path, self.logger)
+        if base64_image:
+            return [
+                {"type": "text", "text": f"Image from {image_path}:"},
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": f"data:image/jpeg;base64,{base64_image}",
+                        "detail": "low"
+                    }
+                }
+            ]
+        else:
+            return f"Error: Could not read image at {image_path}. File may not exist."
 
     def bfl_generate_image(self, headers, prompt, width=1024, height=768, raw_mode=False):
         """
@@ -1281,24 +1325,9 @@ class Panthera:
                     if message['type'] == 'AIMessage':
                         self.chat_history.insert(0, AIMessage(content=message['text']))
                     elif message['type'] == 'HumanMessage':
-                        # Check if message has images - reconstruct multimodal content
-                        if 'images' in message and message['images']:
-                            content_parts = [{"type": "text", "text": message['text']}]
-                            for image_path in message['images']:
-                                base64_image = encode_image(image_path, self.logger)
-                                if base64_image:  # Only add if image was successfully encoded
-                                    self.logger.info(f'# read_chat_history: Adding image to chat_history: {image_path}')
-                                    content_parts.append({
-                                        "type": "image_url",
-                                        "image_url": {
-                                            "url": f"data:image/jpeg;base64,{base64_image}",
-                                            "detail": "low"
-                                        }
-                                    })
-                            self.chat_history.insert(0, HumanMessage(content=content_parts))
-                        else:
-                            # Simple text message (backward compatible)
-                            self.chat_history.insert(0, HumanMessage(content=message['text']))
+                        # Images are referenced by path in the text (file_list field)
+                        # LLM can use read_image tool to view them on demand
+                        self.chat_history.insert(0, HumanMessage(content=message['text']))
 
                     message_count += 1
                     token_count += message_tokens
