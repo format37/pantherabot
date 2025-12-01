@@ -1287,6 +1287,7 @@ class Panthera:
                             for image_path in message['images']:
                                 base64_image = encode_image(image_path, self.logger)
                                 if base64_image:  # Only add if image was successfully encoded
+                                    self.logger.info(f'# read_chat_history: Adding image to chat_history: {image_path}')
                                     content_parts.append({
                                         "type": "image_url",
                                         "image_url": {
@@ -1385,6 +1386,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             for image_path in image_paths:
                 base64_image = encode_image(image_path, self.logger)
                 if base64_image:  # Only add if image was successfully encoded
+                    self.logger.info(f'# llm_request: Adding image to input: {image_path}')
                     content_parts.append({
                         "type": "image_url",
                         "image_url": {
