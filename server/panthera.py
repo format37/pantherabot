@@ -1387,7 +1387,10 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 if base64_image:  # Only add if image was successfully encoded
                     content_parts.append({
                         "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+                        "image_url": {
+                            "url": f"data:image/jpeg;base64,{base64_image}",
+                            "detail": "low"
+                        }
                     })
             agent_input = content_parts
         else:
