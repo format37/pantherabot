@@ -1408,25 +1408,9 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         self.logger.info(f'invoking message_text: {message_text}')
         system_prompt = self.get_system_prompt(chat_id)
 
-        # Construct input - multimodal if images present, text otherwise
-        if image_paths:
-            self.logger.info(f'Creating multimodal input with {len(image_paths)} images')
-            content_parts = [{"type": "text", "text": message_text}]
-            for image_path in image_paths:
-                base64_image = encode_image(image_path, self.logger)
-                if base64_image:  # Only add if image was successfully encoded
-                    self.logger.info(f'# llm_request: Adding image to input: {image_path}')
-                    content_parts.append({
-                        "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/jpeg;base64,{base64_image}",
-                            "detail": "low"
-                        }
-                    })
-            agent_input = content_parts
-        else:
-            # Keep simple text input for backward compatibility
-            agent_input = message_text
+        # Images are referenced in file_list field of message_text
+        # LLM uses read_image tool to view images when needed
+        agent_input = message_text
 
         # Add retries and error handling
         try:
