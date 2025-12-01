@@ -1289,7 +1289,10 @@ class Panthera:
                                 if base64_image:  # Only add if image was successfully encoded
                                     content_parts.append({
                                         "type": "image_url",
-                                        "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}
+                                        "image_url": {
+                                            "url": f"data:image/jpeg;base64,{base64_image}",
+                                            "detail": "low"
+                                        }
                                     })
                             self.chat_history.insert(0, HumanMessage(content=content_parts))
                         else:
