@@ -1057,12 +1057,6 @@ class Panthera:
             self.save_user_session(user_id, session)
 
         session = json.load(open(user_path, 'r'))
-        # Force model override in the user session and persist
-        primary_model = config.get('primary_model')
-        if session.get('model') != primary_model:
-            session['model'] = primary_model
-            self.logger.info(f'Overriding user session model to: {session["model"]}')
-            self.save_user_session(user_id, session)
         # Return the user json file as dict
         return session
 
