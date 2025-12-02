@@ -988,6 +988,10 @@ class Panthera:
         # Force model override regardless of stored config
         self.config['model'] = config.get('primary_model')
         self.logger.info(f'Overriding default config model to: {self.config["model"]}')
+        # Override token_limit from config.json if present
+        if 'token_limit' in config:
+            self.config['token_limit'] = config['token_limit']
+            self.logger.info(f'Overriding token_limit to: {self.config["token_limit"]}')
 
         self.chat_agent = ChatAgent(None, self)
         self.data_dir = './data/chats'
