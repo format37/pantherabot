@@ -295,6 +295,8 @@ async def flush_media_group(media_group_id: str):
     first_name = buffer_data['first_name']
     text = buffer_data['text']
     image_paths = buffer_data['images']
+    chat_type = buffer_data['chat_type']
+    original_message = buffer_data['message']
 
     logger.info(f"Flushing media group {media_group_id} with {len(image_paths)} images")
 
@@ -322,8 +324,13 @@ async def flush_media_group(media_group_id: str):
         image_paths=image_paths
     )
 
-    # Process the complete media group
-    await call_llm_response(chat_id, message_id, message_text, True, image_paths=image_paths)
+    # Process the complete media group only if conditions are met
+    # (same conditions as in main message handler: private chat, prefix, or reply to bot)
+    if chat_type == 'private' \
+        or text.startswith('/*') \
+        or text.startswith('/.') \
+        or panthera.is_reply_to_ai_message(original_message):
+        await call_llm_response(chat_id, message_id, message_text, True, image_paths=image_paths)
 
 @app.post("/message")
 async def call_message(request: Request, authorization: str = Header(None)):
@@ -597,6 +604,8 @@ Commands:
                 'chat_id': chat_id,
                 'message_id': message['message_id'],  # Store first message_id
                 'first_name': first_name,
+                'chat_type': message['chat']['type'],  # Store chat type for response condition check
+                'message': message,  # Store message for is_reply_to_ai_message check
                 'task': None
             }
 
