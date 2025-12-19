@@ -1,5 +1,5 @@
 {
     "TOKEN": "TELEGRAM-BOT-TOKEN",
-    "primary_model": "gpt-5.1",
+    "primary_model": "gpt-5.2",
     "token_limit": 50000
 }
