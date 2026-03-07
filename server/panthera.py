@@ -388,22 +388,34 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         """Query Claude using the agent SDK with Bash and Read tools."""
         self.logger.info("Sending query to Claude agent SDK...")
 
+        stderr_lines = []
+
+        def _stderr_callback(line: str) -> None:
+            stderr_lines.append(line)
+            self.logger.info(f"Claude CLI stderr: {line}")
+
         options = ClaudeAgentOptions(
             system_prompt=system_prompt,
             model=self.config['model'],
             max_turns=10,
             allowed_tools=["Bash", "Read"],
             max_thinking_tokens=32768,
+            stderr=_stderr_callback,
         )
 
-        result_text = ""
-        async for message in claude_query(prompt=user_prompt, options=options):
-            if isinstance(message, AssistantMessage):
-                for block in message.content:
-                    if isinstance(block, TextBlock):
-                        result_text += block.text
+        try:
+            result_text = ""
+            async for message in claude_query(prompt=user_prompt, options=options):
+                if isinstance(message, AssistantMessage):
+                    for block in message.content:
+                        if isinstance(block, TextBlock):
+                            result_text += block.text
 
-        return result_text.strip()
+            return result_text.strip()
+        except Exception as e:
+            stderr_text = "\n".join(stderr_lines[-10:]) if stderr_lines else "no stderr captured"
+            self.logger.error(f"Claude CLI failed. stderr:\n{stderr_text}")
+            raise
 
     async def llm_request(self, chat_id, message_id, message_text, image_paths=None):
         self.logger.info(f'llm_request: {chat_id}')
