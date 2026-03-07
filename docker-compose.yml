@@ -8,6 +8,7 @@ services:
       # - /etc/timezone:/etc/timezone:ro
       - ./data:/server/data
       - ./config.json:/server/config.json
+      - ~/.claude:/root/.claude
       - type: bind
         source: /mnt/BOT_TOKEN_WITHOUT_PREFIX
         target: /BOT_TOKEN_WITHOUT_PREFIX

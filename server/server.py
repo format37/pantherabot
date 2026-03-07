@@ -15,7 +15,6 @@ import hashlib
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from langchain.schema import HumanMessage, AIMessage
 import asyncio
 
 # Initialize FastAPI

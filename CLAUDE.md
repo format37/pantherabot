@@ -4,242 +4,149 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Pantherabot is a conversational Telegram bot named "Janet" powered by LangChain agents with multiple AI models and tools. It's a FastAPI-based server that integrates with Telegram via a separate telegram bot server, providing conversational AI capabilities with tool calling, image generation/understanding, web search, and file handling.
+Pantherabot is a conversational Telegram bot named "Janet" powered by Claude (via `claude_agent_sdk`) with tool access. It's a FastAPI-based server that integrates with Telegram via a separate telegram bot server, providing conversational AI capabilities with tool calling, image generation/understanding, web search, and file handling.
 
 The bot is part of a three-component architecture:
 - Telebot server (separate repo: github.com/format37/telegram_bot)
 - Panthera bot (this repo)
-- LLM service (separate repo: github.com/format37/openai_proxy)
+- LLM service: Claude subscription via `claude_agent_sdk` (flat-rate, not per-token)
 
 ## Development Commands
 
-### Docker Operations
 ```bash
-# Build and start the container
+# Full rebuild and deploy (sources .env, rebuilds container)
+./compose.sh
+
+# Build and start
 docker-compose up --build -d
 
 # View logs
-./logs.sh  # or: docker logs -f panthera_gptaidbot
+./logs.sh  # runs: sudo docker logs -f panthera
 
-# Restart the service
+# Restart / stop
 docker-compose restart
-
-# Stop the service
 docker-compose down
-```
 
-### Local Development
-The server runs on port 4221 inside the container, exposed via `network_mode: host`.
-
-Test endpoint:
-```bash
+# Health check
 curl http://localhost:4221/test
 ```
 
-## Environment Configuration
+The server runs on port 4221 via `network_mode: host`. Environment variables go in `.env` (copy from `.env.example`).
 
-Copy `.env.example` to `.env` and configure:
-- `TELEGRAM_BOT_TOKEN`: Telegram bot token
-- `OPENAI_API_KEY`: Required for primary LLM (configurable model)
-- `ANTHROPIC_API_KEY`: For Claude models
-- `GEMINI_API_KEY`: For Gemini/NanoBanana image generation
-- `BFL_API_KEY`: For Flux Pro image generation
-- `PERPLEXITY_API_KEY`: For web search
-- `WOLFRAM_ALPHA_APPID`: For math/science queries
-- `SERPER_API_KEY`: For Google search (currently disabled)
-- `LANGCHAIN_API_KEY`: For LangSmith tracing
-- `BOT_USERNAME`: Bot's Telegram username
+**Prerequisites:** Claude CLI must be authenticated on the host (`claude login`). The `~/.claude` directory is mounted into the container for auth.
 
 ## Architecture
 
-### Core Components
+### Three Source Files
 
-**server.py (FastAPI Server)**
-- POST `/message`: Main message handler with user access control
-- POST `/inline`: Inline query handler for photo/group selection
-- GET `/test`: Health check endpoint
-- Handles Telegram API communication via custom API URL (localhost:8081)
+**server.py** — FastAPI endpoints and Telegram message dispatch:
+- `POST /message`: Main handler — validates access, saves to chat history, dispatches to LLM
+- `POST /inline`: Inline query handler (photo/group selection)
+- `GET /test`: Health check
+- `call_llm_response()`: Formats LLM output as MarkdownV2, handles >4096 char responses by converting to .txt files
+- `flush_media_group()`: Buffers Telegram albums (media groups) with 2s timeout before processing
 
-**panthera.py (Agent Logic)**
-- `Panthera` class: Main bot orchestrator managing chat history, user sessions, system prompts
-- `ChatAgent` class: LangChain agent executor with tool integrations
+**panthera.py** — Agent orchestration:
+- `Panthera` class: Manages chat history, user sessions, system prompts, LLM invocation via `claude_agent_sdk`
+- `_claude_agent_query()`: Core method — sends prompt to Claude with Bash and Read tools enabled
+- Chat history is formatted as text and included in the prompt (no LangChain)
+
+**tools_cli.py** — Standalone tool implementations callable via Bash:
+- `wolfram_alpha`: Math/science queries via Wolfram|Alpha JSON API
+- `web_search`: Perplexity Pro web search with citations
+- `generate_image`: Gemini image generation + Telegram delivery
+- `update_system_prompt` / `reset_system_prompt`: Per-chat prompt management
+- Claude calls these via `python3 /server/tools_cli.py <tool> '<json_args>'`
 
 ### Primary Model Configuration
 
-The primary model is configured in `config.json`:
+Configured in `config.json`:
 ```json
 {
     "TOKEN": "TELEGRAM-BOT-TOKEN",
-    "primary_model": "gpt-5.1"
+    "primary_model": "claude-opus-4-6",
+    "token_limit": 50000
 }
 ```
 
-This model is used throughout the codebase and overrides any stored user session models. When modifying model selection logic, ensure the primary_model from config.json is respected.
+The `primary_model` is passed to `claude_agent_sdk` as the model parameter. The `token_limit` controls chat history pruning.
 
-### Chat History Management
+### How Tools Work
 
-Chat histories are stored per-user in `data/users/{user_id}/chats/{chat_id}/` as JSON files with format:
+Claude uses `claude_agent_sdk` with `allowed_tools=["Bash", "Read"]`. Tool descriptions are appended to the system prompt (see `TOOL_INSTRUCTIONS` constant in `panthera.py`). When Claude needs a tool, it:
+
+1. Uses **Bash** to run `python3 /server/tools_cli.py <tool_name> '<json_args>'`
+2. Uses **Bash** to execute Python code directly (replaces the old `python_repl` tool)
+3. Uses **Read** to view image files from chat history
+
+### Adding a New Tool
+
+1. Add an async function in `tools_cli.py`
+2. Register it in the `TOOLS` dict at the bottom of `tools_cli.py`
+3. Add usage documentation to `TOOL_INSTRUCTIONS` in `panthera.py`
+
+### Chat History
+
+Stored per-user in `data/users/{user_id}/chats/{chat_id}/` as JSON files named `{timestamp}_{message_id}.json`:
 ```json
-{
-    "type": "HumanMessage" | "AIMessage",
-    "text": "message content"
-}
+{"type": "HumanMessage", "text": "...", "images": []}
 ```
 
-Files are named `{timestamp}_{message_id}.json` and automatically pruned based on:
-- Token limits (configurable via `token_limit` in user sessions)
-- Message count (max 2040 messages)
-- Oldest files removed first when limits exceeded
+Pruned automatically by `read_chat_history()`: oldest files removed when exceeding token limit or 2040 message count. Chat history is formatted as text and included in the Claude prompt.
 
-### User Access Control
+### Message Flow
 
-User authorization is managed via:
-- `data/users.txt`: Authorized user IDs
-- `data/admins.txt`: Admin user IDs
-- `data/granted_groups/{chat_id}.txt`: Whitelisted groups
-- `data/denied_groups/{chat_id}.txt`: Blacklisted groups
+1. Telegram server forwards message to `/message` endpoint
+2. `user_access()` validates authorization (checks `data/users.txt`, group membership)
+3. Message metadata assembled and saved to chat history
+4. LLM invoked if: private chat, `/*` or `/.` prefix in group, or reply to bot
+5. `panthera.llm_request()` loads chat history, formats prompt, calls `claude_agent_sdk.query()`
+6. Response formatted with MarkdownV2 and sent via Telegram
 
-Group access is determined by checking if authorized users are members.
+### Message Formatting (MarkdownV2)
 
-### Available Tools
+The bot uses placeholder tokens to avoid conflicts with Telegram's MarkdownV2 escaping:
+- `&&&` → `*` (bold), `%%%` → `_` (italic), `@@@` → `__` (underline)
+- `~~~` → `~` (strikethrough), `||` → `||` (spoiler), ` ``` ` → ` ``` ` (code blocks)
 
-The LangChain agent has access to:
-- `python_repl`: Execute Python code
-- `wolfram_alpha`: Math/science queries (JSON API)
-- `image_context_conversation`: Vision understanding (uses primary_model)
-- `image_plotter_nanobanana`: Gemini image generation (supports multi-image input)
-- `update_system_prompt` / `reset_system_prompt`: Per-chat prompt customization
-- `web_search`: Perplexity Pro web search with citations
-
-Commented out tools (can be re-enabled):
-- `google_search_tool`: Google search via Serper
-- `youtube_tool`: YouTube search
-- `wikipedia_tool`: Wikipedia queries
-- `image_plotter` (BFL): Flux Pro 1.1 Ultra image generation
-- `image_plotter_openai`: OpenAI gpt-image-1 generation/editing
-- `text_file_reader`: Read text/JSON files
-- `ask_reasoning`: o1-preview reasoning expert
-
-### Message Formatting
-
-The bot uses Telegram MarkdownV2 with custom pre-processing:
-- `&&&` → `*` (bold)
-- `%%%` → `_` (italic)
-- `@@@` → `__` (underline)
-- `~~~` → `~` (strikethrough)
-- `||` → `||` (spoiler)
-- ` ``` ` → ` ``` ` (code blocks)
-
-These are converted to unique tokens before escaping, then restored after escaping to prevent conflicts.
+These are replaced with UUIDs before `escape_markdown()`, then restored after.
 
 ### File Path Handling
 
-Image file paths from Telegram may include user prefixes like `/6014837471:AAE5.../file.jpg`. When processing files:
-1. Strip the prefix: `re.sub(r'^/[^/]+:', '/', file_path)` (see panthera.py:687, 814)
-2. Use the cleaned path for file operations
-
-This is critical for image_context_conversation and image_plotter_nanobanana tools.
-
-### Volume Mounting Notes
-
-The project supports mounting external directories (e.g., Telegram media) on Linux systems where colons in paths are problematic:
-```bash
-sudo mount --bind "/user_id:token" "/mnt/token"
+Image paths from Telegram include user prefixes like `/6014837471:AAE5.../file.jpg`. Always clean with:
+```python
+re.sub(r'^/[^/]+:', '/', file_path)
 ```
-For persistence across reboots, add to `/etc/fstab`.
+This is done in `server.py` when extracting paths and in `tools_cli.py` when processing images.
 
-### Response Size Handling
+### User Access Control
 
-Messages exceeding 4096 characters are:
-1. Converted to `.txt` files with AI-generated filenames (via `generate_filename()`)
-2. Sent as document attachments instead of text messages
-3. Filename generation uses gpt-5-nano with structured output
+- `data/users.txt`: Authorized user IDs
+- `data/admins.txt`: Admin user IDs (for `/add`, `/remove` commands)
+- `data/granted_groups/{chat_id}.txt` / `data/denied_groups/{chat_id}.txt`: Cached group access decisions
+- Group access: checks if any authorized user is a member of the group
 
-### System Prompts
+### Telegram API
 
-Default system prompt is in `panthera.py` (get_system_prompt method). Per-chat custom prompts are stored in `data/custom_prompts/{chat_id}.txt`.
-
-The system prompt includes:
-- Bot name (Janet)
-- Model information (dynamically inserted)
-- Current date determination instructions
-- MarkdownV2 formatting examples
-
-### Telegram API Configuration
-
-The bot communicates with a local Telegram bot server:
+Uses a local Telegram bot server, not the official API:
 ```python
 telebot.apihelper.API_URL = 'http://localhost:8081/bot{0}/{1}'
 telebot.apihelper.FILE_URL = 'http://localhost:8081'
 ```
 
-### Error Handling
+### Response Size Handling
 
-The `llm_request` method uses tenacity for retry logic:
-- 3 retry attempts with exponential backoff (2-10 seconds)
-- Retries on: `httpx.RemoteProtocolError`, `httpx.ReadTimeout`, `httpx.ConnectTimeout`
-- Errors are logged and saved to chat history
+Messages >4096 chars are converted to `.txt` files with heuristic-generated filenames (via `generate_filename()`) and sent as document attachments.
 
-### Image Generation
+### System Prompts
 
-**NanoBanana (Gemini) - Primary Image Tool**:
-- Model: gemini-3-pro-image-preview
-- Supports multiple input images
-- Image size: 1K
-- Includes Google Search tool integration
-- Returns image data inline
+Default prompt defined in `Panthera.get_system_prompt()`. Per-chat custom prompts stored in `data/custom_prompts/{chat_id}.txt`. Tool instructions (from `TOOL_INSTRUCTIONS` constant) are always appended to the system prompt.
 
-**BFL (Flux Pro)**:
-- Model: flux-pro-1.1-ultra
-- Size: 1280x1280
-- Raw mode option for less processed images
-- Async task polling (5s intervals)
+## Key Conventions
 
-**OpenAI gpt-image-1**:
-- Supports image editing with up to 10 input images
-- Returns base64 encoded images
-
-All image generators:
-- Store file_ids in `data/users/{chat_id}/images/`
-- Truncate prompts to 1000 chars for captions
-- Use spoiler formatting for captions
-
-## Common Patterns
-
-### Adding a New Tool
-
-1. Define Pydantic args schema (e.g., `class MyToolArgs(BaseModel)`)
-2. Implement async tool function in `ChatAgent` class
-3. Create `StructuredTool.from_function()` with coroutine
-4. Append to `tools` list in `initialize_agent()`
-
-### Message Flow
-
-1. Telegram server forwards message to `/message` endpoint
-2. `user_access()` validates authorization
-3. Message saved to chat history with metadata
-4. `call_llm_response()` invoked if conditions met (private chat, command prefix, or reply to bot)
-5. `panthera.llm_request()` loads chat history, invokes agent
-6. Response formatted with MarkdownV2 and sent
-
-### Working with Chat IDs
-
-Group chat IDs are negative (e.g., `-888407449`). User IDs are positive. The codebase often uses `chat_id` interchangeably with `user_id` for private chats.
-
-## Testing Considerations
-
-- The bot requires external services (Telegram server on port 8081)
-- Mock external API calls when testing tool functions
-- Test chat history pruning with various token limits
-- Verify file path cleaning for image inputs
-- Test message length handling (4096 char limit)
-
-## Important Notes
-
-- Never commit `.env` file (contains secrets)
-- The primary_model in `config.json` overrides all user session models
-- Chat history files are automatically managed and pruned
-- Image file_ids are stored as empty files for inline query caching
-- The bot uses a custom Telegram API server URL (not official api.telegram.org)
-- Admin commands (`/add`, `/remove`) require admin.txt authorization
-- Group access is cached in granted_groups/denied_groups for performance
+- Group chat IDs are negative, user IDs are positive. `chat_id` and `user_id` are used interchangeably for private chats.
+- Image file_ids are stored as empty files in `data/users/{chat_id}/images/` for inline query caching.
+- `config.json` is the source of truth for model selection — never rely on user session `model` field.
+- The `data/` directory is volume-mounted from the host; `config.json` is separately mounted.
+- `~/.claude` is mounted for Claude CLI authentication.
+- Colons in Telegram file paths require bind mounts on Linux (see README.md for `mount --bind` instructions).
