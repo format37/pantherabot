@@ -396,6 +396,16 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             return PermissionResultAllow()
         return PermissionResultDeny(message="Not auto-approved")
 
+    @staticmethod
+    async def _as_stream(text: str):
+        """Wrap a string prompt as an AsyncIterable for streaming mode."""
+        yield {
+            "type": "user",
+            "session_id": "",
+            "message": {"role": "user", "content": text},
+            "parent_tool_use_id": None,
+        }
+
     async def _claude_agent_query(self, system_prompt, user_prompt):
         """Query Claude using the agent SDK with Bash and Read tools."""
         self.logger.info("Sending query to Claude agent SDK...")
@@ -418,7 +428,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
 
         try:
             result_text = ""
-            async for message in claude_query(prompt=user_prompt, options=options):
+            async for message in claude_query(prompt=self._as_stream(user_prompt), options=options):
                 if isinstance(message, AssistantMessage):
                     for block in message.content:
                         if isinstance(block, TextBlock):
