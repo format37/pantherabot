@@ -1,4 +1,3 @@
-import asyncio
 import os
 import logging
 import json
@@ -17,9 +16,6 @@ from claude_agent_sdk import (
     AssistantMessage,
     TextBlock,
     ResultMessage,
-    PermissionResultAllow,
-    PermissionResultDeny,
-    ToolPermissionContext,
 )
 
 with open('config.json') as config_file:
@@ -388,32 +384,6 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 lines.append(f"[Assistant]: {msg['content']}")
         return "\n".join(lines)
 
-    @staticmethod
-    async def _auto_approve_tool(
-        tool_name: str, tool_input: dict, context: ToolPermissionContext
-    ):
-        """Auto-approve Perplexity MCP tools; deny unknown tools to fall back to default."""
-        if "perplexity" in tool_name.lower():
-            return PermissionResultAllow()
-        return PermissionResultDeny(message="Not auto-approved")
-
-    @staticmethod
-    async def _as_stream(text: str):
-        """Wrap a string prompt as an AsyncIterable for streaming mode.
-
-        Keeps the stream open after yielding so the SDK's control protocol
-        (can_use_tool callback) can communicate over stdin. The SDK cancels
-        this generator when the query completes.
-        """
-        yield {
-            "type": "user",
-            "session_id": "",
-            "message": {"role": "user", "content": text},
-            "parent_tool_use_id": None,
-        }
-        # Keep stdin open for bidirectional control protocol
-        await asyncio.Event().wait()
-
     async def _claude_agent_query(self, system_prompt, user_prompt):
         """Query Claude using the agent SDK with Bash and Read tools."""
         self.logger.info("Sending query to Claude agent SDK...")
@@ -429,14 +399,14 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             model=self.config['model'],
             max_turns=10,
             allowed_tools=["Bash", "Read"],
+            permission_mode="bypassPermissions",
             max_thinking_tokens=32768,
             stderr=_stderr_callback,
-            can_use_tool=self._auto_approve_tool,
         )
 
         try:
             result_text = ""
-            async for message in claude_query(prompt=self._as_stream(user_prompt), options=options):
+            async for message in claude_query(prompt=user_prompt, options=options):
                 if isinstance(message, AssistantMessage):
                     for block in message.content:
                         if isinstance(block, TextBlock):
