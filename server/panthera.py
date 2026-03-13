@@ -16,6 +16,9 @@ from claude_agent_sdk import (
     AssistantMessage,
     TextBlock,
     ResultMessage,
+    PermissionResultAllow,
+    PermissionResultDeny,
+    ToolPermissionContext,
 )
 
 with open('config.json') as config_file:
@@ -384,6 +387,15 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 lines.append(f"[Assistant]: {msg['content']}")
         return "\n".join(lines)
 
+    @staticmethod
+    async def _auto_approve_tool(
+        tool_name: str, tool_input: dict, context: ToolPermissionContext
+    ):
+        """Auto-approve Perplexity MCP tools; deny unknown tools to fall back to default."""
+        if "perplexity" in tool_name.lower():
+            return PermissionResultAllow()
+        return PermissionResultDeny(message="Not auto-approved")
+
     async def _claude_agent_query(self, system_prompt, user_prompt):
         """Query Claude using the agent SDK with Bash and Read tools."""
         self.logger.info("Sending query to Claude agent SDK...")
@@ -401,6 +413,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             allowed_tools=["Bash", "Read"],
             max_thinking_tokens=32768,
             stderr=_stderr_callback,
+            can_use_tool=self._auto_approve_tool,
         )
 
         try:
