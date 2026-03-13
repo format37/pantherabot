@@ -8,7 +8,7 @@ services:
       # - /etc/timezone:/etc/timezone:ro
       - ./data:/server/data
       - ./config.json:/server/config.json
-      - ~/.claude:/root/.claude
+      - ~/.claude/.credentials.json:/root/.claude/.credentials.json:ro
       - type: bind
         source: /mnt/BOT_TOKEN_WITHOUT_PREFIX
         target: /BOT_TOKEN_WITHOUT_PREFIX
@@ -33,3 +33,4 @@ services:
       - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - BOT_USERNAME=${BOT_USERNAME}
+      - PERPLEXITY_MCP_URL=${PERPLEXITY_MCP_URL}

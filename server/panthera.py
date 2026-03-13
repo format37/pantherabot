@@ -7,15 +7,12 @@ import re
 from pathlib import Path
 import tiktoken
 import time as py_time
-import telebot
-from telebot.formatting import escape_markdown
 
 from claude_agent_sdk import (
     query as claude_query,
     ClaudeAgentOptions,
     AssistantMessage,
     TextBlock,
-    ResultMessage,
 )
 
 with open('config.json') as config_file:
@@ -24,52 +21,9 @@ with open('config.json') as config_file:
 
 TOOL_INSTRUCTIONS = """
 
-## Available Tools
-You have access to tools via Bash. Use them when needed to help the user.
-
-### Python Code Execution
-Run Python code directly:
-```bash
-python3 -c "print('hello')"
-```
-For multi-line scripts, use heredoc:
-```bash
-python3 << 'PYEOF'
-# your code here
-PYEOF
-```
-
-### Wolfram Alpha (Math/Science)
-```bash
-python3 /server/tools_cli.py wolfram_alpha '{"query": "solve x^2+2x+1=0"}'
-```
-
-### Web Search (Perplexity Pro)
-```bash
-python3 /server/tools_cli.py web_search '{"query": "latest news about..."}'
-```
-
-### Image Generation (Gemini)
-Generate and send an image to the Telegram chat. Extract chat_id and message_id from the current message metadata:
-```bash
-python3 /server/tools_cli.py generate_image '{"prompt": "description", "chat_id": 123, "message_id": 456, "file_list": []}'
-```
-Include image file paths in file_list for editing/composition with input images.
-
-### Update System Prompt
-```bash
-python3 /server/tools_cli.py update_system_prompt '{"chat_id": "123", "new_prompt": "new prompt text"}'
-```
-
-### Reset System Prompt
-```bash
-python3 /server/tools_cli.py reset_system_prompt '{"chat_id": "123"}'
-```
-
-### Read Image
-To view an image from the chat history, use the Read tool on the file path found in the file_list field of messages.
-
-IMPORTANT: Only use tools when the user's request requires them. For normal conversation, respond directly without using any tools."""
+## Web Search
+You have access to Perplexity web search tools. Use them when the user asks about recent events, current prices, news, or anything requiring up-to-date information.
+Only use tools when the user's request requires them. For normal conversation, respond directly."""
 
 
 class Panthera:
@@ -385,7 +339,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         return "\n".join(lines)
 
     async def _claude_agent_query(self, system_prompt, user_prompt):
-        """Query Claude using the agent SDK with Bash and Read tools."""
+        """Query Claude using the agent SDK with Perplexity MCP tools."""
         self.logger.info("Sending query to Claude agent SDK...")
 
         stderr_lines = []
@@ -394,12 +348,23 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             stderr_lines.append(line)
             self.logger.info(f"Claude CLI stderr: {line}")
 
+        perplexity_url = os.environ.get("PERPLEXITY_MCP_URL", "")
+
         options = ClaudeAgentOptions(
             system_prompt=system_prompt,
             model=self.config['model'],
             max_turns=10,
-            allowed_tools=["Bash", "Read"],
-            permission_mode="bypassPermissions",
+            allowed_tools=[
+                "mcp__perplexity__perplexity_sonar",
+                "mcp__perplexity__perplexity_sonar_pro",
+                "mcp__perplexity__perplexity_sonar_deep_research",
+            ],
+            mcp_servers={
+                "perplexity": {
+                    "type": "http",
+                    "url": perplexity_url,
+                },
+            } if perplexity_url else {},
             max_thinking_tokens=32768,
             stderr=_stderr_callback,
         )
