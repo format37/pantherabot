@@ -1,3 +1,4 @@
+import asyncio
 import os
 import logging
 import json
@@ -398,13 +399,20 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
 
     @staticmethod
     async def _as_stream(text: str):
-        """Wrap a string prompt as an AsyncIterable for streaming mode."""
+        """Wrap a string prompt as an AsyncIterable for streaming mode.
+
+        Keeps the stream open after yielding so the SDK's control protocol
+        (can_use_tool callback) can communicate over stdin. The SDK cancels
+        this generator when the query completes.
+        """
         yield {
             "type": "user",
             "session_id": "",
             "message": {"role": "user", "content": text},
             "parent_tool_use_id": None,
         }
+        # Keep stdin open for bidirectional control protocol
+        await asyncio.Event().wait()
 
     async def _claude_agent_query(self, system_prompt, user_prompt):
         """Query Claude using the agent SDK with Bash and Read tools."""
