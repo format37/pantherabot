@@ -1,4 +1,4 @@
-FROM python:3.10
+FROM python:3.13-slim
 
 # Install Node.js (required by claude-agent-sdk / Claude CLI)
 RUN apt-get update && \
