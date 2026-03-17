@@ -350,22 +350,27 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
 
         perplexity_url = os.environ.get("PERPLEXITY_MCP_URL", "")
 
+        # Build allowed_tools list: only include MCP tools when the server is configured
+        allowed_tools = []
+        mcp_servers = {}
+        if perplexity_url:
+            mcp_servers["perplexity"] = {
+                "type": "http",
+                "url": perplexity_url,
+            }
+            allowed_tools.extend([
+                "mcp__perplexity__perplexity_sonar",
+                "mcp__perplexity__perplexity_sonar_pro",
+                "mcp__perplexity__perplexity_sonar_deep_research",
+            ])
+
         options = ClaudeAgentOptions(
             system_prompt=system_prompt,
             model=self.config['model'],
             max_turns=10,
-            allowed_tools=[
-                "mcp__perplexity__perplexity_sonar",
-                "mcp__perplexity__perplexity_sonar_pro",
-                "mcp__perplexity__perplexity_sonar_deep_research",
-            ],
-            mcp_servers={
-                "perplexity": {
-                    "type": "http",
-                    "url": perplexity_url,
-                },
-            } if perplexity_url else {},
-            max_thinking_tokens=32768,
+            allowed_tools=allowed_tools if allowed_tools else None,
+            mcp_servers=mcp_servers if mcp_servers else None,
+            thinking={"type": "adaptive"},
             stderr=_stderr_callback,
         )
 
