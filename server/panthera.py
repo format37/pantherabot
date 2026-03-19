@@ -4,6 +4,7 @@ import json
 import time
 import glob
 import re
+import shutil
 from pathlib import Path
 import tiktoken
 import time as py_time
@@ -364,6 +365,9 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 "mcp__perplexity__perplexity_sonar_deep_research",
             ])
 
+        system_claude = shutil.which("claude")
+        self.logger.info(f"Using Claude CLI: {system_claude}")
+
         options = ClaudeAgentOptions(
             system_prompt=system_prompt,
             model=self.config['model'],
@@ -372,6 +376,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             mcp_servers=mcp_servers if mcp_servers else None,
             thinking={"type": "adaptive"},
             stderr=_stderr_callback,
+            cli_path=system_claude,
         )
 
         try:
