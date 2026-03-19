@@ -374,7 +374,6 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             max_turns=10,
             allowed_tools=allowed_tools if allowed_tools else None,
             mcp_servers=mcp_servers if mcp_servers else None,
-            thinking={"type": "adaptive"},
             stderr=_stderr_callback,
             cli_path=system_claude,
         )
@@ -382,6 +381,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         try:
             result_text = ""
             async for message in claude_query(prompt=user_prompt, options=options):
+                self.logger.info(f"SDK message type: {type(message).__name__}")
                 if isinstance(message, AssistantMessage):
                     for block in message.content:
                         if isinstance(block, TextBlock):
@@ -391,6 +391,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         except Exception as e:
             stderr_text = "\n".join(stderr_lines[-10:]) if stderr_lines else "no stderr captured"
             self.logger.error(f"Claude CLI failed. stderr:\n{stderr_text}")
+            self.logger.error(f"Exception type: {type(e).__name__}, details: {e}")
             raise
 
     async def llm_request(self, chat_id, message_id, message_text, image_paths=None):
