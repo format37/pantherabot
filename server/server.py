@@ -588,7 +588,10 @@ Commands:
         os.makedirs(local_dir, exist_ok=True)
         for raw_path in raw_paths:
             try:
-                file_bytes = bot.download_file(raw_path)
+                # Strip leading /{BOT_ID}:{TOKEN}/ — local server expects relative path
+                # e.g. /6014837471:AAE5.../photos/file_571.jpg -> photos/file_571.jpg
+                relative_path = re.sub(r'^/[^/]+/', '', raw_path)
+                file_bytes = bot.download_file(relative_path)
                 filename = os.path.basename(raw_path)
                 local_path = os.path.join(local_dir, filename)
                 with open(local_path, 'wb') as f:
@@ -597,8 +600,6 @@ Commands:
                 logger.info(f"Image downloaded to: {local_path}")
             except Exception as e:
                 logger.error(f"Image download failed for {raw_path}: {e}")
-                # Fallback: sanitized path
-                image_paths.append(re.sub(r'^/[^/]+:', '/', raw_path))
 
     # Handle media groups (Telegram albums)
     if 'media_group_id' in message:

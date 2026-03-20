@@ -4,6 +4,8 @@ import json
 import time
 import glob
 import re
+import base64
+import mimetypes
 from pathlib import Path
 import tiktoken
 import time as py_time
@@ -20,11 +22,6 @@ with open('config.json') as config_file:
 
 
 TOOL_INSTRUCTIONS = """
-
-## Reading Images
-When the user sends an image, its local path appears in the file_list field of the message.
-Use the Read tool to view the image: Read file_list[0] (or all listed paths).
-The files are pre-downloaded and accessible — no additional tool calls needed to fetch them.
 
 ## Image Generation
 Generate images using the Gemini Nano Banana model (gemini-3.1-flash-image-preview).
@@ -359,7 +356,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 lines.append(f"[Assistant]: {msg['content']}")
         return "\n".join(lines)
 
-    async def _claude_agent_query(self, system_prompt, user_prompt):
+    async def _claude_agent_query(self, system_prompt, user_prompt, image_paths=None):
         """Query Claude using the agent SDK with Perplexity MCP tools."""
         self.logger.info("Sending query to Claude agent SDK...")
 
@@ -396,9 +393,42 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             stderr=_stderr_callback,
         )
 
+        # Build prompt: multimodal AsyncIterable when images present, plain string otherwise
+        if image_paths:
+            async def _multimodal_prompt():
+                content = []
+                for img_path in image_paths:
+                    try:
+                        with open(img_path, 'rb') as f:
+                            img_bytes = f.read()
+                        mime_type, _ = mimetypes.guess_type(img_path)
+                        if not mime_type or not mime_type.startswith('image/'):
+                            mime_type = 'image/jpeg'
+                        content.append({
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": mime_type,
+                                "data": base64.b64encode(img_bytes).decode(),
+                            }
+                        })
+                        self.logger.info(f"Included image in context: {img_path} ({mime_type})")
+                    except Exception as e:
+                        self.logger.error(f"Failed to include image {img_path}: {e}")
+                content.append({"type": "text", "text": user_prompt})
+                yield {
+                    "type": "user",
+                    "session_id": "",
+                    "message": {"role": "user", "content": content},
+                    "parent_tool_use_id": None,
+                }
+            prompt_arg = _multimodal_prompt()
+        else:
+            prompt_arg = user_prompt
+
         result_text = ""
         try:
-            async for message in claude_query(prompt=user_prompt, options=options):
+            async for message in claude_query(prompt=prompt_arg, options=options):
                 self.logger.info(f"SDK message type: {type(message).__name__}")
                 if isinstance(message, AssistantMessage):
                     for block in message.content:
@@ -431,7 +461,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         user_prompt += f"Current message:\n{message_text}"
 
         try:
-            response = await self._claude_agent_query(system_prompt, user_prompt)
+            response = await self._claude_agent_query(system_prompt, user_prompt, image_paths=image_paths)
             self.logger.info(f'llm_request response: {response[:200]}...' if len(response) > 200 else f'llm_request response: {response}')
 
             # Handle list/dict responses
