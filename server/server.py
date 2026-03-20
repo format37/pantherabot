@@ -638,7 +638,7 @@ async def call_inline(request: Request, authorization: str = Header(None)):
         # logger.info(f"*** chat.type: {chat.type}")
 
         # Iterate all possible chats that bot participates in
-        chats_folder = 'data/chats/'
+        chats_folder = 'data/users/'
         # Ensure folder exists; otherwise nothing to return
         if not os.path.isdir(chats_folder):
             logger.info(f"Chats folder not found: {chats_folder}")
