@@ -21,6 +21,11 @@ with open('config.json') as config_file:
 
 TOOL_INSTRUCTIONS = """
 
+## Reading Images
+When the user sends an image, its local path appears in the file_list field of the message.
+Use the Read tool to view the image: Read file_list[0] (or all listed paths).
+The files are pre-downloaded and accessible — no additional tool calls needed to fetch them.
+
 ## Image Generation
 Generate images using the Gemini Nano Banana model (gemini-3.1-flash-image-preview).
 Call it with: python3 /server/tools_cli.py generate_image '{"prompt": "<description>", "chat_id": <chat_id>, "message_id": <message_id>}'

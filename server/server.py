@@ -579,13 +579,26 @@ Commands:
             "body": ''
             })
     
-    # Extract file list from the message (now returns a list)
+    # Extract file list from the message and download via Telegram HTTP API
+    # (Direct filesystem access is blocked: Telegram storage dirs are root-owned)
     image_paths = []
     if 'photo' in message or 'document' in message:
-        image_paths = panthera.get_message_file_list(bot, message)
-        # Sanitize file paths by removing Telegram user prefix
-        # Example: '/6014837471:AAE5.../file.jpg' -> '/AAE5.../file.jpg'
-        image_paths = [re.sub(r'^/[^/]+:', '/', path) for path in image_paths]
+        raw_paths = panthera.get_message_file_list(bot, message)
+        local_dir = f"data/users/{chat_id}/images"
+        os.makedirs(local_dir, exist_ok=True)
+        for raw_path in raw_paths:
+            try:
+                file_bytes = bot.download_file(raw_path)
+                filename = os.path.basename(raw_path)
+                local_path = os.path.join(local_dir, filename)
+                with open(local_path, 'wb') as f:
+                    f.write(file_bytes)
+                image_paths.append(local_path)
+                logger.info(f"Image downloaded to: {local_path}")
+            except Exception as e:
+                logger.error(f"Image download failed for {raw_path}: {e}")
+                # Fallback: sanitized path
+                image_paths.append(re.sub(r'^/[^/]+:', '/', raw_path))
 
     # Handle media groups (Telegram albums)
     if 'media_group_id' in message:
