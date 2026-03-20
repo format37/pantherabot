@@ -37,8 +37,8 @@ When a response contains a mathematical formula or equation, render it as an ima
 python3 /server/tools_cli.py render_math '{"formula": "<LaTeX without $ delimiters>", "chat_id": <chat_id>, "message_id": <message_id>}'
 After sending the image, write the surrounding explanation in plain text using Unicode math where helpful (e.g. ∫, ², ³, √, ≈, ±).
 
-## Reading Previous Images
-If the user refers to an image from an earlier message, its path appears in the chat history as file_list: [...]. Use the Read tool on that path to view it again.
+## Images
+When a user sends a photo or replies to a photo, the image is provided directly in your context — you can already see it. Do NOT attempt to read image files from disk using Bash or Read tools; the subprocess cannot access those files.
 
 ## Web Search
 You have access to Perplexity web search tools. Use them when the user asks about recent events, current prices, news, or anything requiring up-to-date information.

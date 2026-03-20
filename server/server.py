@@ -199,9 +199,6 @@ async def flush_media_group(media_group_id: str):
     message_text += f"\nchat_id: {chat_id}"
     message_text += f"\nmessage_id: {message_id}"
     message_text += f"\nmessage_date: {message_date}"
-    # Include file paths in metadata so LLM can reference them when calling tools
-    if image_paths:
-        message_text += f"\nfile_list: {image_paths}"
     if text != '':
         message_text += f"\nmessage_text: {text}"
 
@@ -529,9 +526,6 @@ Commands:
     if "reply_to_message" in message:
         message_text += f"\nreply_to_message: {message['reply_to_message']['message_id']}"
     message_text += f"\nmessage_date: {message_date}"
-    # Include file paths in metadata so LLM can reference them when calling tools
-    if image_paths:
-        message_text += f"\nfile_list: {image_paths}"
     if text != '':
         message_text += f"\nmessage_text: {text}"
     panthera.save_to_chat_history(
