@@ -14,7 +14,7 @@ services:
         source: /mnt/${BOT_TOKEN_WITHOUT_PREFIX}
         target: /${BOT_TOKEN_WITHOUT_PREFIX}
     cap_add:
-      - SYS_DAC_READ_SEARCH
+      - DAC_READ_SEARCH
     build: server
     logging:
       options:
