@@ -21,6 +21,16 @@ with open('config.json') as config_file:
 
 TOOL_INSTRUCTIONS = """
 
+## Wolfram Alpha
+Use Wolfram Alpha for math, science, unit conversions, equations, and factual lookups.
+Call it with: python3 /server/tools_cli.py wolfram_alpha '{"query": "<your query>"}'
+
+## Render Math
+Telegram does NOT render LaTeX. Never output LaTeX notation (no $...$, \\frac, \\int, etc.) in your text responses.
+When a response contains a mathematical formula or equation, render it as an image instead:
+python3 /server/tools_cli.py render_math '{"formula": "<LaTeX without $ delimiters>", "chat_id": <chat_id>, "message_id": <message_id>}'
+After sending the image, write the surrounding explanation in plain text using Unicode math where helpful (e.g. ∫, ², ³, √, ≈, ±).
+
 ## Web Search
 You have access to Perplexity web search tools. Use them when the user asks about recent events, current prices, news, or anything requiring up-to-date information.
 Only use tools when the user's request requires them. For normal conversation, respond directly."""
@@ -350,8 +360,8 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
 
         perplexity_url = os.environ.get("PERPLEXITY_MCP_URL", "")
 
-        # Build allowed_tools list: only include MCP tools when the server is configured
-        allowed_tools = []
+        # Build allowed_tools list: Bash+Read always enabled for tools_cli.py calls
+        allowed_tools = ["Bash", "Read"]
         mcp_servers = {}
         if perplexity_url:
             mcp_servers["perplexity"] = {
@@ -404,7 +414,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
 
         # Build prompt with chat history context
         history_text = self.format_chat_history()
-        user_prompt = ""
+        user_prompt = f"chat_id: {chat_id}\nmessage_id: {message_id}\n\n"
         if history_text:
             user_prompt += f"Previous conversation:\n{history_text}\n\n"
         user_prompt += f"Current message:\n{message_text}"
