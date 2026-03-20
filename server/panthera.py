@@ -21,6 +21,12 @@ with open('config.json') as config_file:
 
 TOOL_INSTRUCTIONS = """
 
+## Image Generation
+Generate images using the Gemini Nano Banana model (gemini-3.1-flash-image-preview).
+Call it with: python3 /server/tools_cli.py generate_image '{"prompt": "<description>", "chat_id": <chat_id>, "message_id": <message_id>}'
+Optionally include "file_list": ["<path>"] to pass input images for editing or composition.
+Use this whenever the user asks to generate, create, or draw an image.
+
 ## Wolfram Alpha
 Use Wolfram Alpha for math, science, unit conversions, equations, and factual lookups.
 Call it with: python3 /server/tools_cli.py wolfram_alpha '{"query": "<your query>"}'
