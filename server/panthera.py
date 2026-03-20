@@ -380,8 +380,8 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             cli_path=system_claude,
         )
 
+        result_text = ""
         try:
-            result_text = ""
             async for message in claude_query(prompt=user_prompt, options=options):
                 self.logger.info(f"SDK message type: {type(message).__name__}")
                 if isinstance(message, AssistantMessage):
@@ -391,6 +391,9 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
 
             return result_text.strip()
         except Exception as e:
+            if result_text.strip():
+                self.logger.warning(f"CLI exited non-zero after successful response, returning result. Error: {e}")
+                return result_text.strip()
             stderr_text = "\n".join(stderr_lines[-10:]) if stderr_lines else "no stderr captured"
             self.logger.error(f"Claude CLI failed. stderr:\n{stderr_text}")
             self.logger.error(f"Exception type: {type(e).__name__}, details: {e}")
