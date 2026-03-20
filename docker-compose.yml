@@ -11,8 +11,8 @@ services:
       - ~/.claude:/home/appuser/.claude
       - ~/.claude.json:/home/appuser/.claude.json
       - type: bind
-        source: /mnt/BOT_TOKEN_WITHOUT_PREFIX
-        target: /BOT_TOKEN_WITHOUT_PREFIX
+        source: /mnt/${BOT_TOKEN_WITHOUT_PREFIX}
+        target: /${BOT_TOKEN_WITHOUT_PREFIX}
     build: server
     logging:
       options:
