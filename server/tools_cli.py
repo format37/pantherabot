@@ -120,7 +120,7 @@ async def web_search(query):
 
 
 async def generate_image(prompt, chat_id, message_id, file_list=None):
-    """Generate image using Gemini and send to Telegram chat."""
+    """Generate image using Gemini Nano Banana (gemini-3.1-flash-image-preview) and send to Telegram chat."""
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         return "Image generation failed: GEMINI_API_KEY not configured"
@@ -142,26 +142,27 @@ async def generate_image(prompt, chat_id, message_id, file_list=None):
         contents = [types.Content(role="user", parts=parts)]
 
         generate_content_config = types.GenerateContentConfig(
-            response_modalities=["IMAGE", "TEXT"],
-            image_config=types.ImageConfig(image_size="1K"),
-            tools=[types.Tool(googleSearch=types.GoogleSearch())],
+            response_modalities=["Image", "Text"],
+            image_config=types.ImageConfig(
+                aspect_ratio="16:9",
+                image_size="4K",
+            ),
+        )
+
+        response = client.models.generate_content(
+            model="gemini-3.1-flash-image-preview",
+            contents=contents,
+            config=generate_content_config,
         )
 
         image_data = None
         text_response = None
 
-        for chunk in client.models.generate_content_stream(
-            model="gemini-3-pro-image-preview",
-            contents=contents,
-            config=generate_content_config,
-        ):
-            if (chunk.candidates and chunk.candidates[0].content
-                    and chunk.candidates[0].content.parts):
-                for part in chunk.candidates[0].content.parts:
-                    if part.inline_data and part.inline_data.data:
-                        image_data = part.inline_data.data
-                    elif part.text:
-                        text_response = part.text
+        for part in response.candidates[0].content.parts:
+            if part.inline_data and part.inline_data.data:
+                image_data = part.inline_data.data
+            elif part.text:
+                text_response = part.text
 
         if not image_data:
             return "Image generation failed: No image data returned"
