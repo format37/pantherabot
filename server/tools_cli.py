@@ -196,15 +196,18 @@ async def render_math(formula, chat_id, message_id):
     import io
     import matplotlib
     matplotlib.use('Agg')
-    from matplotlib.mathtext import math_to_image
+    from matplotlib.figure import Figure
 
     formula = formula.strip()
     if not (formula.startswith('$') and formula.endswith('$')):
         formula = f'${formula}$'
 
     try:
+        fig = Figure(facecolor='white')
+        fig.text(0.5, 0.5, formula, ha='center', va='center',
+                 fontsize=18, color='black')
         buf = io.BytesIO()
-        math_to_image(formula, buf, dpi=200, format='png')
+        fig.savefig(buf, dpi=200, format='png', bbox_inches='tight', pad_inches=0.3)
         buf.seek(0)
         bot.send_photo(
             chat_id=int(chat_id),
