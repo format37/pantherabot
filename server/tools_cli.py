@@ -14,7 +14,6 @@ import sys
 import json
 import os
 import asyncio
-import requests
 import httpx
 import telebot
 from telebot.formatting import escape_markdown
@@ -80,43 +79,6 @@ async def wolfram_alpha(query):
         return output if output else "No plaintext results."
     except Exception as e:
         return f"Wolfram|Alpha error: {e}"
-
-
-async def web_search(query):
-    """Search the web using Perplexity Pro."""
-    api_key = os.getenv('PERPLEXITY_API_KEY')
-    if not api_key:
-        return json.dumps({"answer": "Web search unavailable: missing PERPLEXITY_API_KEY.",
-                           "citations": []})
-
-    try:
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-        }
-        data = {
-            "model": "sonar-pro",
-            "messages": [
-                {"role": "system",
-                 "content": "You are a helpful assistant that provides answers with sources."},
-                {"role": "user", "content": query},
-            ],
-            "temperature": 0.5,
-            "stream": False,
-        }
-
-        resp = requests.post("https://api.perplexity.ai/chat/completions",
-                             headers=headers, json=data, timeout=60)
-        resp.raise_for_status()
-        result = resp.json()
-
-        answer = result.get('choices', [{}])[0].get('message', {}).get('content', '')
-        citations = result.get('citations', []) or []
-
-        return json.dumps({"answer": answer, "citations": citations}, ensure_ascii=False)
-    except Exception as e:
-        return json.dumps({"answer": f"Web search failed: {e}", "citations": []})
 
 
 async def generate_image(prompt, chat_id, message_id, file_list=None):
@@ -238,7 +200,6 @@ async def reset_system_prompt(chat_id):
 
 TOOLS = {
     "wolfram_alpha": wolfram_alpha,
-    "web_search": web_search,
     "generate_image": generate_image,
     "render_math": render_math,
     "update_system_prompt": update_system_prompt,
