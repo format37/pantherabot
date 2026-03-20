@@ -191,6 +191,31 @@ async def generate_image(prompt, chat_id, message_id, file_list=None):
         return f"Image generation failed: {e}"
 
 
+async def render_math(formula, chat_id, message_id):
+    """Render a LaTeX math formula as PNG image and send to Telegram chat."""
+    import io
+    import matplotlib
+    matplotlib.use('Agg')
+    from matplotlib.mathtext import math_to_image
+
+    formula = formula.strip()
+    if not (formula.startswith('$') and formula.endswith('$')):
+        formula = f'${formula}$'
+
+    try:
+        buf = io.BytesIO()
+        math_to_image(formula, buf, dpi=200, format='png')
+        buf.seek(0)
+        bot.send_photo(
+            chat_id=int(chat_id),
+            photo=buf,
+            reply_to_message_id=int(message_id),
+        )
+        return "Math formula rendered and sent as image"
+    except Exception as e:
+        return f"Math rendering failed: {e}"
+
+
 async def update_system_prompt(chat_id, new_prompt):
     """Update the system prompt for a chat."""
     os.makedirs('./data/custom_prompts', exist_ok=True)
@@ -211,6 +236,7 @@ TOOLS = {
     "wolfram_alpha": wolfram_alpha,
     "web_search": web_search,
     "generate_image": generate_image,
+    "render_math": render_math,
     "update_system_prompt": update_system_prompt,
     "reset_system_prompt": reset_system_prompt,
 }
