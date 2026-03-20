@@ -372,8 +372,10 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             system_prompt=system_prompt,
             model=self.config['model'],
             max_turns=10,
-            allowed_tools=allowed_tools if allowed_tools else None,
+            allowed_tools=allowed_tools if allowed_tools else [],
             mcp_servers=mcp_servers if mcp_servers else None,
+            setting_sources=["user"],
+            max_thinking_tokens=10000,
             stderr=_stderr_callback,
             cli_path=system_claude,
         )
