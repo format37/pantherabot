@@ -6,15 +6,11 @@ import json
 from panthera import Panthera
 import re
 import pandas as pd
-import matplotlib.pyplot as plt
 # from telebot import TeleBot
 import telebot
 from telebot.formatting import escape_markdown
-# from telebot.types import InlineQueryResultPhoto
 import hashlib
-from datetime import datetime
 from io import BytesIO
-from pathlib import Path
 import asyncio
 
 # Initialize FastAPI
@@ -47,98 +43,6 @@ media_group_buffers = {}
 async def call_test():
     logger.info('call_test')
     return JSONResponse(content={"status": "ok"})
-
-# def remove_unsupported_tags(text, supported_tags):
-#     # Convert the supported tags string to a set for faster lookup
-#     supported_tags_set = set(supported_tags.split('>'))
-    
-#     # Regular expression pattern to match HTML tags
-#     tag_pattern = re.compile(r'<(/?\w+)(.*?)>')
-    
-#     # Function to replace unsupported tags
-#     def replace_tag(match):
-#         tag_name = match.group(1)
-#         if '<' + tag_name + '>' in supported_tags_set:
-#             return match.group(0)  # Keep the tag if it's supported
-#         else:
-#             return ''  # Remove the tag if it's not supported
-    
-#     # Replace unsupported tags using the replace_tag function
-#     cleaned_text = tag_pattern.sub(replace_tag, text)
-    
-#     return cleaned_text
-
-# def escape_markdown(text):
-#     escape_chars = r'_*[]()~`>#+-=|{}.!'
-#     return re.sub(r'([{}])'.format(re.escape(escape_chars)), r'\\\1', text)
-
-# def prepare_markdown(text):
-#     # Characters to be escaped
-#     escape_chars = '_*[]()~`>#+-=|{}.!'
-
-#     # Escape function
-#     def escape(char):
-#         return '\\' + char
-
-#     # Escape the characters in the text
-#     for char in escape_chars:
-#         text = text.replace(char, escape(char))
-
-#     # Handle special cases
-
-#     # Escape '\' character
-#     text = text.replace('\\', '\\\\')
-
-#     # Escape '`' and '\' characters inside pre and code entities
-#     text = text.replace('```', '\\`\\`\\`')
-#     text = text.replace('`', '\\`')
-
-#     # Escape ')' and '\' characters inside the (...) part of the inline link and custom emoji definition
-#     def escape_link_emoji(match):
-#         content = match.group(1)
-#         content = content.replace(')', '\\)')
-#         content = content.replace('\\', '\\\\')
-#         return f'({content})'
-
-#     text = re.sub(r'\(([^)]*)\)', escape_link_emoji, text)
-
-#     # Handle ambiguity between italic and underline entities
-#     text = text.replace('___', '___*')
-
-#     return text
-
-def keyboard_modificator(current_screen, user_session, menu, message):
-    # Format message with current values if needed
-    """if '%s' in message:  
-        if current_screen == 'Model':
-            model = user_session['model']
-        elif current_screen == 'Language':
-            language = user_session['language']
-        elif current_screen == 'Topic' or current_screen == 'Reports':
-            if 'topic' in user_session:
-                topic = user_session['topic']
-            else:
-                topic = 'None'
-        message = message % model if 'model' in locals() else message
-        message = message % language if 'language' in locals() else message
-        message = message % topic if 'topic' in locals() else message
-        menu[current_screen]['message'] = message"""
-
-
-def get_keyboard(user_session, current_screen):
-
-    with open('data/menu.json') as f:
-        menu = json.load(f)
-
-    if current_screen in menu:
-        message = menu[current_screen]['message']
-        keyboard_modificator(current_screen, user_session, menu, message)        
-        return menu[current_screen]
-
-    else:
-        # Default to start screen
-        return menu['Default']
-
 
 def user_access(message):
     # # Initialize the bot
@@ -190,20 +94,7 @@ def user_access(message):
     
     return False
 
-# async def call_llm_response(message, message_text, chat_id, reply):
 async def call_llm_response(chat_id, message_id, message_text, reply, image_paths=None):
-    # chat_id = message['chat']['id']
-    # if 'topic' in user_session:
-            # with open ('data/topics.json') as f:
-            #     topics = json.load(f)
-            # system_content = topics[user_session['topic']]['system']
-    # Log the current_date
-    current_date = pd.Timestamp.now()
-    # -3h from the current_date
-    current_date = current_date - pd.Timedelta(hours=3)
-    logger.info(f'current_date: {current_date}')
-    # if reply:
-        # answer = await panthera.llm_request(bot, message, message_text)
     answer = await panthera.llm_request(chat_id, message_id, message_text, image_paths=image_paths)
 
     if answer == '':
@@ -452,35 +343,26 @@ async def call_message(request: Request, authorization: str = Header(None)):
 • Use /\* or /\. prefix in group chats
 • Reply to my messages to continue conversation
 
-*Smart Tools*
-• Python code execution & debugging
-• Google search with links
-• YouTube video search
-• Wikipedia lookups
-• Wolfram Alpha calculations
+*Tools*
+• Web search \(Perplexity\)
+• Wolfram Alpha for math & science
+• Image generation \(Gemini\)
 • Image understanding & analysis
-• Image generation with Flux Pro 1\.1
+• Python code execution
+• Math formula rendering
 
 *Memory & Context*
 • Maintains conversation history
 • /reset \- Clear chat memory
-• /update\_prompt \<text\> \- Update system prompt
-• /reset\_prompt \- Reset to default prompt
-
-*File Handling*
-• Reads text & JSON files
-• Generates detailed responses
-• Auto\-splits long responses into files
 
 *Group Chat Features*
 • @gptaidbot \- Quote bot's last pm message
 • @gptaidbot photo \- Quote my last image
-• Authorized group access control
+• @gptaidbot \*\*\* \- Select a group to send bot's thoughts
 
 *Admin Commands*
 • /add \<user\_id\> \- Add user access
-• /remove \<user\_id\> \- Remove user access
-• @gptaidbot \*\*\* \- Select a group to send bot's thoughts"""
+• /remove \<user\_id\> \- Remove user access"""
 
         bot.send_message(message['chat']['id'], help_text, parse_mode='MarkdownV2')
         return JSONResponse(content={
@@ -544,34 +426,17 @@ async def call_message(request: Request, authorization: str = Header(None)):
 
     user_session = panthera.get_user_session(message['from']['id'])
     logger.info(f'user_session: {user_session}')
-    
-    message_type = panthera.get_message_type(user_session, text)
-    logger.info(f'message_type: {message_type}')
-
-    system_content = None
 
     # if message text is /start
     if text == '/start':
-        answer = """Hi. I am Janet, conversational GPT bot with langchain tools:
-* Python
-* Google search
-* Youtube search
-* Wolfram alpha
-* Wikipedia search
-* Image understanding
-* Flux 1.1 pro image generator
-* Reading text & json files
-* Updating system prompt
-* Reseting system prompt
-* Asking reasoning o1-preview expert
+        answer = """Hi. I am Janet, your AI assistant.
 
 Commands:
-/* or ./ prefix in a group chat to call me.
+/reset — clear chat memory
+/* or /. prefix in a group chat to call me.
 "@gptaidbot" to cite my last personal message in a group chat.
 "@gptaidbot photo" to cite my last photo from personal message in a group chat.
 """
-# @gptaidbot *** in other group to choose a group where to send the message.
-
         bot.send_message(chat_id, answer)
         # return empty
         return JSONResponse(content={
@@ -579,13 +444,16 @@ Commands:
             "body": ''
             })
     
-    # Extract file list from the message (now returns a list)
+    # Extract file list from the message and map to mounted paths
+    # Telegram local server returns absolute paths like /6014837471:AAE5.../photos/file.jpg
+    # Strip the /{BOT_ID}: prefix so the path matches the container volume mount target
     image_paths = []
     if 'photo' in message or 'document' in message:
-        image_paths = panthera.get_message_file_list(bot, message)
-        # Sanitize file paths by removing Telegram user prefix
-        # Example: '/6014837471:AAE5.../file.jpg' -> '/AAE5.../file.jpg'
-        image_paths = [re.sub(r'^/[^/]+:', '/', path) for path in image_paths]
+        raw_paths = panthera.get_message_file_list(bot, message)
+        for raw_path in raw_paths:
+            clean_path = re.sub(r'^/[^/]+:', '/', raw_path)
+            image_paths.append(clean_path)
+            logger.info(f"Image path: {clean_path}")
 
     # Handle media groups (Telegram albums)
     if 'media_group_id' in message:
@@ -644,7 +512,6 @@ Commands:
     message_date = message['date']
     # Convert 'date': 1718167018 to '2024-06-06 12:36:58'
     message_date = pd.to_datetime(message_date, unit='s')
-    time_passed = pd.Timestamp.now() - message_date
     message_text = f"user_name: {first_name}"
     message_text += f"\nchat_id: {chat_id}"
     message_text += f"\nmessage_id: {message['message_id']}"

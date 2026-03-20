@@ -1,9 +1,9 @@
 import os
 import logging
 import json
-import time
-import glob
 import re
+import base64
+import mimetypes
 from pathlib import Path
 import tiktoken
 import time as py_time
@@ -79,23 +79,6 @@ class Panthera:
 
         return False
 
-    def get_message_type(self, user_session, text):
-        if text == '/start':
-            return 'cmd'
-        elif text == '/configure':
-            return 'cmd'
-        elif text == '/reset':
-            return 'cmd'
-        with open('data/menu.json') as f:
-            menu = json.load(f)
-        for key, value in menu.items():
-            if text == key:
-                return 'button'
-            for button in value['buttons']:
-                if text == button['text']:
-                    return 'button'
-        return 'text'
-
     def save_user_session(self, user_id, session):
         self.logger.info(f'save_user_session: {user_id} with cmd: {session["last_cmd"]}')
         path = './data/users'
@@ -129,67 +112,6 @@ class Panthera:
             enc = tiktoken.get_encoding("cl100k_base")
         tokens = enc.encode(text)
         return len(tokens)
-
-    def default_bot_message(self, message, text):
-        current_unix_timestamp = int(time.time())
-        self.logger.info(f'default_bot_message: {message}')
-        if 'first_name' in message['chat']:
-            first_name = message['from']['first_name']
-        else:
-            first_name = message['from']['username']
-        return {
-        'message_id': int(message['message_id']) + 1,
-        'from': {
-                'id': 0,
-                'is_bot': True,
-                'first_name': 'assistant',
-                'username': 'assistant',
-                'language_code': 'en',
-                'is_premium': False
-            },
-            'chat': {
-                'id': message['chat']['id'],
-                'first_name': first_name,
-                'username': message['from']['username'],
-                'type': 'private'
-            },
-            'date': current_unix_timestamp,
-            'text': text
-        }
-
-    def add_evaluation_to_topic(self, session, topic_name, value=10):
-        if "topics" not in session:
-            session["topics"] = {}
-        if topic_name not in session["topics"]:
-            session["topics"][topic_name] = {"evaluations": []}
-        date = int(time.time())
-        evaluation_dict = {"date": date, "value": value}
-        session["topics"][topic_name]["evaluations"].append(evaluation_dict)
-        return session
-
-    def crop_queue(self, chat_id):
-        chat_path = os.path.join("data", "chats", str(chat_id))
-        Path(chat_path).mkdir(parents=True, exist_ok=True)
-        list_of_files = glob.glob(chat_path + "/*.json")
-        list_of_files.sort(key=os.path.getctime, reverse=True)
-        tokens = 0
-        self.logger.info(f"list_of_files: \n{list_of_files}")
-        for file in list_of_files:
-            if tokens > self.config['token_limit']:
-                self.logger.info(f"Removing file: {file}")
-                os.remove(file)
-                continue
-            try:
-                message = json.load(open(file, 'r'))
-                text = message['text']
-                tokens += self.token_counter(text)
-                self.logger.info(f"file: {file} tokens: {tokens}")
-                if tokens > self.config['token_limit']:
-                    self.logger.info(f"Removing file: {file}")
-                    os.remove(file)
-            except Exception as e:
-                self.logger.error(f"Error loading file: {file} error: {e}")
-                os.remove(file)
 
     def save_to_chat_history(
         self,
@@ -354,7 +276,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 lines.append(f"[Assistant]: {msg['content']}")
         return "\n".join(lines)
 
-    async def _claude_agent_query(self, system_prompt, user_prompt):
+    async def _claude_agent_query(self, system_prompt, user_prompt, image_paths=None):
         """Query Claude using the agent SDK with Perplexity MCP tools."""
         self.logger.info("Sending query to Claude agent SDK...")
 
@@ -391,9 +313,42 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             stderr=_stderr_callback,
         )
 
+        # Build prompt: multimodal AsyncIterable when images present, plain string otherwise
+        if image_paths:
+            async def _multimodal_prompt():
+                content = []
+                for img_path in image_paths:
+                    try:
+                        with open(img_path, 'rb') as f:
+                            img_bytes = f.read()
+                        mime_type, _ = mimetypes.guess_type(img_path)
+                        if not mime_type or not mime_type.startswith('image/'):
+                            mime_type = 'image/jpeg'
+                        content.append({
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": mime_type,
+                                "data": base64.b64encode(img_bytes).decode(),
+                            }
+                        })
+                        self.logger.info(f"Included image in context: {img_path} ({mime_type})")
+                    except Exception as e:
+                        self.logger.error(f"Failed to include image {img_path}: {e}")
+                content.append({"type": "text", "text": user_prompt})
+                yield {
+                    "type": "user",
+                    "session_id": "",
+                    "message": {"role": "user", "content": content},
+                    "parent_tool_use_id": None,
+                }
+            prompt_arg = _multimodal_prompt()
+        else:
+            prompt_arg = user_prompt
+
         result_text = ""
         try:
-            async for message in claude_query(prompt=user_prompt, options=options):
+            async for message in claude_query(prompt=prompt_arg, options=options):
                 self.logger.info(f"SDK message type: {type(message).__name__}")
                 if isinstance(message, AssistantMessage):
                     for block in message.content:
@@ -426,7 +381,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         user_prompt += f"Current message:\n{message_text}"
 
         try:
-            response = await self._claude_agent_query(system_prompt, user_prompt)
+            response = await self._claude_agent_query(system_prompt, user_prompt, image_paths=image_paths)
             self.logger.info(f'llm_request response: {response[:200]}...' if len(response) > 200 else f'llm_request response: {response}')
 
             # Handle list/dict responses
