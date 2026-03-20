@@ -2,8 +2,6 @@ import os
 import logging
 import json
 import re
-import base64
-import mimetypes
 from pathlib import Path
 import tiktoken
 import time as py_time
@@ -38,7 +36,7 @@ python3 /server/tools_cli.py render_math '{"formula": "<LaTeX without $ delimite
 After sending the image, write the surrounding explanation in plain text using Unicode math where helpful (e.g. ∫, ², ³, √, ≈, ±).
 
 ## Images
-When a user sends a photo or replies to a photo, the image is provided directly in your context — you can already see it. Do NOT attempt to read image files from disk using Bash or Read tools; the subprocess cannot access those files.
+When a message includes a file_list, use the Read tool to view each image before responding. The Read tool can access those files directly.
 
 ## Web Search
 You have access to Perplexity web search tools. Use them when the user asks about recent events, current prices, news, or anything requiring up-to-date information.
@@ -279,7 +277,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
                 lines.append(f"[Assistant]: {msg['content']}")
         return "\n".join(lines)
 
-    async def _claude_agent_query(self, system_prompt, user_prompt, image_paths=None):
+    async def _claude_agent_query(self, system_prompt, user_prompt):
         """Query Claude using the agent SDK with Perplexity MCP tools."""
         self.logger.info("Sending query to Claude agent SDK...")
 
@@ -316,38 +314,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             stderr=_stderr_callback,
         )
 
-        # Build prompt: multimodal AsyncIterable when images present, plain string otherwise
-        if image_paths:
-            async def _multimodal_prompt():
-                content = []
-                for img_path in image_paths:
-                    try:
-                        with open(img_path, 'rb') as f:
-                            img_bytes = f.read()
-                        mime_type, _ = mimetypes.guess_type(img_path)
-                        if not mime_type or not mime_type.startswith('image/'):
-                            mime_type = 'image/jpeg'
-                        content.append({
-                            "type": "image",
-                            "source": {
-                                "type": "base64",
-                                "media_type": mime_type,
-                                "data": base64.b64encode(img_bytes).decode(),
-                            }
-                        })
-                        self.logger.info(f"Included image in context: {img_path} ({mime_type})")
-                    except Exception as e:
-                        self.logger.error(f"Failed to include image {img_path}: {e}")
-                content.append({"type": "text", "text": user_prompt})
-                yield {
-                    "type": "user",
-                    "session_id": "",
-                    "message": {"role": "user", "content": content},
-                    "parent_tool_use_id": None,
-                }
-            prompt_arg = _multimodal_prompt()
-        else:
-            prompt_arg = user_prompt
+        prompt_arg = user_prompt
 
         result_text = ""
         try:
@@ -368,7 +335,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
             self.logger.error(f"Exception type: {type(e).__name__}, details: {e}")
             raise
 
-    async def llm_request(self, chat_id, message_id, message_text, image_paths=None):
+    async def llm_request(self, chat_id, message_id, message_text):
         self.logger.info(f'llm_request: {chat_id}')
 
         # Read chat history
@@ -384,7 +351,7 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
         user_prompt += f"Current message:\n{message_text}"
 
         try:
-            response = await self._claude_agent_query(system_prompt, user_prompt, image_paths=image_paths)
+            response = await self._claude_agent_query(system_prompt, user_prompt)
             self.logger.info(f'llm_request response: {response[:200]}...' if len(response) > 200 else f'llm_request response: {response}')
 
             # Handle list/dict responses

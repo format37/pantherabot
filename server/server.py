@@ -94,8 +94,8 @@ def user_access(message):
     
     return False
 
-async def call_llm_response(chat_id, message_id, message_text, reply, image_paths=None):
-    answer = await panthera.llm_request(chat_id, message_id, message_text, image_paths=image_paths)
+async def call_llm_response(chat_id, message_id, message_text, reply):
+    answer = await panthera.llm_request(chat_id, message_id, message_text)
 
     if answer == '':
         return JSONResponse(content={
@@ -199,6 +199,8 @@ async def flush_media_group(media_group_id: str):
     message_text += f"\nchat_id: {chat_id}"
     message_text += f"\nmessage_id: {message_id}"
     message_text += f"\nmessage_date: {message_date}"
+    if image_paths:
+        message_text += f"\nfile_list: {image_paths}"
     if text != '':
         message_text += f"\nmessage_text: {text}"
 
@@ -217,7 +219,7 @@ async def flush_media_group(media_group_id: str):
         or text.startswith('/*') \
         or text.startswith('/.') \
         or panthera.is_reply_to_ai_message(original_message):
-        await call_llm_response(chat_id, message_id, message_text, True, image_paths=image_paths)
+        await call_llm_response(chat_id, message_id, message_text, True)
 
 @app.post("/message")
 async def call_message(request: Request, authorization: str = Header(None)):
@@ -526,6 +528,8 @@ Commands:
     if "reply_to_message" in message:
         message_text += f"\nreply_to_message: {message['reply_to_message']['message_id']}"
     message_text += f"\nmessage_date: {message_date}"
+    if image_paths:
+        message_text += f"\nfile_list: {image_paths}"
     if text != '':
         message_text += f"\nmessage_text: {text}"
     panthera.save_to_chat_history(
@@ -547,7 +551,7 @@ Commands:
         or text.startswith('/.') \
         or panthera.is_reply_to_ai_message(message):
         # await call_llm_response(message, message_text, message['chat']['id'], True)
-        await call_llm_response(chat_id, message["message_id"], message_text, True, image_paths=image_paths if image_paths else None)
+        await call_llm_response(chat_id, message["message_id"], message_text, True)
         
     return JSONResponse(content={
         "type": "empty",
