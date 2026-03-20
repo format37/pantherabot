@@ -21,6 +21,10 @@ with open('config.json') as config_file:
 
 TOOL_INSTRUCTIONS = """
 
+## Wolfram Alpha
+Use Wolfram Alpha for math, science, unit conversions, equations, and factual lookups.
+Call it with: python3 /server/tools_cli.py wolfram_alpha '{"query": "<your query>"}'
+
 ## Web Search
 You have access to Perplexity web search tools. Use them when the user asks about recent events, current prices, news, or anything requiring up-to-date information.
 Only use tools when the user's request requires them. For normal conversation, respond directly."""
@@ -350,8 +354,8 @@ For the formatting you can use the telegram MarkdownV2 format. For example: {mar
 
         perplexity_url = os.environ.get("PERPLEXITY_MCP_URL", "")
 
-        # Build allowed_tools list: only include MCP tools when the server is configured
-        allowed_tools = []
+        # Build allowed_tools list: Bash+Read always enabled for tools_cli.py calls
+        allowed_tools = ["Bash", "Read"]
         mcp_servers = {}
         if perplexity_url:
             mcp_servers["perplexity"] = {
