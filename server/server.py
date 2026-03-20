@@ -455,6 +455,17 @@ Commands:
             image_paths.append(clean_path)
             logger.info(f"Image path: {clean_path}")
 
+    # Also extract image from replied-to message if it contains a photo
+    if 'reply_to_message' in message:
+        replied = message['reply_to_message']
+        if 'photo' in replied or 'document' in replied:
+            raw_paths = panthera.get_message_file_list(bot, replied)
+            for raw_path in raw_paths:
+                clean_path = re.sub(r'^/[^/]+:', '/', raw_path)
+                if clean_path not in image_paths:
+                    image_paths.append(clean_path)
+                    logger.info(f"Image path (from reply): {clean_path}")
+
     # Handle media groups (Telegram albums)
     if 'media_group_id' in message:
         media_group_id = message['media_group_id']
