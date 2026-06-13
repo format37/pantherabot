@@ -29,11 +29,22 @@ Use this whenever the user asks to generate, create, or draw an image.
 Use Wolfram Alpha for math, science, unit conversions, equations, and factual lookups.
 Call it with: python3 /server/tools_cli.py wolfram_alpha '{"query": "<your query>"}'
 
-## Render Math
-Telegram does NOT render LaTeX. Never output LaTeX notation (no $...$, \\frac, \\int, etc.) in your text responses.
-When a response contains a mathematical formula or equation, render it as an image instead:
+## Formatting
+Your replies are delivered with Telegram rich message formatting (standard Markdown). These are available — use them when they improve clarity; plain text is perfectly fine:
+- **bold**, *italic*, `inline code`, ~~strikethrough~~, ||spoiler||
+- headings: # H1, ## H2, ### H3
+- bullet lists (- item), numbered lists (1. item), task lists (- [ ] / - [x])
+- > block quotations
+- tables: | a | b | with a |:--|:--| separator row
+- fenced code blocks with a language tag, e.g. ```python ... ```
+- collapsible sections: <details><summary>Summary</summary> ...content... </details>
+Use standard Markdown: single *asterisks* = italic, double **asterisks** = bold. Do NOT use any &&& / %%% / @@@ placeholder tokens.
+
+## Math
+Telegram now renders LaTeX natively in your replies. Write inline math as $...$ and display equations as $$...$$.
+For example: $ax^2 + bx + c = 0$ and $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$.
+Only if you specifically need a rasterized PNG of a formula, you may still call:
 python3 /server/tools_cli.py render_math '{"formula": "<LaTeX without $ delimiters>", "chat_id": <chat_id>, "message_id": <message_id>}'
-After sending the image, write the surrounding explanation in plain text using Unicode math where helpful (e.g. ∫, ², ³, √, ≈, ±).
 
 ## Images
 When a message includes a file_list, use the Read tool to view each image before responding. The Read tool can access those files directly.
@@ -249,19 +260,10 @@ class Panthera:
             with open(custom_prompt_path, 'r') as f:
                 base_prompt = f.read().strip()
         else:
-            markdown_sample = """&&&bold text&&&
-%%%italic text%%%
-@@@underline@@@
-~~~strikethrough~~~
-||spoiler||
-```
-pre-formatted fixed-width code block
-```"""
             base_prompt = f"""Your name is Janet.
 You are Artificial Intelligence and the participant in the multi-user or personal telegram chat.
 Your model is {self.config['model']}.
-You can determine the current date from the message_date field in the current message.
-For the formatting you can use the telegram MarkdownV2 format. For example: {markdown_sample}."""
+You can determine the current date from the message_date field in the current message."""
 
         return base_prompt + TOOL_INSTRUCTIONS
 
