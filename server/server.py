@@ -12,6 +12,7 @@ from telebot.formatting import escape_markdown
 import hashlib
 from io import BytesIO
 import asyncio
+import requests
 
 # Initialize FastAPI
 app = FastAPI()
@@ -94,6 +95,37 @@ def user_access(message):
     
     return False
 
+def send_rich_message(chat_id, markdown_text, reply_to=None):
+    """Send a Telegram rich message (Markdown) via the local Bot API server.
+
+    Rich messages support headings, tables, lists, block quotes, collapsible
+    <details>, native LaTeX, etc. and allow up to 32768 chars. telebot has no
+    wrapper for sendRichMessage yet, so we POST to the local server directly.
+    Returns True on success, False on any failure so the caller can fall back
+    to the legacy MarkdownV2 send path.
+    """
+    try:
+        url = telebot.apihelper.API_URL.format(bot.token, 'sendRichMessage')
+        payload = {
+            "chat_id": chat_id,
+            "rich_message": {"markdown": markdown_text},
+        }
+        if reply_to is not None:
+            payload["reply_parameters"] = {
+                "message_id": reply_to,
+                "allow_sending_without_reply": True,
+            }
+        resp = requests.post(url, json=payload, timeout=30)
+        data = resp.json()
+        if data.get("ok"):
+            return True
+        logger.error(f"sendRichMessage rejected: {data}")
+        return False
+    except Exception as e:
+        logger.error(f"sendRichMessage error: {e}")
+        return False
+
+
 async def call_llm_response(chat_id, message_id, message_text, reply):
     answer = await panthera.llm_request(chat_id, message_id, message_text)
 
@@ -102,7 +134,20 @@ async def call_llm_response(chat_id, message_id, message_text, reply):
         "type": "empty",
         "body": ''
         })
-    
+
+    # Primary path: Telegram rich message (standard Markdown, up to 32768 chars).
+    # Janet may emit headings, tables, lists, quotes, <details>, native LaTeX, etc.
+    if len(answer) <= 32768 and send_rich_message(
+        chat_id, answer, reply_to=message_id if reply else None
+    ):
+        return JSONResponse(content={
+            "type": "empty",
+            "body": ''
+        })
+
+    # Fallback below: the rich send failed, or the response is too large to render
+    # as a single message. A response over 4096 chars cannot fit a regular
+    # sendMessage, so it is delivered as a .txt document instead.
     if len(answer) > 4096:
         try:
             filename = await panthera.generate_filename(answer)
