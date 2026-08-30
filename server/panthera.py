@@ -17,6 +17,12 @@ with open('config.json') as config_file:
     config = json.load(config_file)
 
 
+# Leading tool-name artifacts like "[Bash]" — the model imitating a tool call as
+# text instead of invoking it. Must never reach the chat or be saved to history,
+# or the model learns the pattern from its own history (2026-08-30 incident).
+TOOL_ARTIFACT_RE = re.compile(r'^\s*(?:\[(?:Bash|Read|mcp__\w+)\]\s*)+')
+
+
 TOOL_INSTRUCTIONS = """
 
 ## Image Generation
@@ -367,6 +373,22 @@ You can determine the current date from the message_date field in the current me
                         response = response['text']
                     except:
                         response = str(response)
+
+            cleaned = TOOL_ARTIFACT_RE.sub('', response).strip()
+            if cleaned != response.strip():
+                self.logger.warning(f'Stripped tool-name artifact from response: {response[:100]!r}')
+            response = cleaned
+
+            if not response:
+                self.logger.warning('Empty response after artifact stripping, retrying with tool reminder')
+                retry_prompt = user_prompt + (
+                    '\n\nReminder: tools are only invoked by actually calling the Bash tool. '
+                    'Writing a tool name like [Bash] as text does nothing. '
+                    'Complete the request now by invoking the tool, then reply with text.'
+                )
+                response = await self._claude_agent_query(system_prompt, retry_prompt)
+                response = TOOL_ARTIFACT_RE.sub('', response).strip()
+                self.logger.info(f'retry response: {response[:200]}')
 
             self.save_to_chat_history(
                 chat_id,

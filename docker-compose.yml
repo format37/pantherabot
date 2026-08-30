@@ -1,6 +1,7 @@
 services:
   server:
     container_name: panthera_gptaidbot
+    command: ["uvicorn", "server:app", "--host", "127.0.0.1", "--port", "4221"]
     restart: always
     volumes:
       # - /etc/localtime:/etc/localtime:ro
