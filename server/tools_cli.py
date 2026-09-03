@@ -163,7 +163,10 @@ async def generate_image(prompt, chat_id, message_id, file_list=None):
             photo=image_data,
             reply_to_message_id=int(message_id),
             caption=caption,
-            parse_mode="MarkdownV2"
+            parse_mode="MarkdownV2",
+            # The message being answered may be gone by the time an image is
+            # ready; losing the image over that is worse than losing the link.
+            allow_sending_without_reply=True,
         )
 
         # Save file_id for inline queries
@@ -201,6 +204,7 @@ async def render_math(formula, chat_id, message_id):
             chat_id=int(chat_id),
             photo=buf,
             reply_to_message_id=int(message_id),
+            allow_sending_without_reply=True,
         )
         return "Math formula rendered and sent as image"
     except Exception as e:
