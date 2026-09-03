@@ -13,6 +13,7 @@ from claude_agent_sdk import (
     TextBlock,
 )
 
+import bot_tools
 import memory
 
 with open('config.json') as config_file:
@@ -48,38 +49,34 @@ For example: $ax^2 + bx + c = 0$ and $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}
 
 
 # Appended only for senders authorized in data/users.txt. A guest turn runs with
-# tools=[] and no MCP servers, so describing tools to it would only invite the
-# model to fake them as text.
+# no tools at all, so describing tools to it would only invite the model to fake
+# them as text.
 TOOL_INSTRUCTIONS = """
 
-## Image Generation
-Generate images using the Gemini Nano Banana model (gemini-3.1-flash-image-preview).
-Call it with: python3 /server/tools_cli.py generate_image '{"prompt": "<description>", "chat_id": <chat_id>, "message_id": <message_id>}'
-Optionally include "file_list": ["<path>"] to pass input images for editing or composition.
-Use this whenever the user asks to generate, create, or draw an image.
-
-## Wolfram Alpha
-Use Wolfram Alpha for math, science, unit conversions, equations, and factual lookups.
-Call it with: python3 /server/tools_cli.py wolfram_alpha '{"query": "<your query>"}'
-
-## Rasterized formulas
-Telegram renders LaTeX natively, so you rarely need this. Only if you specifically need a
-rasterized PNG of a formula, call:
-python3 /server/tools_cli.py render_math '{"formula": "<LaTeX without $ delimiters>", "chat_id": <chat_id>, "message_id": <message_id>}'
+## Tools
+Everything you can do beyond talking is an MCP tool — invoke it. Writing a tool
+name as text does nothing. You have no shell and no file access of your own; the
+tools are the only way out of this process.
 
 ## Images
-When a message includes a file_list, use the Read tool to view each image before responding. The Read tool can access those files directly.
+When a message includes a file_list, call view_image on each path before answering:
+that is the only way to actually see a photo. Images produced in the sandbox can be
+viewed the same way, and delivered to the chat with send_file.
+Use generate_image whenever the user asks to generate, create, draw or edit an image.
+
+## Code execution
+run_command runs bash in an isolated sandbox container: no network, no access to the
+bot's data or credentials, and a working directory of its own that persists between
+messages in this chat. python3 there has pandas, numpy, matplotlib and pillow — do not
+try to install anything, there is no network. Write results to the working directory
+and deliver them with send_file.
 
 ## Memory
-When the user asks you to remember, save, or keep something in mind (запомни, сохрани, не забудь),
-call: python3 /server/tools_cli.py remember '{"chat_id": <chat_id>, "note": "<one short self-contained fact>"}'
-When they ask you to forget something (забудь):
-python3 /server/tools_cli.py forget '{"chat_id": <chat_id>, "pattern": "<substring, or * for everything>"}'
-When the memory is oversized and the user agrees to condense it:
-python3 /server/tools_cli.py replace_memory '{"chat_id": <chat_id>, "content": "<the full new list, one note per line>"}'
-Always pass the chat_id of the current conversation — any other value is refused.
-Do not store secrets, passwords, or tokens. Saved notes appear under "## Memory" in your
-instructions on every request; prefer them over older conversation history.
+When the user asks you to remember, save, or keep something in mind (запомни, сохрани,
+не забудь), call remember with a short, self-contained note. Call forget when they ask
+you to forget something (забудь). Do not store secrets, passwords, or tokens. Saved
+notes appear under "## Memory" in your instructions on every request; prefer them over
+older conversation history.
 
 ## Web Search
 You have access to Perplexity web search tools. Use them when the user asks about recent events, current prices, news, or anything requiring up-to-date information.
@@ -322,7 +319,8 @@ You can determine the current date from the message_date field in the current me
                 lines.append(f"[Assistant]: {msg['content']}")
         return "\n".join(lines)
 
-    async def _claude_agent_query(self, system_prompt, user_prompt, chat_id=None, tools_enabled=True):
+    async def _claude_agent_query(self, system_prompt, user_prompt, chat_id=None,
+                                  message_id=None, tools_enabled=True):
         """Query Claude using the agent SDK with Perplexity MCP tools."""
         self.logger.info(f"Sending query to Claude agent SDK (tools_enabled={tools_enabled})...")
 
@@ -334,13 +332,18 @@ You can determine the current date from the message_date field in the current me
 
         perplexity_url = os.environ.get("PERPLEXITY_MCP_URL", "")
 
-        # Built-in tools: Bash runs tools_cli.py, Read views images from chat history.
-        # `tools` is the base set the CLI exposes at all (--tools), `allowed_tools`
-        # is what runs without a permission prompt. A non-authorized sender in a
-        # granted group gets neither, and no MCP servers either.
-        base_tools = ["Bash", "Read"] if tools_enabled else []
-        allowed_tools = list(base_tools)
+        # No built-in tools at all (`tools=[]` -> `--tools ""`): no Bash, no Read,
+        # no Write. Everything the model can do is an in-process MCP tool in
+        # bot_tools, which keeps the secrets here and sends code to the sandbox
+        # container. A non-authorized sender in a granted group gets no tools and
+        # no MCP servers either.
+        allowed_tools = []
         mcp_servers = {}
+        if tools_enabled:
+            # Rebuilt per request: chat_id and message_id live in closures, so no
+            # tool takes a chat_id and none can be pointed at another chat.
+            mcp_servers["bot"] = bot_tools.create_bot_server(chat_id, message_id)
+            allowed_tools.extend(f"mcp__bot__{name}" for name in bot_tools.TOOL_NAMES)
         if tools_enabled and perplexity_url:
             mcp_servers["perplexity"] = {
                 "type": "http",
@@ -352,9 +355,8 @@ You can determine the current date from the message_date field in the current me
                 "mcp__perplexity__perplexity_sonar_deep_research",
             ])
 
-        # Which chat this turn belongs to. tools_cli.py refuses any chat_id that
-        # does not match, so a prompt injection cannot write another chat's memory
-        # or send it an image. The Bash tool inherits this env.
+        # Vestigial but cheap: tools_cli.py can still be run by an operator, and
+        # refuses any chat_id that does not match this turn.
         tool_env = {}
         if chat_id is not None:
             tool_env["PANTHERA_CHAT_ID"] = str(chat_id)
@@ -363,7 +365,7 @@ You can determine the current date from the message_date field in the current me
             system_prompt=system_prompt,
             model=self.config['model'],
             max_turns=10,
-            tools=base_tools,
+            tools=[],
             allowed_tools=allowed_tools,
             mcp_servers=mcp_servers,
             # Only the MCP servers passed above; ignore any .mcp.json the bot
@@ -416,7 +418,8 @@ You can determine the current date from the message_date field in the current me
 
         try:
             response = await self._claude_agent_query(
-                system_prompt, user_prompt, chat_id=chat_id, tools_enabled=tools_enabled
+                system_prompt, user_prompt, chat_id=chat_id, message_id=message_id,
+                tools_enabled=tools_enabled
             )
             self.logger.info(f'llm_request response: {response[:200]}...' if len(response) > 200 else f'llm_request response: {response}')
 
@@ -441,8 +444,8 @@ You can determine the current date from the message_date field in the current me
                 self.logger.warning('Empty response after artifact stripping, retrying with tool reminder')
                 if tools_enabled:
                     retry_prompt = user_prompt + (
-                        '\n\nReminder: tools are only invoked by actually calling the Bash tool. '
-                        'Writing a tool name like [Bash] as text does nothing. '
+                        '\n\nReminder: a tool only runs when you actually invoke it. '
+                        'Writing a tool name like [run_command] as text does nothing. '
                         'Complete the request now by invoking the tool, then reply with text.'
                     )
                 else:
@@ -451,7 +454,8 @@ You can determine the current date from the message_date field in the current me
                         'Answer directly, in plain text.'
                     )
                 response = await self._claude_agent_query(
-                    system_prompt, retry_prompt, chat_id=chat_id, tools_enabled=tools_enabled
+                    system_prompt, retry_prompt, chat_id=chat_id, message_id=message_id,
+                    tools_enabled=tools_enabled
                 )
                 response = TOOL_ARTIFACT_RE.sub('', response).strip()
                 self.logger.info(f'retry response: {response[:200]}')

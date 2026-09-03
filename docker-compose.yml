@@ -1,8 +1,12 @@
 services:
+  # The head: FastAPI, the Claude CLI, and every secret. It has no shell tool —
+  # the model's only way to run code is the sandbox service below.
   server:
     container_name: panthera_gptaidbot
     command: ["uvicorn", "server:app", "--host", "127.0.0.1", "--port", "4221"]
     restart: always
+    depends_on:
+      - sandbox
     volumes:
       # - /etc/localtime:/etc/localtime:ro
       # - /etc/timezone:/etc/timezone:ro
@@ -10,14 +14,19 @@ services:
       - ./config.json:/server/config.json:ro
       # The bot's OWN Claude config dir, never the host user's ~/.claude: that
       # one holds the human's credentials and a settings.json whose hooks run on
-      # the host, and everything under it is readable from any chat via Bash.
-      # Create and log in first (as the host user, NOT root):
+      # the host. Create and log in first (as the host user, NOT root):
       #   mkdir -p ~/.claude-bot
       #   CLAUDE_CONFIG_DIR=~/.claude-bot claude auth login
       # Docker would otherwise create it root-owned and the CLI could not write.
       # CLAUDE_HOME must be set (in .env or by compose.sh) — never use `~` here:
       # under plain sudo, ~ expands to /root and silently mounts wrong state.
       - ${CLAUDE_HOME:?set CLAUDE_HOME in .env or deploy via compose.sh}/.claude-bot:/home/appuser/.claude-bot
+      # Unix socket to the sandbox. It is the whole channel between the two
+      # containers, which is why the sandbox needs no network stack.
+      - ./run:/run/sandbox
+      # The sandbox's scratch space, read-only here: the head only reads files
+      # back out of it to view or send them.
+      - ./work:/work:ro
       # Telegram's local file storage. Read-only: the bot only ever reads photos
       # and documents from it. uid 1000 gets access through an ACL on the host
       # (see README) instead of CAP_DAC_READ_SEARCH.
@@ -45,3 +54,44 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - BOT_USERNAME=${BOT_USERNAME}
       - PERPLEXITY_MCP_URL=${PERPLEXITY_MCP_URL}
+      # Lets the head allow view_image/send_file on the Telegram file store.
+      - BOT_TOKEN_WITHOUT_PREFIX=${BOT_TOKEN_WITHOUT_PREFIX}
+      - SANDBOX_TOKEN=${SANDBOX_TOKEN}
+
+  # The hands: runs whatever the model asks to run, and holds nothing worth
+  # stealing. No network stack at all (`network_mode: none`) — the head reaches
+  # it over the Unix socket in ./run, so there is nowhere to exfiltrate to and
+  # nothing on the host it can dial.
+  sandbox:
+    container_name: panthera_sandbox
+    build: server
+    command: ["sh", "-c", "rm -f /run/sandbox/exec.sock && exec uvicorn exec_service:app --uds /run/sandbox/exec.sock"]
+    restart: always
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    volumes:
+      - ./run:/run/sandbox
+      - ./work:/work
+      # Photos the user sent, so code can process them. Read-only.
+      - type: bind
+        source: /mnt/${BOT_TOKEN_WITHOUT_PREFIX}
+        target: /${BOT_TOKEN_WITHOUT_PREFIX}
+        read_only: true
+    environment:
+      - TZ=America/Los_Angeles
+      - SANDBOX_TOKEN=${SANDBOX_TOKEN}
+      - HOME=/tmp
+      - MPLCONFIGDIR=/tmp/mpl
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 1g
+    cpus: 1
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

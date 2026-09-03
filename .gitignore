@@ -1,3 +1,8 @@
 .env
 __pycache__/
 examples/
+docs/
+run/*
+!run/.gitkeep
+work/*
+!work/.gitkeep

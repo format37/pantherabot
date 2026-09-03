@@ -9,6 +9,8 @@ COPY panthera.py /server
 COPY server.py /server
 COPY tools_cli.py /server
 COPY memory.py /server
+COPY bot_tools.py /server
+COPY exec_service.py /server
 RUN chown -R appuser:appuser /server
 
 # No setcap here: appuser reads Telegram's root-owned photo dirs through an ACL

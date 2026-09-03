@@ -4,6 +4,24 @@ Conversational telegram bot docker server
 * [Telebot server](https://github.com/format37/telegram_bot)  
 * [Panthera bot](https://github.com/format37/pantherabot)  
 * [LLM service](https://github.com/format37/openai_proxy)
+# head and hands
+Two containers. `panthera_gptaidbot` (the head) runs FastAPI and the Claude CLI
+and holds every secret — the Telegram token, the API keys, `data/`, and the
+Claude credentials. It gives the model **no built-in tools at all**: no Bash, no
+Read, no Write. Everything the model can do is an in-process MCP tool defined in
+`server/bot_tools.py`.
+
+`panthera_sandbox` (the hands) runs whatever code the model writes, and holds
+nothing: no secrets, no `data/`, no Claude config, and `network_mode: none` — it
+has no network stack, so there is nowhere to send anything and nothing on the
+host it can dial. The head reaches it over a Unix socket in `./run`, which is why
+it needs no network. Per-chat scratch space lives in `./work/{chat_id}`; the head
+mounts it read-only to view or deliver the files produced there.
+
+Both directories are tracked with a `.gitkeep` so the checkout owns them. If they
+are missing when compose starts, Docker creates them root-owned and the socket
+cannot be created.
+
 # root documents and photos mounting
 ":" are not suported in mouting therefore we need to remove user_id from mounting procedure:
 ```
