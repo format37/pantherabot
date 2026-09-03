@@ -100,6 +100,7 @@ class Panthera:
             self.config['token_limit'] = config['token_limit']
             self.logger.info(f'Token limit: {self.config["token_limit"]}')
 
+        self._enc = None
         self.data_dir = './data/chats'
         Path(self.data_dir).mkdir(parents=True, exist_ok=True)
         self.chat_history = []
@@ -148,14 +149,34 @@ class Panthera:
             self.logger.info(f'remove file: {f}')
             os.remove(os.path.join(chat_path, f))
 
+    def _encoder(self):
+        """Resolve the tokenizer once, or None if it is unavailable.
+
+        `get_encoding` downloads the BPE file on a cold cache, so this can fail
+        on a network blip. It must not raise: the only caller is history
+        pruning, and an exception there used to be read as a corrupt file.
+        """
+        if self._enc is not None:
+            return self._enc
+        for resolve in (
+            lambda: tiktoken.encoding_for_model(self.config.get('model', 'gpt-4o')),
+            lambda: tiktoken.get_encoding("cl100k_base"),
+        ):
+            try:
+                self._enc = resolve()
+                return self._enc
+            except Exception as e:
+                last_error = e
+        self.logger.warning(f'Tokenizer unavailable, estimating token counts: {last_error}')
+        return None
+
     def token_counter(self, text):
-        model_for_tokens = self.config.get('model', 'gpt-4o')
-        try:
-            enc = tiktoken.encoding_for_model(model_for_tokens)
-        except Exception:
-            enc = tiktoken.get_encoding("cl100k_base")
-        tokens = enc.encode(text)
-        return len(tokens)
+        enc = self._encoder()
+        if enc is None:
+            # Roughly four characters per token — good enough to keep pruning
+            # working, and far better than failing.
+            return max(1, len(text) // 4)
+        return len(enc.encode(text))
 
     def save_to_chat_history(
         self,
@@ -246,35 +267,43 @@ class Panthera:
                     self.logger.error(f'Error removing file: {e}')
                 continue
 
+            # Deleting is only ever right for a file that is not a history
+            # record. Anything else — a failed read, a tokenizer outage — is
+            # transient, and this loop walks every file in the chat, so treating
+            # it as corruption would wipe the whole conversation in one pass.
             try:
                 with open(file_path, 'r') as file:
                     message = json.load(file)
-
-                    message_tokens = self.token_counter(message['text'])
-
-                    if token_count + message_tokens > MAX_TOKENS:
-                        try:
-                            os.remove(file_path)
-                            self.logger.info(f'Removed file exceeding token limit: {file_path}')
-                        except Exception as e:
-                            self.logger.error(f'Error removing file: {e}')
-                        continue
-
-                    if message['type'] == 'AIMessage':
-                        self.chat_history.insert(0, {"role": "assistant", "content": message['text']})
-                    elif message['type'] == 'HumanMessage':
-                        self.chat_history.insert(0, {"role": "user", "content": message['text']})
-
-                    message_count += 1
-                    token_count += message_tokens
-
-            except Exception as e:
-                self.logger.error(f'Error reading chat history file {file_path}: {e}')
+                if not isinstance(message, dict) or 'text' not in message or 'type' not in message:
+                    raise ValueError('not a chat history record')
+            except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as e:
+                self.logger.error(f'Removing corrupted chat history file {file_path}: {e}')
                 try:
                     os.remove(file_path)
-                    self.logger.error(f'Removed corrupted file: {file_path}')
                 except Exception as remove_error:
                     self.logger.error(f'Error removing corrupted file: {remove_error}')
+                continue
+            except Exception as e:
+                self.logger.error(f'Skipping unreadable chat history file {file_path}: {e}')
+                continue
+
+            message_tokens = self.token_counter(message['text'])
+
+            if token_count + message_tokens > MAX_TOKENS:
+                try:
+                    os.remove(file_path)
+                    self.logger.info(f'Removed file exceeding token limit: {file_path}')
+                except Exception as e:
+                    self.logger.error(f'Error removing file: {e}')
+                continue
+
+            if message['type'] == 'AIMessage':
+                self.chat_history.insert(0, {"role": "assistant", "content": message['text']})
+            elif message['type'] == 'HumanMessage':
+                self.chat_history.insert(0, {"role": "user", "content": message['text']})
+
+            message_count += 1
+            token_count += message_tokens
 
         self.logger.info(f'Loaded {message_count} messages with {token_count} tokens for chat {chat_id}')
 
