@@ -9,6 +9,12 @@ Examples:
     python3 /server/tools_cli.py wolfram_alpha '{"query": "solve x^2+1=0"}'
     python3 /server/tools_cli.py web_search '{"query": "latest AI news"}'
     python3 /server/tools_cli.py generate_image '{"prompt": "a cat", "chat_id": 123, "message_id": 456}'
+    python3 /server/tools_cli.py remember '{"chat_id": 123, "note": "prefers short replies"}'
+
+Every tool that takes a chat_id is pinned to the conversation the request came
+from: panthera.py exports PANTHERA_CHAT_ID into the CLI environment and
+check_chat_id() below refuses anything else, so a prompt injection cannot write
+another chat's memory, prompt or images.
 """
 import sys
 import json
@@ -21,6 +27,8 @@ from google import genai
 from google.genai import types
 import mimetypes
 
+import memory
+
 # Configure Telegram bot API to use local server
 server_api_uri = 'http://localhost:8081/bot{0}/{1}'
 telebot.apihelper.API_URL = server_api_uri
@@ -31,6 +39,21 @@ with open('config.json') as f:
     config = json.load(f)
 
 bot = telebot.TeleBot(config['TOKEN'])
+
+
+def check_chat_id(chat_id):
+    """Refuse a chat_id that is not the one this turn belongs to.
+
+    PANTHERA_CHAT_ID is set by panthera.py for every model turn. It is absent
+    when an operator runs a tool by hand, and then no restriction applies.
+    """
+    given = str(chat_id).strip()
+    expected = os.environ.get('PANTHERA_CHAT_ID', '').strip()
+    if expected and given != expected:
+        raise PermissionError(
+            f'chat_id {given} does not belong to this conversation ({expected}); refused'
+        )
+    return given
 
 
 async def wolfram_alpha(query):
@@ -83,6 +106,7 @@ async def wolfram_alpha(query):
 
 async def generate_image(prompt, chat_id, message_id, file_list=None):
     """Generate image using Gemini Nano Banana (gemini-3.1-flash-image-preview) and send to Telegram chat."""
+    check_chat_id(chat_id)
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         return "Image generation failed: GEMINI_API_KEY not configured"
@@ -156,6 +180,7 @@ async def generate_image(prompt, chat_id, message_id, file_list=None):
 
 async def render_math(formula, chat_id, message_id):
     """Render a LaTeX math formula as PNG image and send to Telegram chat."""
+    check_chat_id(chat_id)
     import io
     import matplotlib
     matplotlib.use('Agg')
@@ -184,6 +209,7 @@ async def render_math(formula, chat_id, message_id):
 
 async def update_system_prompt(chat_id, new_prompt):
     """Update the system prompt for a chat."""
+    check_chat_id(chat_id)
     os.makedirs('./data/custom_prompts', exist_ok=True)
     with open(f'./data/custom_prompts/{chat_id}.txt', 'w') as f:
         f.write(new_prompt)
@@ -192,10 +218,29 @@ async def update_system_prompt(chat_id, new_prompt):
 
 async def reset_system_prompt(chat_id):
     """Reset the system prompt for a chat."""
+    check_chat_id(chat_id)
     path = f'./data/custom_prompts/{chat_id}.txt'
     if os.path.exists(path):
         os.remove(path)
     return "System prompt reset: ok"
+
+
+async def remember(chat_id, note):
+    """Append one note to this chat's long-term memory."""
+    check_chat_id(chat_id)
+    return memory.remember(chat_id, note)
+
+
+async def forget(chat_id, pattern):
+    """Drop notes matching `pattern` ('*' clears the whole memory)."""
+    check_chat_id(chat_id)
+    return memory.forget(chat_id, pattern)
+
+
+async def replace_memory(chat_id, content):
+    """Rewrite the whole memory, for condensing it."""
+    check_chat_id(chat_id)
+    return memory.replace_memory(chat_id, content)
 
 
 TOOLS = {
@@ -204,6 +249,9 @@ TOOLS = {
     "render_math": render_math,
     "update_system_prompt": update_system_prompt,
     "reset_system_prompt": reset_system_prompt,
+    "remember": remember,
+    "forget": forget,
+    "replace_memory": replace_memory,
 }
 
 
@@ -219,5 +267,11 @@ if __name__ == '__main__':
         sys.exit(1)
 
     args = json.loads(sys.argv[2]) if len(sys.argv) > 2 else {}
-    result = asyncio.run(TOOLS[tool_name](**args))
+    try:
+        result = asyncio.run(TOOLS[tool_name](**args))
+    except (PermissionError, ValueError, TypeError) as e:
+        # Report refusals and bad arguments as a readable line the model can act
+        # on, not a traceback. Non-zero exit keeps it visible as a failure.
+        print(f'{tool_name} failed: {e}')
+        sys.exit(1)
     print(result)

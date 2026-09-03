@@ -4,6 +4,7 @@ import os
 import logging
 import json
 from panthera import Panthera
+import memory
 import re
 import pandas as pd
 # from telebot import TeleBot
@@ -45,12 +46,36 @@ async def call_test():
     logger.info('call_test')
     return JSONResponse(content={"status": "ok"})
 
+def load_authorized_users():
+    """User ids listed in data/users.txt."""
+    with open('data/users.txt') as f:
+        return f.read().splitlines()
+
+
+def is_authorized_sender(message):
+    """True when this particular sender is in data/users.txt.
+
+    user_access() answers "may this chat be served at all" — in a granted group
+    it says yes to every member. This answers "may this sender make the bot run
+    tools", which is a different question: a guest gets the conversation, an
+    authorized user gets the tools.
+    """
+    return str(message['from']['id']) in load_authorized_users()
+
+
+def parse_command(text):
+    """Split '/cmd@bot rest of line' into ('/cmd', 'rest of line')."""
+    if not text.startswith('/'):
+        return '', ''
+    head, _, rest = text.partition(' ')
+    return head.split('@', 1)[0], rest.strip()
+
+
 def user_access(message):
     # # Initialize the bot
     # bot = TeleBot(token)
     # Get list of users from ./data/users.txt
-    with open('data/users.txt') as f:
-        users = f.read().splitlines()
+    users = load_authorized_users()
     # Check if user is in the list
     if str(message['from']['id']) in users:
         return True
@@ -126,8 +151,10 @@ def send_rich_message(chat_id, markdown_text, reply_to=None):
         return False
 
 
-async def call_llm_response(chat_id, message_id, message_text, reply):
-    answer = await panthera.llm_request(chat_id, message_id, message_text)
+async def call_llm_response(chat_id, message_id, message_text, reply, tools_enabled=True):
+    answer = await panthera.llm_request(
+        chat_id, message_id, message_text, tools_enabled=tools_enabled
+    )
 
     if answer == '':
         return JSONResponse(content={
@@ -232,6 +259,7 @@ async def flush_media_group(media_group_id: str):
     image_paths = buffer_data['images']
     chat_type = buffer_data['chat_type']
     original_message = buffer_data['message']
+    tools_enabled = is_authorized_sender(original_message)
 
     logger.info(f"Flushing media group {media_group_id} with {len(image_paths)} images")
 
@@ -264,7 +292,8 @@ async def flush_media_group(media_group_id: str):
         or text.startswith('/*') \
         or text.startswith('/.') \
         or panthera.is_reply_to_ai_message(original_message):
-        await call_llm_response(chat_id, message_id, message_text, True)
+        await call_llm_response(chat_id, message_id, message_text, True,
+                                tools_enabled=tools_enabled)
 
 @app.post("/message")
 async def call_message(request: Request, authorization: str = Header(None)):
@@ -287,6 +316,15 @@ async def call_message(request: Request, authorization: str = Header(None)):
                 "type": "empty",
                 "body": ''
             })
+
+    # The chat is served (user_access above). Whether THIS sender may make the
+    # bot execute anything is decided separately: in a granted group every member
+    # can talk to the bot, but only users in data/users.txt get tools.
+    tools_enabled = is_authorized_sender(message)
+    logger.info(
+        f"sender authorized: {'yes' if tools_enabled else 'no'} "
+        f"(user {message['from']['id']}, chat {message['chat']['id']})"
+    )
 
     if  not 'text'      in message and \
         not 'caption'   in message and \
@@ -398,6 +436,9 @@ async def call_message(request: Request, authorization: str = Header(None)):
 *Memory & Context*
 • Maintains conversation history
 • /reset \- Clear chat memory
+• Ask me to remember something and it survives /reset
+• /memory \- Show the notes saved in this chat
+• /forget \<text\> \- Drop matching notes \(/forget all clears them\)
 
 *Group Chat Features*
 • @gptaidbot \- Quote bot's last pm message
@@ -417,6 +458,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
     answer = 'empty'
 
     if 'text' in message:
+        command, command_args = parse_command(text)
         if text == '/reset' and message['chat']['type'] == 'private':
             panthera.reset_chat(message['chat']['id'])
             answer = 'Chat messages memory has been cleaned'
@@ -428,6 +470,40 @@ async def call_message(request: Request, authorization: str = Header(None)):
         elif text.startswith('/reset@') and message['chat']['type'] != 'private':
             panthera.reset_chat(message['chat']['id'])
             answer = 'Chat messages memory has been cleaned'
+            return JSONResponse(content={
+                "type": "text",
+                "body": str(answer)
+                })
+        elif command == '/memory':
+            # Long-term notes, deliberately untouched by /reset.
+            try:
+                content = memory.load(message['chat']['id'])
+            except Exception as e:
+                logger.error(f'/memory failed: {e}')
+                content = ''
+            if not content:
+                answer = 'Memory is empty.'
+            elif len(content) > 3500:
+                answer = content[-3500:] + '\n\n(older notes not shown)'
+            else:
+                answer = content
+            return JSONResponse(content={
+                "type": "text",
+                "body": str(answer)
+                })
+        elif command == '/forget':
+            if not tools_enabled:
+                answer = "Only authorized users can change this chat's memory."
+            elif not command_args:
+                answer = ('Usage: /forget <text> removes the notes containing that text, '
+                          '/forget all clears the memory. /memory shows what is saved.')
+            else:
+                pattern = '*' if command_args.lower() in ('all', '*') else command_args
+                try:
+                    answer = memory.forget(message['chat']['id'], pattern)
+                except Exception as e:
+                    logger.error(f'/forget failed: {e}')
+                    answer = f'Could not update memory: {e}'
             return JSONResponse(content={
                 "type": "text",
                 "body": str(answer)
@@ -459,7 +535,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
             # logger.info(f"Prepared message_text with personal chat history: {message_text[:100]}...")
 
             message_text = ''
-            await call_llm_response(chat_id, message["message_id"], message_text, False)
+            await call_llm_response(chat_id, message["message_id"], message_text, False,
+                                    tools_enabled=tools_enabled)
             return JSONResponse(content={
                 "type": "empty",
                 "body": ''
@@ -477,6 +554,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
 
 Commands:
 /reset — clear chat memory
+/memory — show what I remember about this chat
+/forget <text> — drop matching notes (/forget all clears them)
 /* or /. prefix in a group chat to call me.
 "@gptaidbot" to cite my last personal message in a group chat.
 "@gptaidbot photo" to cite my last photo from personal message in a group chat.
@@ -596,7 +675,8 @@ Commands:
         or text.startswith('/.') \
         or panthera.is_reply_to_ai_message(message):
         # await call_llm_response(message, message_text, message['chat']['id'], True)
-        await call_llm_response(chat_id, message["message_id"], message_text, True)
+        await call_llm_response(chat_id, message["message_id"], message_text, True,
+                                tools_enabled=tools_enabled)
         
     return JSONResponse(content={
         "type": "empty",

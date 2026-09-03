@@ -13,6 +13,8 @@ from claude_agent_sdk import (
     TextBlock,
 )
 
+import memory
+
 with open('config.json') as config_file:
     config = json.load(config_file)
 
@@ -23,17 +25,9 @@ with open('config.json') as config_file:
 TOOL_ARTIFACT_RE = re.compile(r'^\s*(?:\[(?:Bash|Read|mcp__\w+)\]\s*)+')
 
 
-TOOL_INSTRUCTIONS = """
-
-## Image Generation
-Generate images using the Gemini Nano Banana model (gemini-3.1-flash-image-preview).
-Call it with: python3 /server/tools_cli.py generate_image '{"prompt": "<description>", "chat_id": <chat_id>, "message_id": <message_id>}'
-Optionally include "file_list": ["<path>"] to pass input images for editing or composition.
-Use this whenever the user asks to generate, create, or draw an image.
-
-## Wolfram Alpha
-Use Wolfram Alpha for math, science, unit conversions, equations, and factual lookups.
-Call it with: python3 /server/tools_cli.py wolfram_alpha '{"query": "<your query>"}'
+# Always included. Nothing here needs a tool, so guests (non-authorized senders in
+# a granted group) get it too.
+FORMATTING_INSTRUCTIONS = """
 
 ## Formatting
 Your replies are delivered with Telegram rich message formatting (standard Markdown). These are available — use them when they improve clarity; plain text is perfectly fine:
@@ -48,12 +42,42 @@ Use standard Markdown: single *asterisks* = italic, double **asterisks** = bold.
 
 ## Math
 Telegram now renders LaTeX natively in your replies. Write inline math as $...$ and display equations as $$...$$.
-For example: $ax^2 + bx + c = 0$ and $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$.
-Only if you specifically need a rasterized PNG of a formula, you may still call:
+For example: $ax^2 + bx + c = 0$ and $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$."""
+
+
+# Appended only for senders authorized in data/users.txt. A guest turn runs with
+# tools=[] and no MCP servers, so describing tools to it would only invite the
+# model to fake them as text.
+TOOL_INSTRUCTIONS = """
+
+## Image Generation
+Generate images using the Gemini Nano Banana model (gemini-3.1-flash-image-preview).
+Call it with: python3 /server/tools_cli.py generate_image '{"prompt": "<description>", "chat_id": <chat_id>, "message_id": <message_id>}'
+Optionally include "file_list": ["<path>"] to pass input images for editing or composition.
+Use this whenever the user asks to generate, create, or draw an image.
+
+## Wolfram Alpha
+Use Wolfram Alpha for math, science, unit conversions, equations, and factual lookups.
+Call it with: python3 /server/tools_cli.py wolfram_alpha '{"query": "<your query>"}'
+
+## Rasterized formulas
+Telegram renders LaTeX natively, so you rarely need this. Only if you specifically need a
+rasterized PNG of a formula, call:
 python3 /server/tools_cli.py render_math '{"formula": "<LaTeX without $ delimiters>", "chat_id": <chat_id>, "message_id": <message_id>}'
 
 ## Images
 When a message includes a file_list, use the Read tool to view each image before responding. The Read tool can access those files directly.
+
+## Memory
+When the user asks you to remember, save, or keep something in mind (запомни, сохрани, не забудь),
+call: python3 /server/tools_cli.py remember '{"chat_id": <chat_id>, "note": "<one short self-contained fact>"}'
+When they ask you to forget something (забудь):
+python3 /server/tools_cli.py forget '{"chat_id": <chat_id>, "pattern": "<substring, or * for everything>"}'
+When the memory is oversized and the user agrees to condense it:
+python3 /server/tools_cli.py replace_memory '{"chat_id": <chat_id>, "content": "<the full new list, one note per line>"}'
+Always pass the chat_id of the current conversation — any other value is refused.
+Do not store secrets, passwords, or tokens. Saved notes appear under "## Memory" in your
+instructions on every request; prefer them over older conversation history.
 
 ## Web Search
 You have access to Perplexity web search tools. Use them when the user asks about recent events, current prices, news, or anything requiring up-to-date information.
@@ -118,7 +142,10 @@ class Panthera:
         self.logger.info(f'reset_chat: {chat_id}')
         chat_path = os.path.join('data', 'users', str(chat_id), 'chats', str(chat_id))
         Path(chat_path).mkdir(parents=True, exist_ok=True)
+        # *.json only: everything else in this folder is not a history record.
         for f in os.listdir(chat_path):
+            if not f.endswith('.json'):
+                continue
             self.logger.info(f'remove file: {f}')
             os.remove(os.path.join(chat_path, f))
 
@@ -193,6 +220,10 @@ class Panthera:
 
         files = []
         for log_file in os.listdir(chat_log_path):
+            # *.json only: a stray file here must not be parsed as a message,
+            # nor pruned as an over-quota one.
+            if not log_file.endswith('.json'):
+                continue
             file_path = os.path.join(chat_log_path, log_file)
             try:
                 files.append((file_path, os.path.getctime(file_path)))
@@ -259,8 +290,8 @@ class Panthera:
             first_name = 'Unknown'
         return first_name
 
-    def get_system_prompt(self, chat_id):
-        """Get system prompt with tool descriptions appended."""
+    def get_system_prompt(self, chat_id, tools_enabled=True):
+        """Base prompt + formatting rules, plus tool docs and memory when allowed."""
         custom_prompt_path = f'./data/custom_prompts/{chat_id}.txt'
         if os.path.exists(custom_prompt_path):
             with open(custom_prompt_path, 'r') as f:
@@ -271,7 +302,11 @@ You are Artificial Intelligence and the participant in the multi-user or persona
 Your model is {self.config['model']}.
 You can determine the current date from the message_date field in the current message."""
 
-        return base_prompt + TOOL_INSTRUCTIONS
+        prompt = base_prompt + FORMATTING_INSTRUCTIONS
+        if tools_enabled:
+            prompt += TOOL_INSTRUCTIONS
+        prompt += memory.render_for_prompt(chat_id)
+        return prompt
 
     def format_chat_history(self):
         """Format chat history as text for inclusion in the prompt."""
@@ -285,9 +320,9 @@ You can determine the current date from the message_date field in the current me
                 lines.append(f"[Assistant]: {msg['content']}")
         return "\n".join(lines)
 
-    async def _claude_agent_query(self, system_prompt, user_prompt):
+    async def _claude_agent_query(self, system_prompt, user_prompt, chat_id=None, tools_enabled=True):
         """Query Claude using the agent SDK with Perplexity MCP tools."""
-        self.logger.info("Sending query to Claude agent SDK...")
+        self.logger.info(f"Sending query to Claude agent SDK (tools_enabled={tools_enabled})...")
 
         stderr_lines = []
 
@@ -297,10 +332,14 @@ You can determine the current date from the message_date field in the current me
 
         perplexity_url = os.environ.get("PERPLEXITY_MCP_URL", "")
 
-        # Build allowed_tools list: Bash+Read always enabled for tools_cli.py calls
-        allowed_tools = ["Bash", "Read"]
+        # Built-in tools: Bash runs tools_cli.py, Read views images from chat history.
+        # `tools` is the base set the CLI exposes at all (--tools), `allowed_tools`
+        # is what runs without a permission prompt. A non-authorized sender in a
+        # granted group gets neither, and no MCP servers either.
+        base_tools = ["Bash", "Read"] if tools_enabled else []
+        allowed_tools = list(base_tools)
         mcp_servers = {}
-        if perplexity_url:
+        if tools_enabled and perplexity_url:
             mcp_servers["perplexity"] = {
                 "type": "http",
                 "url": perplexity_url,
@@ -311,14 +350,29 @@ You can determine the current date from the message_date field in the current me
                 "mcp__perplexity__perplexity_sonar_deep_research",
             ])
 
+        # Which chat this turn belongs to. tools_cli.py refuses any chat_id that
+        # does not match, so a prompt injection cannot write another chat's memory
+        # or send it an image. The Bash tool inherits this env.
+        tool_env = {}
+        if chat_id is not None:
+            tool_env["PANTHERA_CHAT_ID"] = str(chat_id)
+
         options = ClaudeAgentOptions(
             system_prompt=system_prompt,
             model=self.config['model'],
             max_turns=10,
-            allowed_tools=allowed_tools if allowed_tools else [],
-            mcp_servers=mcp_servers if mcp_servers else None,
-            setting_sources=["user"],
+            tools=base_tools,
+            allowed_tools=allowed_tools,
+            mcp_servers=mcp_servers,
+            # Only the MCP servers passed above; ignore any .mcp.json the bot
+            # could write into its own working directory.
+            strict_mcp_config=True,
+            # No settings.json from anywhere: a hook written into the config dir
+            # by a chat user must never be honoured by the next query.
+            # (`[]` -> `--setting-sources=`; only `None` broke older SDKs.)
+            setting_sources=[],
             effort="high",  # Fable 5.1: thinking is always on; fixed budgets are rejected
+            env=tool_env,
             stderr=_stderr_callback,
         )
 
@@ -343,13 +397,13 @@ You can determine the current date from the message_date field in the current me
             self.logger.error(f"Exception type: {type(e).__name__}, details: {e}")
             raise
 
-    async def llm_request(self, chat_id, message_id, message_text):
-        self.logger.info(f'llm_request: {chat_id}')
+    async def llm_request(self, chat_id, message_id, message_text, tools_enabled=True):
+        self.logger.info(f'llm_request: {chat_id} (tools_enabled={tools_enabled})')
 
         # Read chat history
         self.read_chat_history(chat_id=chat_id)
         self.logger.info(f'invoking message_text: {message_text}')
-        system_prompt = self.get_system_prompt(chat_id)
+        system_prompt = self.get_system_prompt(chat_id, tools_enabled=tools_enabled)
 
         # Build prompt with chat history context
         history_text = self.format_chat_history()
@@ -359,7 +413,9 @@ You can determine the current date from the message_date field in the current me
         user_prompt += f"Current message:\n{message_text}"
 
         try:
-            response = await self._claude_agent_query(system_prompt, user_prompt)
+            response = await self._claude_agent_query(
+                system_prompt, user_prompt, chat_id=chat_id, tools_enabled=tools_enabled
+            )
             self.logger.info(f'llm_request response: {response[:200]}...' if len(response) > 200 else f'llm_request response: {response}')
 
             # Handle list/dict responses
@@ -381,12 +437,20 @@ You can determine the current date from the message_date field in the current me
 
             if not response:
                 self.logger.warning('Empty response after artifact stripping, retrying with tool reminder')
-                retry_prompt = user_prompt + (
-                    '\n\nReminder: tools are only invoked by actually calling the Bash tool. '
-                    'Writing a tool name like [Bash] as text does nothing. '
-                    'Complete the request now by invoking the tool, then reply with text.'
+                if tools_enabled:
+                    retry_prompt = user_prompt + (
+                        '\n\nReminder: tools are only invoked by actually calling the Bash tool. '
+                        'Writing a tool name like [Bash] as text does nothing. '
+                        'Complete the request now by invoking the tool, then reply with text.'
+                    )
+                else:
+                    retry_prompt = user_prompt + (
+                        '\n\nReminder: you have no tools in this conversation. '
+                        'Answer directly, in plain text.'
+                    )
+                response = await self._claude_agent_query(
+                    system_prompt, retry_prompt, chat_id=chat_id, tools_enabled=tools_enabled
                 )
-                response = await self._claude_agent_query(system_prompt, retry_prompt)
                 response = TOOL_ARTIFACT_RE.sub('', response).strip()
                 self.logger.info(f'retry response: {response[:200]}')
 

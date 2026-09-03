@@ -7,24 +7,39 @@ services:
       # - /etc/localtime:/etc/localtime:ro
       # - /etc/timezone:/etc/timezone:ro
       - ./data:/server/data
-      - ./config.json:/server/config.json
+      - ./config.json:/server/config.json:ro
+      # The bot's OWN Claude config dir, never the host user's ~/.claude: that
+      # one holds the human's credentials and a settings.json whose hooks run on
+      # the host, and everything under it is readable from any chat via Bash.
+      # Create and log in first (as the host user, NOT root):
+      #   mkdir -p ~/.claude-bot
+      #   CLAUDE_CONFIG_DIR=~/.claude-bot claude auth login
+      # Docker would otherwise create it root-owned and the CLI could not write.
       # CLAUDE_HOME must be set (in .env or by compose.sh) — never use `~` here:
       # under plain sudo, ~ expands to /root and silently mounts wrong state.
-      - ${CLAUDE_HOME:?set CLAUDE_HOME in .env or deploy via compose.sh}/.claude:/home/appuser/.claude
-      - ${CLAUDE_HOME:?set CLAUDE_HOME in .env or deploy via compose.sh}/.claude.json:/home/appuser/.claude.json
+      - ${CLAUDE_HOME:?set CLAUDE_HOME in .env or deploy via compose.sh}/.claude-bot:/home/appuser/.claude-bot
+      # Telegram's local file storage. Read-only: the bot only ever reads photos
+      # and documents from it. uid 1000 gets access through an ACL on the host
+      # (see README) instead of CAP_DAC_READ_SEARCH.
       - type: bind
         source: /mnt/${BOT_TOKEN_WITHOUT_PREFIX}
         target: /${BOT_TOKEN_WITHOUT_PREFIX}
-    cap_add:
-      - DAC_READ_SEARCH
+        read_only: true
     build: server
     logging:
       options:
         max-size: "10m"
         max-file: "3"
     network_mode: host
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 512
+    mem_limit: 2g
     environment:
       - TZ=America/Los_Angeles
+      # Keeps credentials, settings and session transcripts inside the mount
+      # above; the CLI also puts its .claude.json there when this is set.
+      - CLAUDE_CONFIG_DIR=/home/appuser/.claude-bot
       - WOLFRAM_ALPHA_APPID=${WOLFRAM_ALPHA_APPID}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
