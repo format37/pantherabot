@@ -90,12 +90,19 @@ def _write(chat_id, notes):
 
 
 def load(chat_id):
-    """Raw file content, or '' when there is no memory yet."""
+    """Raw file content, or '' when nothing is saved.
+
+    A file whose notes have all been forgotten keeps its header; that still
+    counts as empty, both for /memory and for the system prompt.
+    """
     path = memory_path(chat_id)
     if not os.path.exists(path):
         return ''
     with open(path, 'r', encoding='utf-8') as f:
-        return f.read().strip()
+        content = f.read()
+    if not any(line.strip().startswith('- ') for line in content.splitlines()):
+        return ''
+    return content.strip()
 
 
 def render_for_prompt(chat_id):
