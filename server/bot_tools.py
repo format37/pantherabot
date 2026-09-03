@@ -66,9 +66,12 @@ def _resolve(path, chat_id):
 
     Two roots only: Telegram's file store (photos the user sent) and this chat's
     scratch directory in the sandbox volume. Symlinks are resolved first, so a
-    link planted from inside the sandbox cannot point out of them.
+    link planted from inside the sandbox cannot point out of them. A relative
+    path means the working directory, which is what the sandbox shell was in.
     """
     roots = [r for r in (TELEGRAM_FILES_ROOT, work_dir(chat_id)) if r]
+    if not os.path.isabs(path):
+        path = os.path.join(work_dir(chat_id), path)
     real = os.path.realpath(path)
     for root in roots:
         root = os.path.realpath(root)
@@ -187,15 +190,20 @@ def create_bot_server(chat_id, message_id):
         mime, _ = mimetypes.guess_type(path)
         try:
             with open(path, 'rb') as f:
+                # allow_sending_without_reply: the message being answered may be
+                # gone by now (deleted, or an album's first part); losing the file
+                # over that would be worse than losing the reply link.
                 if mime and mime.startswith('image/'):
                     tools_cli.bot.send_photo(
                         chat_id=int(chat_id), photo=f,
                         reply_to_message_id=int(message_id), caption=caption,
+                        allow_sending_without_reply=True,
                     )
                 else:
                     tools_cli.bot.send_document(
                         chat_id=int(chat_id), document=f,
                         reply_to_message_id=int(message_id), caption=caption,
+                        allow_sending_without_reply=True,
                     )
         except Exception as e:
             return _error(f'could not send the file: {e}')
