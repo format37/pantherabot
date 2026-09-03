@@ -64,7 +64,7 @@ class Panthera:
 
         self.config = json.load(open('./data/users/default.json', 'r'))
         # Force model from config.json
-        self.config['model'] = config.get('primary_model', 'claude-opus-4-6')
+        self.config['model'] = config.get('primary_model', 'claude-fable-5-1')
         self.logger.info(f'Using model: {self.config["model"]}')
         # Override token_limit from config.json if present
         if 'token_limit' in config:
@@ -312,7 +312,7 @@ You can determine the current date from the message_date field in the current me
             allowed_tools=allowed_tools if allowed_tools else [],
             mcp_servers=mcp_servers if mcp_servers else None,
             setting_sources=["user"],
-            max_thinking_tokens=10000,
+            effort="high",  # Fable 5.1: thinking is always on; fixed budgets are rejected
             stderr=_stderr_callback,
         )
 
