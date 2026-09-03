@@ -42,10 +42,26 @@ services:
     network_mode: host
     security_opt:
       - no-new-privileges:true
+    # Nothing writes to the image any more now that the model's code runs in the
+    # sandbox: the head only writes to ./data and its Claude config dir, both
+    # mounts. What is left is scratch — the CLI unpacks a Bun native module and
+    # its sockets into /tmp, and logs each MCP server under ~/.cache — so those
+    # two get tmpfs and everything else is read-only.
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+      - /home/appuser/.cache:size=64m,mode=1777
     pids_limit: 512
     mem_limit: 2g
     environment:
       - TZ=America/Los_Angeles
+      # Both would otherwise land on the read-only root: matplotlib in $HOME
+      # /.config, tiktoken's BPE file in /tmp. Keeping the tiktoken cache in the
+      # data mount also stops it re-downloading on every restart — a failed
+      # download makes token_counter raise, and read_chat_history treats that as
+      # a corrupt history file.
+      - MPLCONFIGDIR=/tmp/mpl
+      - TIKTOKEN_CACHE_DIR=/server/data/.tiktoken-cache
       # Keeps credentials, settings and session transcripts inside the mount
       # above; the CLI also puts its .claude.json there when this is set.
       - CLAUDE_CONFIG_DIR=/home/appuser/.claude-bot
