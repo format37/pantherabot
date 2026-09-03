@@ -19,10 +19,12 @@ with open('config.json') as config_file:
     config = json.load(config_file)
 
 
-# Leading tool-name artifacts like "[Bash]" — the model imitating a tool call as
-# text instead of invoking it. Must never reach the chat or be saved to history,
-# or the model learns the pattern from its own history (2026-08-30 incident).
-TOOL_ARTIFACT_RE = re.compile(r'^\s*(?:\[(?:Bash|Read|mcp__\w+)\]\s*)+')
+# Leading tool-name artifacts like "[Bash]" — the model labelling its reply with
+# the tool it used, or imitating a tool call as text instead of invoking it. Must
+# never reach the chat or be saved to history, or the model learns the pattern
+# from its own history (2026-08-30 incident). `\w+_\w+` catches the bare MCP tool
+# names the model also uses, e.g. "[perplexity_sonar_pro]" (seen 2026-09-03).
+TOOL_ARTIFACT_RE = re.compile(r'^\s*(?:\[(?:Bash|Read|mcp__\w+|\w+_\w+)\]\s*)+')
 
 
 # Always included. Nothing here needs a tool, so guests (non-authorized senders in
