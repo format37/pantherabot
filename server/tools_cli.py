@@ -105,11 +105,11 @@ async def wolfram_alpha(query):
         return f"Wolfram|Alpha error: {e}"
 
 
-IMAGE_MODEL_VERTEX = "gemini-3.1-flash-image"             # nano banana's GA name on Vertex AI
-IMAGE_MODEL_DEVELOPER = "gemini-3.1-flash-image-preview"   # the same model on the Developer API
+IMAGE_MODEL_VERTEX = "gemini-3-pro-image"          # Nano Banana Pro: the strongest image model on Vertex AI (2026-09-06)
+IMAGE_MODEL_DEVELOPER = "gemini-3-pro-image"       # the same model on the Developer API; gemini-3.1-flash-image is the cheaper, faster alternative
 
 # Telegram turns every photo into a JPEG and refuses one over 10 MB. A 4K PNG
-# from Gemini is ~16 MB, so it is encoded here first (see as_telegram_photo).
+# from Gemini is 16–24 MB, so it is encoded here first (see as_telegram_photo).
 TELEGRAM_PHOTO_MAX_BYTES = 10 * 1024 * 1024
 
 
