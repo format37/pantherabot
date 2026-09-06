@@ -149,4 +149,5 @@ Default prompt defined in `Panthera.get_system_prompt()`. Per-chat custom prompt
 - `config.json` is the source of truth for model selection — never rely on user session `model` field.
 - The `data/` directory is volume-mounted from the host; `config.json` is separately mounted.
 - `~/.claude` is mounted for Claude CLI authentication.
+- `generate_image` reaches Gemini through **Vertex AI** when `VERTEX_SA_JSON_B64` is set (the production VPS: the Gemini Developer API refuses that host's address for every project, and no billing change fixes it), and through `GEMINI_API_KEY` otherwise. The model name differs per door (`tools_cli.IMAGE_MODEL_VERTEX` / `IMAGE_MODEL_DEVELOPER`); `GEMINI_IMAGE_MODEL` overrides both.
 - Colons in Telegram file paths require bind mounts on Linux (see README.md for `mount --bind` instructions).

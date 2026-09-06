@@ -67,6 +67,15 @@ services:
       - CLAUDE_CONFIG_DIR=/home/appuser/.claude-bot
       - WOLFRAM_ALPHA_APPID=${WOLFRAM_ALPHA_APPID}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      # Vertex AI for the image tool: a service-account key file base64-encoded
+      # (`base64 -w0 key.json`), and optionally its project, location and the
+      # model name. When the key is set, generate_image goes through Vertex
+      # instead of the Developer API — the only Google door open from the
+      # production host (tools_cli.genai_client has the measurement).
+      - VERTEX_SA_JSON_B64=${VERTEX_SA_JSON_B64:-}
+      - VERTEX_PROJECT=${VERTEX_PROJECT:-}
+      - VERTEX_LOCATION=${VERTEX_LOCATION:-global}
+      - GEMINI_IMAGE_MODEL=${GEMINI_IMAGE_MODEL:-}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - BOT_USERNAME=${BOT_USERNAME}
       - PERPLEXITY_MCP_URL=${PERPLEXITY_MCP_URL}

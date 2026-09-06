@@ -26,6 +26,7 @@ from telebot.formatting import escape_markdown
 from google import genai
 from google.genai import types
 import mimetypes
+import base64
 
 import memory
 
@@ -104,14 +105,65 @@ async def wolfram_alpha(query):
         return f"Wolfram|Alpha error: {e}"
 
 
-async def generate_image(prompt, chat_id, message_id, file_list=None):
-    """Generate image using Gemini Nano Banana (gemini-3.1-flash-image-preview) and send to Telegram chat."""
-    check_chat_id(chat_id)
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        return "Image generation failed: GEMINI_API_KEY not configured"
+IMAGE_MODEL_VERTEX = "gemini-3.1-flash-image"             # nano banana's GA name on Vertex AI
+IMAGE_MODEL_DEVELOPER = "gemini-3.1-flash-image-preview"   # the same model on the Developer API
 
-    client = genai.Client(api_key=api_key)
+# Telegram turns every photo into a JPEG and refuses one over 10 MB. A 4K PNG
+# from Gemini is ~16 MB, so it is encoded here first (see as_telegram_photo).
+TELEGRAM_PHOTO_MAX_BYTES = 10 * 1024 * 1024
+
+
+def genai_client():
+    """The Gemini client to use, and the image model name that goes with it.
+
+    Vertex AI when a service account is configured (VERTEX_SA_JSON_B64: the
+    key file, base64-encoded), otherwise the Developer API with GEMINI_API_KEY.
+    Vertex is the only Google door open from the production host: the
+    Developer API refuses that address for every project, paid or free, with
+    "User location is not supported", and no billing state changes it
+    (measured 2026-09-06). The Developer API path stays for hosts it does
+    accept.
+    """
+    sa_b64 = os.environ.get("VERTEX_SA_JSON_B64", "").strip()
+    if sa_b64:
+        from google.oauth2 import service_account
+        info = json.loads(base64.b64decode(sa_b64))
+        creds = service_account.Credentials.from_service_account_info(
+            info, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+        )
+        project = os.environ.get("VERTEX_PROJECT", "").strip() or info.get("project_id")
+        location = os.environ.get("VERTEX_LOCATION", "").strip() or "global"
+        client = genai.Client(vertexai=True, project=project, location=location, credentials=creds)
+        return client, os.environ.get("GEMINI_IMAGE_MODEL", "").strip() or IMAGE_MODEL_VERTEX
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError("neither VERTEX_SA_JSON_B64 nor GEMINI_API_KEY is configured")
+    return genai.Client(api_key=api_key), os.environ.get("GEMINI_IMAGE_MODEL", "").strip() or IMAGE_MODEL_DEVELOPER
+
+
+def as_telegram_photo(image_data):
+    """Bytes Telegram accepts as a photo: a JPEG when the original is too big.
+
+    Telegram re-encodes photos to JPEG anyway, so nothing is lost; an image
+    that already fits is passed through untouched.
+    """
+    if len(image_data) <= TELEGRAM_PHOTO_MAX_BYTES:
+        return image_data
+    import io
+    from PIL import Image
+    with Image.open(io.BytesIO(image_data)) as im:
+        buf = io.BytesIO()
+        im.convert("RGB").save(buf, format="JPEG", quality=92, optimize=True)
+    return buf.getvalue()
+
+
+async def generate_image(prompt, chat_id, message_id, file_list=None):
+    """Generate an image with Gemini (nano banana) and send it to the Telegram chat."""
+    check_chat_id(chat_id)
+    try:
+        client, model = genai_client()
+    except Exception as e:
+        return f"Image generation failed: {e}"
 
     try:
         parts = []
@@ -128,7 +180,7 @@ async def generate_image(prompt, chat_id, message_id, file_list=None):
         contents = [types.Content(role="user", parts=parts)]
 
         generate_content_config = types.GenerateContentConfig(
-            response_modalities=["Image", "Text"],
+            response_modalities=["IMAGE", "TEXT"],
             image_config=types.ImageConfig(
                 aspect_ratio="16:9",
                 image_size="4K",
@@ -136,7 +188,7 @@ async def generate_image(prompt, chat_id, message_id, file_list=None):
         )
 
         response = client.models.generate_content(
-            model="gemini-3.1-flash-image-preview",
+            model=model,
             contents=contents,
             config=generate_content_config,
         )
@@ -160,7 +212,7 @@ async def generate_image(prompt, chat_id, message_id, file_list=None):
 
         sent_message = bot.send_photo(
             chat_id=int(chat_id),
-            photo=image_data,
+            photo=as_telegram_photo(image_data),
             reply_to_message_id=int(message_id),
             caption=caption,
             parse_mode="MarkdownV2",
