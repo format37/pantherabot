@@ -60,6 +60,18 @@ CLAUDE_CONFIG_DIR=~/.claude-bot claude auth status
 `CLAUDE_CONFIG_DIR` to match; credentials, `.claude.json` and session transcripts
 all stay inside it.
 
+That login session does not last: its refresh token expires after about a week
+and the CLI then wipes `.credentials.json`, so every request answers "Failed to
+authenticate: OAuth session expired and could not be refreshed". For a bot that
+runs unattended, use a long-lived token instead. On any machine where `claude`
+is logged in, run
+```
+claude setup-token        # opens the browser, prints sk-ant-oat01-...
+```
+and put the value in `.env` as `CLAUDE_CODE_OAUTH_TOKEN`. It is valid for about
+a year and takes precedence over whatever is in `~/.claude-bot`; the config dir
+is still needed for `.claude.json` and session transcripts.
+
 Those transcripts hold every chat the bot has served, so prune them from the
 host:
 ```

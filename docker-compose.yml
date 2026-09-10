@@ -65,6 +65,12 @@ services:
       # Keeps credentials, settings and session transcripts inside the mount
       # above; the CLI also puts its .claude.json there when this is set.
       - CLAUDE_CONFIG_DIR=/home/appuser/.claude-bot
+      # Long-lived subscription token from `claude setup-token` (valid about a
+      # year). It takes precedence over .credentials.json in the config dir,
+      # whose refresh token the CLI lets expire after roughly a week of use and
+      # then wipes ("OAuth session expired and could not be refreshed",
+      # 2026-09-10 outage). Empty means unset: the CLI ignores it.
+      - CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN:-}
       - WOLFRAM_ALPHA_APPID=${WOLFRAM_ALPHA_APPID}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       # Vertex AI for the image tool: a service-account key file base64-encoded
