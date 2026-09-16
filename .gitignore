@@ -7,3 +7,4 @@ run/*
 work/*
 !work/.gitkeep
 .pytest_cache/
+.venv/

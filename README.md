@@ -22,6 +22,26 @@ Both directories are tracked with a `.gitkeep` so the checkout owns them. If the
 are missing when compose starts, Docker creates them root-owned and the socket
 cannot be created.
 
+# edited messages
+Editing a message updates its record in the chat history. An edit never produces
+an answer, and a sent answer is final. If Janet is answering from a history that
+includes the edited message, she starts over, so what she sends reflects the edit
+(`server/edits.py`). Images and files her tools produce are held until then and
+sent together with the answer.
+
+The relay forwards edits only for bots with `"forward_edits": 1` in its
+`bots.json`. GPT_AID_BOT runs there with `"num_threads": 8`, so that an edit gets
+through while answers are running. The bot itself runs at most two answers at a
+time (`MAX_CONCURRENT_ANSWERS`).
+
+# tests
+`tests/` runs the real app with a fake Telegram bot and a fake model: no Docker,
+no Telegram, no Claude.
+```
+python3 -m venv .venv && .venv/bin/pip install -r server/requirements.txt pytest
+.venv/bin/python -m pytest tests -q
+```
+
 # root documents and photos mounting
 ":" are not suported in mouting therefore we need to remove user_id from mounting procedure:
 ```
