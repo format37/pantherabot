@@ -37,8 +37,80 @@ with open('config.json') as config_file:
 panthera = Panthera()
 
 # Media group buffer for handling Telegram albums
-# Structure: {media_group_id: {"images": [], "text": "", "chat_id": int, "message_id": int, "first_name": str, "task": asyncio.Task}}
+# Structure: {media_group_id: {"items": {message_id: {"caption": str, "files": [(path, file_unique_id)]}},
+#             "chat_id": int, "chat_type": str, "message": dict, "task": asyncio.Task}}
 media_group_buffers = {}
+# How long an album waits for its next item before it is saved and answered.
+MEDIA_GROUP_WAIT_SECONDS = 2
+
+
+def attached_files(message):
+    """[(path, file_unique_id)] of the files a message brings into the history.
+
+    The message's own photo or readable document first, then the one in the
+    message it replies to.
+    """
+    files = []
+    sources = [message]
+    if 'reply_to_message' in message:
+        sources.append(message['reply_to_message'])
+    for source in sources:
+        attached = panthera.attached_file(source)
+        if attached is None:
+            continue
+        # Telegram local server returns absolute paths like /6014837471:AAE5.../photos/file.jpg
+        # Strip the /{BOT_ID}: prefix so the path matches the container volume mount target
+        for raw_path in panthera.get_message_file_list(bot, source):
+            clean_path = re.sub(r'^/[^/]+:', '/', raw_path)
+            if all(clean_path != path for path, _ in files):
+                files.append((clean_path, attached[1]))
+                logger.info(f"Image path: {clean_path}")
+    return files
+
+
+def human_record(message, message_id, text, files, edit_date=None):
+    """The history record of a human message.
+
+    One builder for /message, albums and /edited_message, so that an edit
+    rewrites a record the way it was first written. `message_id` is the id the
+    record is filed under (an album's first item), `files` is
+    [(path, file_unique_id)], and `edit_date` is Telegram's unix time.
+    """
+    image_paths = [path for path, _ in files]
+    message_text = f"user_name: {panthera.get_first_name(message)}"
+    message_text += f"\nchat_id: {message['chat']['id']}"
+    message_text += f"\nmessage_id: {message_id}"
+    if "reply_to_message" in message:
+        message_text += f"\nreply_to_message: {message['reply_to_message']['message_id']}"
+    # Convert 'date': 1718167018 to '2024-06-06 12:36:58'
+    message_text += f"\nmessage_date: {pd.to_datetime(message['date'], unit='s')}"
+    if edit_date is not None:
+        edit_date = str(pd.to_datetime(edit_date, unit='s'))
+        message_text += f"\nedit_date: {edit_date}"
+    if image_paths:
+        message_text += f"\nfile_list: {image_paths}"
+    if text != '':
+        message_text += f"\nmessage_text: {text}"
+    record = {
+        "type": "HumanMessage",
+        "text": message_text,
+        "images": image_paths,
+        "message_id": int(message_id),
+        "raw_text": text,
+        "file_unique_ids": [unique_id for _, unique_id in files],
+    }
+    if edit_date is not None:
+        record["edit_date"] = edit_date
+    return record
+
+
+def album_text(captions):
+    """An album's text: its items' distinct captions, in message order."""
+    seen = []
+    for caption in captions.values():
+        if caption and caption not in seen:
+            seen.append(caption)
+    return '\n'.join(seen)
 
 
 @app.get("/test")
@@ -243,48 +315,43 @@ async def flush_media_group(media_group_id: str):
     Combines all images and text from the media group and processes them together.
     """
     # Wait for all images to arrive
-    await asyncio.sleep(2)
+    await asyncio.sleep(MEDIA_GROUP_WAIT_SECONDS)
 
     # Check if this media group still exists in buffer (could have been cancelled)
     if media_group_id not in media_group_buffers:
         logger.info(f"Media group {media_group_id} already processed or cancelled")
         return
 
-    # Get the buffered data
-    buffer_data = media_group_buffers[media_group_id]
+    # Get the buffered data and remove it from the buffer. No await from here to
+    # the save below: an edit of an item finds either the buffer or the record.
+    buffer_data = media_group_buffers.pop(media_group_id)
     chat_id = buffer_data['chat_id']
-    message_id = buffer_data['message_id']  # Use the first message_id
-    first_name = buffer_data['first_name']
-    text = buffer_data['text']
-    image_paths = buffer_data['images']
     chat_type = buffer_data['chat_type']
     original_message = buffer_data['message']
     tools_enabled = is_authorized_sender(original_message)
 
-    logger.info(f"Flushing media group {media_group_id} with {len(image_paths)} images")
+    # Items reach us in any order (the relay forwards them from several
+    # threads), so the album is filed under its first item, and its images and
+    # captions are taken in message order.
+    items = buffer_data['items']
+    order = sorted(items)
+    message_id = order[0]
+    captions = {str(mid): items[mid]['caption'] for mid in order}
+    text = album_text(captions)
+    files = []
+    for mid in order:
+        for path, unique_id in items[mid]['files']:
+            if all(path != known for known, _ in files):
+                files.append((path, unique_id))
 
-    # Remove from buffer
-    del media_group_buffers[media_group_id]
-
-    # Prepare metadata message
-    message_date = pd.Timestamp.now()
-    message_text = f"user_name: {first_name}"
-    message_text += f"\nchat_id: {chat_id}"
-    message_text += f"\nmessage_id: {message_id}"
-    message_text += f"\nmessage_date: {message_date}"
-    if image_paths:
-        message_text += f"\nfile_list: {image_paths}"
-    if text != '':
-        message_text += f"\nmessage_text: {text}"
+    logger.info(f"Flushing media group {media_group_id} with {len(files)} images")
 
     # Save to chat history with all images
-    panthera.save_to_chat_history(
-        chat_id,
-        f"{message_text}",
-        message_id,
-        "HumanMessage",
-        image_paths=image_paths
-    )
+    record = human_record(original_message, message_id, text, files)
+    record['media_group_id'] = media_group_id
+    record['captions'] = captions
+    panthera.save_record(chat_id, message_id, record)
+    message_text = record['text']
 
     # Process the complete media group only if conditions are met
     # (same conditions as in main message handler: private chat, prefix, or reply to bot)
@@ -567,57 +634,30 @@ Commands:
             "body": ''
             })
     
-    # Extract file list from the message and map to mounted paths
-    # Telegram local server returns absolute paths like /6014837471:AAE5.../photos/file.jpg
-    # Strip the /{BOT_ID}: prefix so the path matches the container volume mount target
-    image_paths = []
-    if 'photo' in message or 'document' in message:
-        raw_paths = panthera.get_message_file_list(bot, message)
-        for raw_path in raw_paths:
-            clean_path = re.sub(r'^/[^/]+:', '/', raw_path)
-            image_paths.append(clean_path)
-            logger.info(f"Image path: {clean_path}")
-
-    # Also extract image from replied-to message if it contains a photo
-    if 'reply_to_message' in message:
-        replied = message['reply_to_message']
-        if 'photo' in replied or 'document' in replied:
-            raw_paths = panthera.get_message_file_list(bot, replied)
-            for raw_path in raw_paths:
-                clean_path = re.sub(r'^/[^/]+:', '/', raw_path)
-                if clean_path not in image_paths:
-                    image_paths.append(clean_path)
-                    logger.info(f"Image path (from reply): {clean_path}")
+    # Extract file list from the message (and the one it replies to), mapped to mounted paths
+    files = attached_files(message)
 
     # Handle media groups (Telegram albums)
     if 'media_group_id' in message:
         media_group_id = message['media_group_id']
         chat_id = message['chat']['id']
-        first_name = panthera.get_first_name(message)
 
         logger.info(f"Media group detected: {media_group_id}")
 
         # Initialize or update buffer for this media group
         if media_group_id not in media_group_buffers:
             media_group_buffers[media_group_id] = {
-                'images': [],
-                'text': text,
+                'items': {},
                 'chat_id': chat_id,
-                'message_id': message['message_id'],  # Store first message_id
-                'first_name': first_name,
                 'chat_type': message['chat']['type'],  # Store chat type for response condition check
                 'message': message,  # Store message for is_reply_to_ai_message check
                 'task': None
             }
 
-        # Add images from this message to the buffer
-        if image_paths:
-            media_group_buffers[media_group_id]['images'].extend(image_paths)
-            logger.info(f"Added {len(image_paths)} image(s) to media group buffer. Total: {len(media_group_buffers[media_group_id]['images'])}")
-
-        # Update text if this message has a caption (usually only first or last message has it)
-        if text and len(text) > len(media_group_buffers[media_group_id]['text']):
-            media_group_buffers[media_group_id]['text'] = text
+        # Each item keeps its own caption (usually only one of them has one) and images
+        items = media_group_buffers[media_group_id]['items']
+        items[message['message_id']] = {'caption': text, 'files': files}
+        logger.info(f"Added item {message['message_id']} with {len(files)} image(s) to media group buffer. Items: {len(items)}")
 
         # Cancel existing flush task if any
         if media_group_buffers[media_group_id]['task'] is not None:
@@ -637,32 +677,9 @@ Commands:
         })
 
     # Save message to the Chat history
-    first_name = panthera.get_first_name(message)
-    # if 'first_name' in message['chat']:
-    #     first_name = message['from']['first_name']
-    # else:
-    #     first_name = message['from']['username']
-    # panthera.log_message(message)
-    message_date = message['date']
-    # Convert 'date': 1718167018 to '2024-06-06 12:36:58'
-    message_date = pd.to_datetime(message_date, unit='s')
-    message_text = f"user_name: {first_name}"
-    message_text += f"\nchat_id: {chat_id}"
-    message_text += f"\nmessage_id: {message['message_id']}"
-    if "reply_to_message" in message:
-        message_text += f"\nreply_to_message: {message['reply_to_message']['message_id']}"
-    message_text += f"\nmessage_date: {message_date}"
-    if image_paths:
-        message_text += f"\nfile_list: {image_paths}"
-    if text != '':
-        message_text += f"\nmessage_text: {text}"
-    panthera.save_to_chat_history(
-        chat_id,
-        f"{message_text}",
-        message["message_id"],
-        "HumanMessage",
-        image_paths=image_paths if image_paths else None
-    )
+    record = human_record(message, message["message_id"], text, files)
+    panthera.save_record(chat_id, message["message_id"], record)
+    message_text = record['text']
 
     if text == '':
         return JSONResponse(content={

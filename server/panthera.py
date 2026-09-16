@@ -2,9 +2,10 @@ import os
 import logging
 import json
 import re
+import stat
+from datetime import datetime
 from pathlib import Path
 import tiktoken
-import time as py_time
 
 from claude_agent_sdk import (
     query as claude_query,
@@ -26,6 +27,29 @@ with open('config.json') as config_file:
 # from its own history (2026-08-30 incident). `\w+_\w+` catches the bare MCP tool
 # names the model also uses, e.g. "[perplexity_sonar_pro]" (seen 2026-09-03).
 TOOL_ARTIFACT_RE = re.compile(r'^\s*(?:\[(?:Bash|Read|mcp__\w+|\w+_\w+)\]\s*)+')
+
+
+def record_message_id(path, record):
+    """The Telegram message_id a history record is filed under.
+
+    Stored in the record since 2026-09-16; older records only have it as the
+    file name's suffix, `{save-time}_{message_id}.json`.
+    """
+    value = record.get('message_id')
+    if value is None:
+        value = os.path.basename(path)[:-len('.json')].rpartition('_')[2]
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def record_raw_text(record):
+    """A human record's text or caption as sent (older records: parsed from `text`)."""
+    if 'raw_text' in record:
+        return record['raw_text']
+    _, marker, raw = record.get('text', '').partition('\nmessage_text: ')
+    return raw if marker else ''
 
 
 # Always included. Nothing here needs a tool, so guests (non-authorized senders in
@@ -178,6 +202,35 @@ class Panthera:
             return max(1, len(text) // 4)
         return len(enc.encode(text))
 
+    def chat_log_path(self, chat_id):
+        return os.path.join('data', 'users', str(chat_id), 'chats', str(chat_id))
+
+    def save_record(self, chat_id, message_id, record, message_date=None):
+        """Write a new history record and return its path.
+
+        Its mtime is its place in the history (see read_chat_history).
+        """
+        chat_log_path = self.chat_log_path(chat_id)
+        os.makedirs(chat_log_path, exist_ok=True)
+        if message_date is not None:
+            path = os.path.join(chat_log_path, f'{message_date}_{message_id}.json')
+            with open(path, 'w') as log_file:
+                json.dump(record, log_file)
+            return path
+        # An answer is filed under the message it answers. With whole seconds
+        # in the name, an answer written in the same second as its question
+        # replaced the question's record, so the time goes down to microseconds
+        # and the file must be new.
+        while True:
+            stamp = datetime.now().strftime('%Y-%m-%d-%H-%M-%S-%f')
+            path = os.path.join(chat_log_path, f'{stamp}_{message_id}.json')
+            try:
+                with open(path, 'x') as log_file:
+                    json.dump(record, log_file)
+                return path
+            except FileExistsError:
+                continue
+
     def save_to_chat_history(
         self,
         chat_id,
@@ -188,55 +241,109 @@ class Panthera:
         name_of_user='AI',
         image_paths=None
     ):
-        user_id = chat_id
-        chat_log_path = os.path.join('data', 'users', str(user_id), 'chats', str(chat_id))
-        os.makedirs(chat_log_path, exist_ok=True)
-        if message_date is None:
-            message_date = py_time.strftime('%Y-%m-%d-%H-%M-%S', py_time.localtime())
-        log_file_name = f'{message_date}_{message_id}.json'
-        with open(os.path.join(chat_log_path, log_file_name), 'w') as log_file:
-            json.dump({
-                "type": type,
-                "text": f"{message_text}",
-                "images": image_paths or []
-            }, log_file)
+        self.save_record(chat_id, message_id, {
+            "type": type,
+            "text": f"{message_text}",
+            "images": image_paths or []
+        }, message_date)
+
+    def rewrite_record(self, path, record):
+        """Replace a record's content without moving it in the history.
+
+        The new content goes to a temp file that takes over the old file's mode
+        and times before it is renamed over it, so a reader sees either the old
+        record or the new one, always at the old position.
+        """
+        st = os.stat(path)
+        tmp = f'{path}.{os.getpid()}.tmp'
+        try:
+            with open(tmp, 'w') as f:
+                json.dump(record, f)
+            os.chmod(tmp, stat.S_IMODE(st.st_mode))
+            os.utime(tmp, ns=(st.st_atime_ns, st.st_mtime_ns))
+            os.replace(tmp, path)
+        except BaseException:
+            try:
+                os.remove(tmp)
+            except OSError:
+                pass
+            raise
+
+    def find_human_records(self, chat_id, message_id=None, media_group_id=None):
+        """[(path, record)] of the human records for a message_id, or for an album.
+
+        An album's record is filed under one of its items, so an edit of any
+        other item is matched by media_group_id (stored since 2026-09-16).
+        """
+        chat_log_path = self.chat_log_path(chat_id)
+        if not os.path.isdir(chat_log_path):
+            return []
+        suffix = f'_{message_id}.json'
+        found = []
+        for name in sorted(os.listdir(chat_log_path)):
+            if not name.endswith('.json'):
+                continue
+            if media_group_id is None and not name.endswith(suffix):
+                continue
+            path = os.path.join(chat_log_path, name)
+            try:
+                with open(path) as f:
+                    record = json.load(f)
+            except Exception:
+                continue
+            if not isinstance(record, dict) or record.get('type') != 'HumanMessage':
+                continue
+            if name.endswith(suffix) or (
+                    media_group_id is not None
+                    and record.get('media_group_id') == media_group_id):
+                found.append((path, record))
+        return found
+
+    def attached_file(self, message):
+        """(file_id, file_unique_id) of the file the bot reads from a message, or None."""
+        if 'photo' in message:
+            photo = message['photo']
+            self.logger.info(f"photo in message: {len(photo)}")
+            if len(photo) > 0:
+                return photo[-1]['file_id'], photo[-1].get('file_unique_id')
+        elif 'document' in message:
+            self.logger.info("document in message")
+            document = message['document']
+            mime_type = document.get('mime_type', '')
+            if mime_type.startswith('image/') or \
+                mime_type.startswith('text/') or \
+                mime_type.startswith('application/json') or \
+                mime_type.startswith('application/xml'):
+                return document['file_id'], document.get('file_unique_id')
+        return None
 
     def get_message_file_list(self, bot, message):
         """Extract file paths from a Telegram message."""
-        if 'photo' in message or 'document' in message:
-            file_id = ''
-            if 'photo' in message:
-                photo = message['photo']
-                self.logger.info(f"photo in message: {len(photo)}")
-                if len(photo) > 0:
-                    file_id = photo[-1]['file_id']
-                    self.logger.info("file_id: "+str(file_id))
-            elif 'document' in message:
-                self.logger.info("document in message")
-                document = message['document']
-                if document['mime_type'].startswith('image/'):
-                    file_id = document['file_id']
-                    self.logger.info("file_id: "+str(file_id))
-                elif document['mime_type'].startswith('text/') or \
-                    document['mime_type'].startswith('application/json') or \
-                    document['mime_type'].startswith('application/xml'):
-                    file_id = document['file_id']
-                    self.logger.info("file_id: "+str(file_id))
-            if file_id != '':
-                file_info = bot.get_file(file_id)
-                file_path = file_info.file_path
-                self.logger.info(f'file_path: {file_path}')
-                return [file_path]
-        return []
+        attached = self.attached_file(message)
+        if attached is None:
+            return []
+        self.logger.info("file_id: "+str(attached[0]))
+        file_info = bot.get_file(attached[0])
+        file_path = file_info.file_path
+        self.logger.info(f'file_path: {file_path}')
+        return [file_path]
 
     def read_chat_history(self, chat_id: str):
-        '''Reads the chat history from a folder with improved message limit handling.'''
-        user_id = chat_id
-        chat_log_path = os.path.join('data', 'users', str(user_id), 'chats', str(chat_id))
-        if not os.path.exists(chat_log_path):
-            return
+        '''Load the newest records that fit the limits into self.chat_history.
 
+        History order is file mtime. A record is written once, and only
+        rewrite_record() changes it afterwards, keeping the mtime. ctime is no
+        use: `chown -R` on 2026-03-20 reset it for 553 files in 5 chats, and
+        any rewrite bumps it.
+
+        Returns {message_id: text} of the human records loaded: the context an
+        edit has to touch to matter to the generation that read it.
+        '''
         self.chat_history = []
+        context = {}
+        chat_log_path = self.chat_log_path(chat_id)
+        if not os.path.exists(chat_log_path):
+            return context
 
         files = []
         for log_file in os.listdir(chat_log_path):
@@ -246,12 +353,12 @@ class Panthera:
                 continue
             file_path = os.path.join(chat_log_path, log_file)
             try:
-                files.append((file_path, os.path.getctime(file_path)))
+                files.append((file_path, os.stat(file_path).st_mtime_ns))
             except Exception as e:
-                self.logger.error(f'Error getting file creation time: {e}')
+                self.logger.error(f'Error getting file modification time: {e}')
                 continue
 
-        files.sort(key=lambda x: x[1], reverse=True)
+        files.sort(key=lambda x: (x[1], os.path.basename(x[0])), reverse=True)
 
         message_count = 0
         token_count = 0
@@ -301,11 +408,15 @@ class Panthera:
                 self.chat_history.insert(0, {"role": "assistant", "content": message['text']})
             elif message['type'] == 'HumanMessage':
                 self.chat_history.insert(0, {"role": "user", "content": message['text']})
+                message_id = record_message_id(file_path, message)
+                if message_id is not None:
+                    context[message_id] = message['text']
 
             message_count += 1
             token_count += message_tokens
 
         self.logger.info(f'Loaded {message_count} messages with {token_count} tokens for chat {chat_id}')
+        return context
 
     def get_first_name(self, message):
         if 'first_name' in message['chat']:
