@@ -20,6 +20,7 @@ import sys
 import json
 import os
 import asyncio
+import threading
 import httpx
 import telebot
 from telebot.formatting import escape_markdown
@@ -157,65 +158,87 @@ def as_telegram_photo(image_data):
     return buf.getvalue()
 
 
+async def make_image(prompt, file_list=None):
+    """(photo bytes, MarkdownV2 caption) for a prompt, drawn by Gemini (nano banana).
+
+    The bytes are what Telegram accepts as a photo. Raises on any failure.
+    """
+    client, model = genai_client()
+
+    parts = []
+    if file_list:
+        for file_path in file_list:
+            with open(file_path, "rb") as img_file:
+                image_bytes = img_file.read()
+            mime_type, _ = mimetypes.guess_type(file_path)
+            if not mime_type or not mime_type.startswith('image/'):
+                mime_type = "image/jpeg"
+            parts.append(types.Part.from_bytes(mime_type=mime_type, data=image_bytes))
+
+    parts.append(types.Part.from_text(text=prompt))
+    contents = [types.Content(role="user", parts=parts)]
+
+    generate_content_config = types.GenerateContentConfig(
+        response_modalities=["IMAGE", "TEXT"],
+        image_config=types.ImageConfig(
+            aspect_ratio="16:9",
+            image_size="4K",
+        ),
+    )
+
+    # Off the event loop: the call takes 40-70 s, and on the loop it froze
+    # every chat for that long (2026-09-10..16: the log went silent for
+    # 37-42 s per image, and a group message sat unread for 35 s).
+    response = await asyncio.to_thread(
+        client.models.generate_content,
+        model=model,
+        contents=contents,
+        config=generate_content_config,
+    )
+
+    image_data = None
+    text_response = None
+
+    for part in response.candidates[0].content.parts:
+        if part.inline_data and part.inline_data.data:
+            image_data = part.inline_data.data
+        elif part.text:
+            text_response = part.text
+
+    if not image_data:
+        raise RuntimeError("No image data returned")
+
+    caption_text = text_response if text_response else prompt
+    if len(caption_text) > 1000:
+        caption_text = caption_text[:1000]
+    caption = f"||{escape_markdown(caption_text)}||"
+
+    # Encoding a 4K PNG is seconds of work as well.
+    photo = await asyncio.to_thread(as_telegram_photo, image_data)
+    return photo, caption
+
+
+def photo_filename(photo):
+    return 'image.jpg' if photo[:3] == b'\xff\xd8\xff' else 'image.png'
+
+
+def remember_inline_photo(chat_id, file_id):
+    """Keep a sent photo's file_id for inline queries (@bot photo)."""
+    image_dir = f"data/users/{chat_id}/images"
+    os.makedirs(image_dir, exist_ok=True)
+    with open(os.path.join(image_dir, file_id), 'w') as f:
+        f.write("")
+
+
 async def generate_image(prompt, chat_id, message_id, file_list=None):
-    """Generate an image with Gemini (nano banana) and send it to the Telegram chat."""
+    """Generate an image with Gemini and send it to the Telegram chat at once.
+
+    The operator's entry point. The model's generate_image tool (bot_tools)
+    holds the image for its answer instead.
+    """
     check_chat_id(chat_id)
     try:
-        client, model = genai_client()
-    except Exception as e:
-        return f"Image generation failed: {e}"
-
-    try:
-        parts = []
-        if file_list:
-            for file_path in file_list:
-                with open(file_path, "rb") as img_file:
-                    image_bytes = img_file.read()
-                mime_type, _ = mimetypes.guess_type(file_path)
-                if not mime_type or not mime_type.startswith('image/'):
-                    mime_type = "image/jpeg"
-                parts.append(types.Part.from_bytes(mime_type=mime_type, data=image_bytes))
-
-        parts.append(types.Part.from_text(text=prompt))
-        contents = [types.Content(role="user", parts=parts)]
-
-        generate_content_config = types.GenerateContentConfig(
-            response_modalities=["IMAGE", "TEXT"],
-            image_config=types.ImageConfig(
-                aspect_ratio="16:9",
-                image_size="4K",
-            ),
-        )
-
-        # Off the event loop: the call takes 40-70 s, and on the loop it froze
-        # every chat for that long (2026-09-10..16: the log went silent for
-        # 37-42 s per image, and a group message sat unread for 35 s).
-        response = await asyncio.to_thread(
-            client.models.generate_content,
-            model=model,
-            contents=contents,
-            config=generate_content_config,
-        )
-
-        image_data = None
-        text_response = None
-
-        for part in response.candidates[0].content.parts:
-            if part.inline_data and part.inline_data.data:
-                image_data = part.inline_data.data
-            elif part.text:
-                text_response = part.text
-
-        if not image_data:
-            return "Image generation failed: No image data returned"
-
-        caption_text = text_response if text_response else prompt
-        if len(caption_text) > 1000:
-            caption_text = caption_text[:1000]
-        caption = f"||{escape_markdown(caption_text)}||"
-
-        # Encoding a 4K PNG and uploading 10 MB are seconds of work as well.
-        photo = await asyncio.to_thread(as_telegram_photo, image_data)
+        photo, caption = await make_image(prompt, file_list)
         sent_message = await asyncio.to_thread(
             bot.send_photo,
             chat_id=int(chat_id),
@@ -227,22 +250,18 @@ async def generate_image(prompt, chat_id, message_id, file_list=None):
             # ready; losing the image over that is worse than losing the link.
             allow_sending_without_reply=True,
         )
-
-        # Save file_id for inline queries
-        file_id = sent_message.photo[-1].file_id
-        image_dir = f"data/users/{chat_id}/images"
-        os.makedirs(image_dir, exist_ok=True)
-        with open(os.path.join(image_dir, file_id), 'w') as f:
-            f.write("")
-
+        remember_inline_photo(chat_id, sent_message.photo[-1].file_id)
         return "Image generated and sent to the chat"
     except Exception as e:
         return f"Image generation failed: {e}"
 
 
-async def render_math(formula, chat_id, message_id):
-    """Render a LaTeX math formula as PNG image and send to Telegram chat."""
-    check_chat_id(chat_id)
+# Matplotlib makes no promise about threads; the tool renders in a worker thread.
+_formula_lock = threading.Lock()
+
+
+def formula_png(formula):
+    """A LaTeX math formula rendered as PNG bytes."""
     import io
     import matplotlib
     matplotlib.use('Agg')
@@ -252,16 +271,22 @@ async def render_math(formula, chat_id, message_id):
     if not (formula.startswith('$') and formula.endswith('$')):
         formula = f'${formula}$'
 
-    try:
+    with _formula_lock:
         fig = Figure(facecolor='white')
         fig.text(0.5, 0.5, formula, ha='center', va='center',
                  fontsize=18, color='black')
         buf = io.BytesIO()
         fig.savefig(buf, dpi=200, format='png', bbox_inches='tight', pad_inches=0.3)
-        buf.seek(0)
+    return buf.getvalue()
+
+
+async def render_math(formula, chat_id, message_id):
+    """Render a LaTeX math formula as PNG image and send to Telegram chat."""
+    check_chat_id(chat_id)
+    try:
         bot.send_photo(
             chat_id=int(chat_id),
-            photo=buf,
+            photo=formula_png(formula),
             reply_to_message_id=int(message_id),
             allow_sending_without_reply=True,
         )

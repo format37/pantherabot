@@ -10,6 +10,7 @@ COPY server.py /server
 COPY tools_cli.py /server
 COPY memory.py /server
 COPY bot_tools.py /server
+COPY edits.py /server
 COPY exec_service.py /server
 RUN chown -R appuser:appuser /server
 

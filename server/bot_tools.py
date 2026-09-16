@@ -8,10 +8,17 @@ model wrote goes to the sandbox container through `run_command`.
 The server is rebuilt per request by :func:`create_bot_server`, with chat_id and
 message_id captured in closures. The model therefore has no way to name another
 chat: there is no chat_id parameter on any tool.
+
+Tools never send to the chat themselves. What they produce goes to the
+attempt's outbox and is sent with the answer, only once the answer has passed
+the pre-send check for edits (edits.py): an attempt that is thrown away takes
+its images with it.
 """
+import asyncio
 import base64
 import mimetypes
 import os
+from dataclasses import dataclass
 
 import httpx
 from claude_agent_sdk import create_sdk_mcp_server, tool
@@ -47,6 +54,23 @@ TOOL_NAMES = [
     'update_system_prompt',
     'reset_system_prompt',
 ]
+
+
+@dataclass
+class Outgoing:
+    """A file for the chat, held until the answer is sent."""
+    kind: str                       # 'photo' or 'document'
+    data: bytes                     # taken when the tool ran
+    filename: str
+    caption: str | None = None
+    parse_mode: str | None = None
+    # Remember the sent photo's file_id for inline queries (@bot photo).
+    cache_inline: bool = False
+
+
+def _read_bytes(path):
+    with open(path, 'rb') as f:
+        return f.read()
 
 
 def _text(message):
@@ -97,8 +121,8 @@ async def sandbox_exec(chat_id, command, timeout):
         return resp.json()
 
 
-def create_bot_server(chat_id, message_id):
-    """Build the per-request MCP server. chat_id/message_id live in closures."""
+def build_tools(chat_id, message_id, outbox):
+    """The bot's tools for one attempt, by name. chat_id/message_id live in closures."""
     chat_id = str(chat_id)
     message_id = str(message_id)
 
@@ -165,7 +189,8 @@ def create_bot_server(chat_id, message_id):
         'send_file',
         'Send a file from the sandbox working directory to the chat — a plot, a '
         'CSV, a rendered document. Images are sent as photos, everything else as '
-        'a document.',
+        'a document. The file reaches the chat with your reply, just before its '
+        'text.',
         {
             'type': 'object',
             'properties': {
@@ -188,31 +213,23 @@ def create_bot_server(chat_id, message_id):
 
         caption = (args.get('caption') or '')[:1000] or None
         mime, _ = mimetypes.guess_type(path)
+        # Telegram refuses a photo over 10 MB; such an image goes as a document.
+        as_photo = (bool(mime and mime.startswith('image/'))
+                    and size <= tools_cli.TELEGRAM_PHOTO_MAX_BYTES)
+        name = os.path.basename(path)
         try:
-            with open(path, 'rb') as f:
-                # allow_sending_without_reply: the message being answered may be
-                # gone by now (deleted, or an album's first part); losing the file
-                # over that would be worse than losing the reply link.
-                if mime and mime.startswith('image/'):
-                    tools_cli.bot.send_photo(
-                        chat_id=int(chat_id), photo=f,
-                        reply_to_message_id=int(message_id), caption=caption,
-                        allow_sending_without_reply=True,
-                    )
-                else:
-                    tools_cli.bot.send_document(
-                        chat_id=int(chat_id), document=f,
-                        reply_to_message_id=int(message_id), caption=caption,
-                        allow_sending_without_reply=True,
-                    )
-        except Exception as e:
-            return _error(f'could not send the file: {e}')
-        return _text(f'Sent {os.path.basename(path)} to the chat.')
+            # The bytes are taken now: a later command may overwrite the file.
+            data = await asyncio.to_thread(_read_bytes, path)
+        except OSError as e:
+            return _error(f'could not read the file: {e}')
+        outbox.append(Outgoing('photo' if as_photo else 'document', data, name, caption))
+        return _text(f'{name} will be sent to the chat with your reply.')
 
     @tool(
         'generate_image',
-        'Generate an image with Gemini and send it to the chat. Use whenever the '
-        'user asks to generate, create, draw or edit an image.',
+        'Generate an image with Gemini for the chat. Use whenever the user asks '
+        'to generate, create, draw or edit an image. The image reaches the chat '
+        'with your reply, just before its text.',
         {
             'type': 'object',
             'properties': {
@@ -231,10 +248,13 @@ def create_bot_server(chat_id, message_id):
             files = [_resolve(p, chat_id) for p in files]
         except PermissionError as e:
             return _error(str(e))
-        return _text(await tools_cli.generate_image(
-            prompt=args['prompt'], chat_id=chat_id, message_id=message_id,
-            file_list=files or None,
-        ))
+        try:
+            photo, caption = await tools_cli.make_image(args['prompt'], files or None)
+        except Exception as e:
+            return _text(f'Image generation failed: {e}')
+        outbox.append(Outgoing('photo', photo, tools_cli.photo_filename(photo), caption,
+                               parse_mode='MarkdownV2', cache_inline=True))
+        return _text('Image generated. It will be sent to the chat with your reply.')
 
     @tool(
         'wolfram_alpha',
@@ -246,14 +266,17 @@ def create_bot_server(chat_id, message_id):
 
     @tool(
         'render_math',
-        'Render a LaTeX formula as a PNG and send it to the chat. Rarely needed — '
-        'Telegram renders $...$ and $$...$$ natively in your replies.',
+        'Render a LaTeX formula as a PNG for the chat. Rarely needed — Telegram '
+        'renders $...$ and $$...$$ natively in your replies.',
         {'formula': str},
     )
     async def render_math(args):
-        return _text(await tools_cli.render_math(
-            formula=args['formula'], chat_id=chat_id, message_id=message_id,
-        ))
+        try:
+            png = await asyncio.to_thread(tools_cli.formula_png, args['formula'])
+        except Exception as e:
+            return _text(f'Math rendering failed: {e}')
+        outbox.append(Outgoing('photo', png, 'formula.png'))
+        return _text('Formula rendered. It will be sent to the chat with your reply.')
 
     @tool(
         'remember',
@@ -311,8 +334,17 @@ def create_bot_server(chat_id, message_id):
     async def reset_system_prompt(args):
         return _text(await tools_cli.reset_system_prompt(chat_id=chat_id))
 
-    return create_sdk_mcp_server(name='bot', version='1.0.0', tools=[
+    tools = [
         run_command, view_image, send_file, generate_image, wolfram_alpha,
         render_math, remember, forget, replace_memory,
         update_system_prompt, reset_system_prompt,
-    ])
+    ]
+    return {t.name: t for t in tools}
+
+
+def create_bot_server(chat_id, message_id, outbox):
+    """Build the per-request MCP server; files the tools produce go to `outbox`."""
+    return create_sdk_mcp_server(
+        name='bot', version='1.0.0',
+        tools=list(build_tools(chat_id, message_id, outbox).values()),
+    )

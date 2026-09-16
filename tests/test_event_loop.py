@@ -28,9 +28,9 @@ def test_another_chat_is_served_while_an_image_is_generated(env, client, monkeyp
 
     async def script(call):
         if call.chat_id == ALICE:
-            result = await env.tools_cli.generate_image(
-                prompt='a cat', chat_id=call.chat_id, message_id=call.message_id)
-            return 'here is your cat: ' + result
+            tools = env.bot_tools.build_tools(call.chat_id, call.message_id, call.kwargs['outbox'])
+            await tools['generate_image'].handler({'prompt': 'a cat'})
+            return 'here is your cat'
         return 'pong'
 
     env.llm.script = script

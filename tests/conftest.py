@@ -54,6 +54,7 @@ try:
     import server as server_module  # noqa: E402
     import tools_cli  # noqa: E402
     import bot_tools  # noqa: E402
+    import edits  # noqa: E402
 finally:
     os.chdir(_cwd)
 
@@ -112,9 +113,9 @@ class FakeLLM:
     """Stands in for Panthera._claude_agent_query.
 
     `script(call)` decides what an attempt does; by default it answers at once.
-    Each call is recorded with its prompt. `started` is set per call index, and
-    a script can park on `call.release` (a threading.Event) to simulate a long
-    generation — the event loop stays free while it waits.
+    Each call is recorded with its prompt as it starts (`wait_for_calls`), and a
+    script can park on `call.release` (a threading.Event) to simulate a long
+    generation; the event loop stays free while it waits.
     """
 
     def __init__(self):
@@ -152,7 +153,7 @@ class FakeLLM:
         return self.calls[n - 1]
 
 
-async def park(call, timeout=30):
+async def park(call, timeout=10):
     """Block this attempt until the test releases it (or it is cancelled)."""
     deadline = time.monotonic() + timeout
     while not call.release.is_set():
@@ -182,10 +183,12 @@ def env(tmp_path, monkeypatch):
         return True
 
     monkeypatch.setattr(server_module, 'send_rich_message', rich)
-    return SimpleNamespace(
-        server=server_module, tools_cli=tools_cli, bot_tools=bot_tools,
+    monkeypatch.setattr(edits, 'DEBOUNCE_SECONDS', 0.1)
+    yield SimpleNamespace(
+        server=server_module, tools_cli=tools_cli, bot_tools=bot_tools, edits=edits,
         events=events, bot=bot, llm=llm, path=tmp_path, work=work,
     )
+    assert wait_until(lambda: not edits._running, timeout=15), f'generations left running: {edits._running}'
 
 
 @pytest.fixture
@@ -194,6 +197,9 @@ def client(env):
     # One portal, so every request runs on the same event loop, as in uvicorn.
     with TestClient(env.server.app) as c:
         yield c
+        # The portal waits for its tasks on exit: let parked attempts finish.
+        for call in env.llm.calls:
+            call.release.set()
 
 
 class Background:
@@ -211,7 +217,7 @@ class Background:
         except BaseException as e:  # surfaced by join()
             self.error = e
 
-    def join(self, timeout=30):
+    def join(self, timeout=20):
         self.thread.join(timeout)
         assert not self.thread.is_alive(), 'request did not finish'
         if self.error:

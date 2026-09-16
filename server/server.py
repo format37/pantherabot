@@ -3,9 +3,12 @@ from fastapi.responses import JSONResponse, FileResponse
 import os
 import logging
 import json
-from panthera import Panthera
+from panthera import Panthera, record_message_id, record_raw_text
+import edits
 import memory
+import tools_cli
 import re
+import time
 import pandas as pd
 # from telebot import TeleBot
 import telebot
@@ -223,53 +226,65 @@ def send_rich_message(chat_id, markdown_text, reply_to=None):
         return False
 
 
-async def call_llm_response(chat_id, message_id, message_text, reply, tools_enabled=True):
-    answer = await panthera.llm_request(
-        chat_id, message_id, message_text, tools_enabled=tools_enabled
-    )
+def reply_parameters(reply_to):
+    """A reply to `reply_to` that is sent even if that message is gone; None for no reply."""
+    if reply_to is None:
+        return None
+    return telebot.types.ReplyParameters(message_id=reply_to, allow_sending_without_reply=True)
 
-    if answer == '':
-        return JSONResponse(content={
-        "type": "empty",
-        "body": ''
-        })
 
+def send_outgoing(chat_id, reply_to, item):
+    """Send one file a tool produced (bot_tools.Outgoing)."""
+    def payload():
+        buffer = BytesIO(item.data)
+        buffer.name = item.filename
+        return buffer
+
+    if item.kind == 'photo':
+        try:
+            sent = bot.send_photo(
+                int(chat_id), payload(), caption=item.caption, parse_mode=item.parse_mode,
+                reply_parameters=reply_parameters(reply_to),
+            )
+        except Exception as e:
+            # The tool can no longer report it, so a photo Telegram refuses
+            # (size, proportions) gets a second chance as a document.
+            logger.error(f'Could not send {item.filename} to chat {chat_id} as a photo, '
+                         f'sending it as a document: {e}')
+        else:
+            if item.cache_inline:
+                try:
+                    tools_cli.remember_inline_photo(chat_id, sent.photo[-1].file_id)
+                except Exception as e:
+                    logger.error(f'Could not keep the photo for inline queries: {e}')
+            return
+    try:
+        bot.send_document(
+            int(chat_id), payload(), caption=item.caption, parse_mode=item.parse_mode,
+            visible_file_name=item.filename, reply_parameters=reply_parameters(reply_to),
+        )
+    except Exception as e:
+        logger.error(f'Could not send {item.filename} to chat {chat_id}: {e}')
+
+
+def send_answer(chat_id, answer, reply_to, filename):
+    """Send an answer's text: a rich message, or else a .txt document or MarkdownV2."""
     # Primary path: Telegram rich message (standard Markdown, up to 32768 chars).
     # Janet may emit headings, tables, lists, quotes, <details>, native LaTeX, etc.
-    if len(answer) <= 32768 and send_rich_message(
-        chat_id, answer, reply_to=message_id if reply else None
-    ):
-        return JSONResponse(content={
-            "type": "empty",
-            "body": ''
-        })
+    if len(answer) <= 32768 and send_rich_message(chat_id, answer, reply_to=reply_to):
+        return
 
     # Fallback below: the rich send failed, or the response is too large to render
     # as a single message. A response over 4096 chars cannot fit a regular
     # sendMessage, so it is delivered as a .txt document instead.
     if len(answer) > 4096:
-        try:
-            filename = await panthera.generate_filename(answer)
-        except Exception as e:
-            logger.info(f"Error generating filename: {e}")
-            filename = "response.txt"
-        if not filename.endswith(".txt"):
-            logger.info(f"Filename [{filename}] does not end with '.txt'. Appending '.txt'...")
-            filename += ".txt"
-        if len(filename) > 64:
-            logger.info(f"Filename [{filename}] is too long. Truncating...")
-            filename = "response.txt"
         # Create in-memory file-like object
         buffer = BytesIO(answer.encode())
-        # buffer.name = 'response.txt'  # Give a name to the file
         buffer.name = filename  # Give a name to the file
         buffer.seek(0)  # Move to the beginning of the BytesIO buffer
-        bot.send_document(chat_id, buffer, reply_to_message_id=message_id)
-        return JSONResponse(content={
-            "type": "empty",
-            "body": ''
-        })
-    
+        bot.send_document(chat_id, buffer, reply_parameters=reply_parameters(reply_to))
+        return
+
     formatting = {
         "&&&": "u447a0a7930e94a888a86a9ee09042458",
         "@@@": "u4cf178c998d04dfb88897ac3e49630bf",
@@ -289,25 +304,82 @@ async def call_llm_response(chat_id, message_id, message_text, reply, tools_enab
     answer = answer.replace('~~~', '~') # strikethrough
     try:
         logger.info(f'### sending MarkdownV2: {answer}')
-        if reply:
-            # bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
-            bot.send_message(chat_id, answer, reply_to_message_id=message_id, parse_mode='MarkdownV2')
-        else:
-            bot.send_message(chat_id, answer, parse_mode='MarkdownV2')
+        bot.send_message(chat_id, answer, parse_mode='MarkdownV2',
+                         reply_parameters=reply_parameters(reply_to))
     except Exception as e:
         logger.error(f'Error sending markdown: {e}')
         answer = escape_markdown(answer)
         logger.info(f'### sending escaped: {answer}')
-        if reply:
-            # bot.send_message(chat_id, answer, reply_to_message_id=message['message_id'], parse_mode='MarkdownV2')
-            bot.send_message(chat_id, answer, reply_to_message_id=message_id, parse_mode='MarkdownV2')
-        else:
-            bot.send_message(chat_id, answer, parse_mode='MarkdownV2')
+        bot.send_message(chat_id, answer, parse_mode='MarkdownV2',
+                         reply_parameters=reply_parameters(reply_to))
 
+
+async def answer_filename(answer):
+    """A .txt file name for an answer too long for a message."""
+    try:
+        filename = await panthera.generate_filename(answer)
+    except Exception as e:
+        logger.info(f"Error generating filename: {e}")
+        filename = "response.txt"
+    if not filename.endswith(".txt"):
+        logger.info(f"Filename [{filename}] does not end with '.txt'. Appending '.txt'...")
+        filename += ".txt"
+    if len(filename) > 64:
+        logger.info(f"Filename [{filename}] is too long. Truncating...")
+        filename = "response.txt"
+    return filename
+
+
+def deliver(chat_id, reply_to, answer, outbox, filename):
+    """Send an answer that passed the pre-send check: its files first, then its text.
+
+    Runs in a worker thread, so a large upload does not stall the other chats.
+    The generation is committed by then: an edit that arrives meanwhile
+    changes the history only.
+    """
+    for item in outbox:
+        send_outgoing(chat_id, reply_to, item)
+    if answer:
+        send_answer(chat_id, answer, reply_to, filename)
+
+
+async def call_llm_response(chat_id, message_id, message_text, reply, tools_enabled=True,
+                            from_history=True):
+    """Answer a message, regenerating while the history it was given is edited.
+
+    See edits.py. Each attempt reads the history and generates; files its
+    tools produce wait in the attempt's outbox. Only the attempt that passes
+    the pre-send check is saved and sent.
+    """
+    async def attempt(generation):
+        system_prompt, user_prompt, context = panthera.prepare_prompt(
+            chat_id, message_id, message_text, tools_enabled=tools_enabled,
+            from_history=from_history,
+        )
+        generation.context = set(context)
+        outbox = []
+        answer = await panthera.generate(
+            system_prompt, user_prompt, chat_id, message_id,
+            tools_enabled=tools_enabled, outbox=outbox,
+        )
+        return answer, outbox
+
+    async def commit(result):
+        answer, outbox = result
+        # The history keeps the answer that is actually sent, and only that one.
+        if answer:
+            panthera.save_to_chat_history(chat_id, answer, message_id, 'AIMessage')
+        filename = await answer_filename(answer) if len(answer) > 4096 else None
+        await asyncio.to_thread(
+            deliver, chat_id, message_id if reply else None, answer, outbox, filename
+        )
+
+    await edits.answer(chat_id, message_id, attempt, commit)
     return JSONResponse(content={
         "type": "empty",
         "body": ''
-        })
+    })
+
 
 async def flush_media_group(media_group_id: str):
     """
@@ -602,8 +674,10 @@ async def call_message(request: Request, authorization: str = Header(None)):
             # logger.info(f"Prepared message_text with personal chat history: {message_text[:100]}...")
 
             message_text = ''
+            # The message_id is this private message's, not the group's: there is
+            # no history record behind it.
             await call_llm_response(chat_id, message["message_id"], message_text, False,
-                                    tools_enabled=tools_enabled)
+                                    tools_enabled=tools_enabled, from_history=False)
             return JSONResponse(content={
                 "type": "empty",
                 "body": ''
@@ -699,6 +773,121 @@ Commands:
         "type": "empty",
         "body": ''
         })
+
+
+def attached_unique_ids(message):
+    """The file_unique_ids attached_files() would pair up, without asking the Bot API."""
+    unique_ids = []
+    sources = [message]
+    if 'reply_to_message' in message:
+        sources.append(message['reply_to_message'])
+    for source in sources:
+        attached = panthera.attached_file(source)
+        if attached is not None and attached[1] not in unique_ids:
+            unique_ids.append(attached[1])
+    return unique_ids
+
+
+def edited_record(message, path, old):
+    """The record an edited message rewrites `old` to, or None if nothing Janet reads changed.
+
+    Telegram also reports edits of what the bot does not use (a link preview,
+    a live location), so an edit counts only when the text or caption, or the
+    files, differ from the record's.
+    """
+    text = message.get('text', message.get('caption', ''))
+    old_text = record_raw_text(old)
+    old_images = old.get('images') or []
+    media_group_id = message.get('media_group_id')
+    captions = None
+    if media_group_id is not None:
+        # An album keeps the images it was saved with; the edit carries only
+        # its own item, and only that item's caption can change.
+        files = list(zip(old_images, old.get('file_unique_ids') or [None] * len(old_images)))
+        captions = old.get('captions')
+        if captions is not None:
+            captions = dict(captions)
+            captions[str(message['message_id'])] = text
+            text = album_text(captions)
+        elif not text:
+            # Saved before items kept their own captions: an item without one
+            # says nothing about the album's.
+            text = old_text
+        files_changed = False
+    else:
+        old_ids = old.get('file_unique_ids')
+        if old_ids is not None and attached_unique_ids(message) == old_ids:
+            # The same files: keep their paths rather than ask the Bot API again.
+            files = list(zip(old_images, old_ids))
+            files_changed = False
+        else:
+            files = attached_files(message)
+            files_changed = old_ids is not None or [p for p, _ in files] != old_images
+    if not files_changed and text == old_text:
+        return None
+
+    record = human_record(message, record_message_id(path, old), text, files,
+                          edit_date=message.get('edit_date') or int(time.time()))
+    if media_group_id is not None:
+        record['media_group_id'] = media_group_id
+        if captions is not None:
+            record['captions'] = captions
+    return record
+
+
+@app.post("/edited_message")
+async def call_edited_message(request: Request):
+    """An edited message: rewrite its history record in place. It is never answered.
+
+    A sent answer is final, and an edit neither summons Janet (not even one
+    that adds /*) nor runs a command. An answer being generated from a history
+    that contains the message is regenerated (edits.py).
+    """
+    empty = JSONResponse(content={
+        "type": "empty",
+        "body": ''
+    })
+    message = await request.json()
+    chat_id = message['chat']['id']
+    message_id = message['message_id']
+    logger.info(f"call_edited_message: chat {chat_id}, message {message_id}, "
+                f"edit_date {message.get('edit_date')}")
+
+    if not user_access(message):
+        return empty
+    if not any(key in message for key in ('text', 'caption', 'photo', 'document')):
+        return empty
+
+    # From here on nothing awaits: the record and the running generations
+    # learn about the edit together.
+    media_group_id = message.get('media_group_id')
+    buffered = media_group_buffers.get(media_group_id) if media_group_id is not None else None
+    if buffered is not None:
+        item = buffered['items'].get(message_id)
+        if item is not None:
+            item['caption'] = message.get('text', message.get('caption', ''))
+            logger.info(f'edit of message {message_id}: album {media_group_id} is still '
+                        f'being collected, caption updated')
+        return empty
+
+    found = panthera.find_human_records(chat_id, message_id)
+    if not found and media_group_id is not None:
+        found = panthera.find_human_records(chat_id, media_group_id=media_group_id)
+    if not found:
+        logger.info(f'edit of message {message_id} in chat {chat_id}: not in the history '
+                    f'(a command, pruned, or before a /reset)')
+        return empty
+
+    for path, old in found:
+        record = edited_record(message, path, old)
+        if record is None:
+            logger.info(f'edit of message {message_id} in chat {chat_id}: nothing Janet reads changed')
+            continue
+        panthera.rewrite_record(path, record)
+        logger.info(f'edit of message {message_id} in chat {chat_id}: rewrote {os.path.basename(path)}')
+        edits.record_edit(chat_id, record['message_id'])
+    return empty
+
 
 def get_group_name(chat_id):
     try:

@@ -87,6 +87,8 @@ When a message includes a file_list, call view_image on each path before answeri
 that is the only way to actually see a photo. Images produced in the sandbox can be
 viewed the same way, and delivered to the chat with send_file.
 Use generate_image whenever the user asks to generate, create, draw or edit an image.
+Everything send_file, generate_image and render_math deliver reaches the chat together
+with your reply, just before its text.
 
 ## Code execution
 run_command runs bash in an isolated sandbox container: no network, no access to the
@@ -460,8 +462,12 @@ You can determine the current date from the message_date field in the current me
         return "\n".join(lines)
 
     async def _claude_agent_query(self, system_prompt, user_prompt, chat_id=None,
-                                  message_id=None, tools_enabled=True):
-        """Query Claude using the agent SDK with Perplexity MCP tools."""
+                                  message_id=None, tools_enabled=True, outbox=None):
+        """Query Claude using the agent SDK with Perplexity MCP tools.
+
+        Files the bot tools produce are appended to `outbox` and sent with the
+        answer.
+        """
         self.logger.info(f"Sending query to Claude agent SDK (tools_enabled={tools_enabled})...")
 
         stderr_lines = []
@@ -482,7 +488,7 @@ You can determine the current date from the message_date field in the current me
         if tools_enabled:
             # Rebuilt per request: chat_id and message_id live in closures, so no
             # tool takes a chat_id and none can be pointed at another chat.
-            mcp_servers["bot"] = bot_tools.create_bot_server(chat_id, message_id)
+            mcp_servers["bot"] = bot_tools.create_bot_server(chat_id, message_id, outbox)
             allowed_tools.extend(f"mcp__bot__{name}" for name in bot_tools.TOOL_NAMES)
         if tools_enabled and perplexity_url:
             mcp_servers["perplexity"] = {
@@ -541,11 +547,23 @@ You can determine the current date from the message_date field in the current me
             self.logger.error(f"Exception type: {type(e).__name__}, details: {e}")
             raise
 
-    async def llm_request(self, chat_id, message_id, message_text, tools_enabled=True):
+    def prepare_prompt(self, chat_id, message_id, message_text, tools_enabled=True,
+                       from_history=True):
+        """(system_prompt, user_prompt, context) for one attempt at an answer.
+
+        Synchronous on purpose: nothing else runs between reading the history
+        and handing back its context. The current message is taken from its
+        history record, so a regeneration answers the edited text;
+        `message_text` is used when there is no record (`response:`, which
+        passes from_history=False because its message_id belongs to another
+        chat).
+        """
         self.logger.info(f'llm_request: {chat_id} (tools_enabled={tools_enabled})')
 
         # Read chat history
-        self.read_chat_history(chat_id=chat_id)
+        context = self.read_chat_history(chat_id=chat_id)
+        if from_history:
+            message_text = context.get(int(message_id), message_text)
         self.logger.info(f'invoking message_text: {message_text}')
         system_prompt = self.get_system_prompt(chat_id, tools_enabled=tools_enabled)
 
@@ -555,11 +573,20 @@ You can determine the current date from the message_date field in the current me
         if history_text:
             user_prompt += f"Previous conversation:\n{history_text}\n\n"
         user_prompt += f"Current message:\n{message_text}"
+        return system_prompt, user_prompt, context
 
+    async def generate(self, system_prompt, user_prompt, chat_id, message_id,
+                       tools_enabled=True, outbox=None):
+        """The text to send: the model's answer, or an error message.
+
+        Saves nothing: the caller saves the answer it actually sends. Files the
+        tools produce go to `outbox`. Cancellation is not an error and passes
+        through (only Exception is caught).
+        """
         try:
             response = await self._claude_agent_query(
                 system_prompt, user_prompt, chat_id=chat_id, message_id=message_id,
-                tools_enabled=tools_enabled
+                tools_enabled=tools_enabled, outbox=outbox
             )
             self.logger.info(f'llm_request response: {response[:200]}...' if len(response) > 200 else f'llm_request response: {response}')
 
@@ -595,31 +622,16 @@ You can determine the current date from the message_date field in the current me
                     )
                 response = await self._claude_agent_query(
                     system_prompt, retry_prompt, chat_id=chat_id, message_id=message_id,
-                    tools_enabled=tools_enabled
+                    tools_enabled=tools_enabled, outbox=outbox
                 )
                 response = TOOL_ARTIFACT_RE.sub('', response).strip()
                 self.logger.info(f'retry response: {response[:200]}')
-
-            self.save_to_chat_history(
-                chat_id,
-                response,
-                message_id,
-                'AIMessage'
-            )
 
             return response
 
         except Exception as e:
             error_message = f"I encountered an error while processing your request. Please try again later."
             self.logger.error(f"Error in llm_request: {str(e)}", exc_info=True)
-
-            self.save_to_chat_history(
-                chat_id,
-                error_message,
-                message_id,
-                'AIMessage'
-            )
-
             return error_message
 
     async def generate_filename(self, content):
