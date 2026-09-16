@@ -187,7 +187,11 @@ async def generate_image(prompt, chat_id, message_id, file_list=None):
             ),
         )
 
-        response = client.models.generate_content(
+        # Off the event loop: the call takes 40-70 s, and on the loop it froze
+        # every chat for that long (2026-09-10..16: the log went silent for
+        # 37-42 s per image, and a group message sat unread for 35 s).
+        response = await asyncio.to_thread(
+            client.models.generate_content,
             model=model,
             contents=contents,
             config=generate_content_config,
@@ -210,9 +214,12 @@ async def generate_image(prompt, chat_id, message_id, file_list=None):
             caption_text = caption_text[:1000]
         caption = f"||{escape_markdown(caption_text)}||"
 
-        sent_message = bot.send_photo(
+        # Encoding a 4K PNG and uploading 10 MB are seconds of work as well.
+        photo = await asyncio.to_thread(as_telegram_photo, image_data)
+        sent_message = await asyncio.to_thread(
+            bot.send_photo,
             chat_id=int(chat_id),
-            photo=as_telegram_photo(image_data),
+            photo=photo,
             reply_to_message_id=int(message_id),
             caption=caption,
             parse_mode="MarkdownV2",

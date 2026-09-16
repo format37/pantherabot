@@ -6,3 +6,4 @@ run/*
 !run/.gitkeep
 work/*
 !work/.gitkeep
+.pytest_cache/
