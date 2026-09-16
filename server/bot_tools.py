@@ -40,6 +40,9 @@ TELEGRAM_FILES_ROOT = (
 # Max image bytes handed to the model as a base64 block (~5 MB of file).
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
 MAX_SEND_BYTES = 45 * 1024 * 1024
+# What one attempt may hold for the chat: the outbox stays in memory until the
+# answer is sent, and the production host has no swap.
+MAX_OUTBOX_BYTES = 64 * 1024 * 1024
 
 TOOL_NAMES = [
     'run_command',
@@ -126,6 +129,16 @@ def build_tools(chat_id, message_id, outbox):
     chat_id = str(chat_id)
     message_id = str(message_id)
 
+    def outbox_room():
+        return MAX_OUTBOX_BYTES - sum(len(item.data) for item in outbox)
+
+    def outbox_full(size):
+        return _error(
+            f'not sent: {size} more bytes would not fit with what this reply already '
+            f'carries ({MAX_OUTBOX_BYTES - outbox_room()} of {MAX_OUTBOX_BYTES} bytes). '
+            f'Send fewer or smaller files.'
+        )
+
     @tool(
         'run_command',
         'Run a shell command (bash) in the sandbox and return its output. Use it '
@@ -210,6 +223,8 @@ def build_tools(chat_id, message_id, outbox):
         size = os.path.getsize(path)
         if size > MAX_SEND_BYTES:
             return _error(f'file is too large to send ({size} bytes)')
+        if size > outbox_room():
+            return outbox_full(size)
 
         caption = (args.get('caption') or '')[:1000] or None
         mime, _ = mimetypes.guess_type(path)
@@ -222,6 +237,8 @@ def build_tools(chat_id, message_id, outbox):
             data = await asyncio.to_thread(_read_bytes, path)
         except OSError as e:
             return _error(f'could not read the file: {e}')
+        if len(data) > outbox_room():   # another tool call may have filled it meanwhile
+            return outbox_full(len(data))
         outbox.append(Outgoing('photo' if as_photo else 'document', data, name, caption))
         return _text(f'{name} will be sent to the chat with your reply.')
 
@@ -248,6 +265,8 @@ def build_tools(chat_id, message_id, outbox):
             files = [_resolve(p, chat_id) for p in files]
         except PermissionError as e:
             return _error(str(e))
+        if outbox_room() < tools_cli.TELEGRAM_PHOTO_MAX_BYTES:
+            return outbox_full(tools_cli.TELEGRAM_PHOTO_MAX_BYTES)
         try:
             photo, caption = await tools_cli.make_image(args['prompt'], files or None)
         except Exception as e:
@@ -275,6 +294,8 @@ def build_tools(chat_id, message_id, outbox):
             png = await asyncio.to_thread(tools_cli.formula_png, args['formula'])
         except Exception as e:
             return _text(f'Math rendering failed: {e}')
+        if len(png) > outbox_room():
+            return outbox_full(len(png))
         outbox.append(Outgoing('photo', png, 'formula.png'))
         return _text('Formula rendered. It will be sent to the chat with your reply.')
 

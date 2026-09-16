@@ -38,7 +38,7 @@ Two containers: `panthera_gptaidbot` (the head: FastAPI, the Claude CLI, every s
 ### Source Files
 
 **server.py** — FastAPI endpoints and Telegram delivery:
-- `POST /message`: validates access, saves the message to the history, answers it when addressed
+- `POST /message`: validates access, saves the message to the history, and when addressed starts the answer in the background (`answer_in_background()`), so the relay's thread is free again at once
 - `POST /edited_message`: rewrites an edited message's history record in place; never answers
 - `POST /inline`: inline query handler (photo/group selection)
 - `GET /test`: health check
@@ -60,7 +60,7 @@ Two containers: `panthera_gptaidbot` (the head: FastAPI, the Claude CLI, every s
 
 **memory.py** — per-chat long-term notes in `data/users/{chat_id}/CLAUDE.md`, injected into the system prompt and kept across `/reset`.
 
-**exec_service.py** — the sandbox's exec service (`panthera_sandbox`), reached over `./run/exec.sock`.
+**exec_service.py** — the sandbox's exec service (`panthera_sandbox`), reached over `./run/exec.sock`. A command is killed when it times out or when the head hangs up (its answer was cancelled).
 
 ### Primary Model Configuration
 
@@ -79,7 +79,7 @@ The `primary_model` is passed to `claude_agent_sdk` as the model parameter. The 
 
 `_claude_agent_query()` passes `tools=[]`: the model has no Bash, Read or Write. Everything it can do is an MCP tool: the `bot` server from `bot_tools.py` (`mcp__bot__*`) and, when `PERPLEXITY_MCP_URL` is set, Perplexity search (`mcp__perplexity__*`). `strict_mcp_config=True` and `setting_sources=[]` keep out anything written into the config dir. Code runs in the sandbox through `run_command`. Senders not in `data/users.txt` (guests in a granted group) get no tools at all. Tool usage is described in `TOOL_INSTRUCTIONS` in `panthera.py`, appended to the system prompt for authorized senders only.
 
-Tools never send to the chat themselves. `send_file`, `generate_image` and `render_math` append a `bot_tools.Outgoing` (the bytes, taken when the tool runs) to the attempt's outbox. The outbox is sent just before the answer's text, and only for the attempt that is sent.
+Tools never send to the chat themselves. `send_file`, `generate_image` and `render_math` append a `bot_tools.Outgoing` (the bytes, taken when the tool runs) to the attempt's outbox, up to `MAX_OUTBOX_BYTES`. The outbox is sent just before the answer's text, and only for the attempt that is sent.
 
 ### Adding a New Tool
 
@@ -105,16 +105,16 @@ Stored per chat in `data/users/{chat_id}/chats/{chat_id}/`, one JSON file per re
 2. `user_access()` validates authorization (checks `data/users.txt`, group membership).
 3. Commands (`/add`, `/remove`, `/help`, `/reset`, `/memory`, `/forget`, `/start`, `response:`) are handled and not saved.
 4. The human record is built (`human_record()`) and saved.
-5. Janet answers if: private chat, `/*` or `/.` prefix in a group, or a reply to the bot.
+5. Janet answers if: private chat, `/*` or `/.` prefix in a group (on any caption of an album), or a reply to the bot. The request returns now; the answer runs as a background task.
 6. `edits.answer()` runs attempts. Each attempt reads the history (`prepare_prompt()`, current message from its record) and generates (`generate()`), with files going to its outbox.
 7. Before sending, the pre-send check discards an attempt whose context was edited meanwhile, and a new attempt starts.
 8. The answer is saved as an `AIMessage`, and its outbox and text are sent as a Telegram rich message (fallbacks: a `.txt` document, then MarkdownV2).
 
 **Edits** (the relay forwards them only with `"forward_edits": 1` in its `bots.json`):
-1. `/edited_message` finds the message's human record (by file-name suffix, or by `media_group_id` for an album item) and rewrites it in place with `edit_date`. An edit that changes neither the text/caption nor the files is ignored.
+1. `/edited_message` finds the message's human record by its file-name suffix and rewrites it in place with `edit_date`. An edit that changes neither the text/caption nor the files is ignored.
 2. An edit never answers and never runs a command. A sent answer is final.
-3. If an answer is being generated from a context that includes the message, the running attempt is cancelled (its CLI ends about 5 s later). The answer is regenerated once edits stop for `DEBOUNCE_SECONDS`, at most `MAX_REGENERATIONS` times; after that the next attempt is sent as is.
-4. An album still being collected just gets the new caption.
+3. If an answer is being generated from a context that includes the message, the running attempt is cancelled (its CLI ends about 5 s later, its sandbox command at once). The answer is regenerated once edits stop for `DEBOUNCE_SECONDS` (waiting `MAX_SETTLE_SECONDS` at most), at most `MAX_REGENERATIONS` times; after that the next attempt is sent as is.
+4. An album is found by the edited item's id or, for the other items, among the nine ids before it (the album is filed under its first item). An album still being collected just gets the new caption; a caption change that leaves the album's text the same only updates the record's `captions`.
 
 ### Message Formatting
 

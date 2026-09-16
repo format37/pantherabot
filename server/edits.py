@@ -13,10 +13,10 @@ The rule (Alex, 2026-09-16):
 `answer()` runs one answer as a series of attempts. An edit that touches the
 running attempt's context (the human records it loaded) cancels it at once;
 the answer is regenerated once the cancelled attempt has shut down and the
-edits have stopped for DEBOUNCE_SECONDS. An attempt that finishes is checked
-once more before anything is sent, so an edit that slipped in after the last
-cancel point sends it back as well. After MAX_REGENERATIONS the next attempt is
-sent whatever happens.
+edits have stopped for DEBOUNCE_SECONDS (or MAX_SETTLE_SECONDS have passed).
+An attempt that finishes is checked once more before anything is sent, so an
+edit that slipped in after the last cancel point sends it back as well. After
+MAX_REGENERATIONS the next attempt is sent whatever happens.
 
 Cancelling an attempt ends its Claude CLI: the SDK closes the CLI's stdin,
 gives it 5 s, then SIGTERM (measured 2026-09-16 with CLI 2.1.259, which does not
@@ -38,6 +38,9 @@ import time
 logger = logging.getLogger(__name__)
 
 DEBOUNCE_SECONDS = 1.5
+# The wait for edits to stop ends after this long even if they don't: a message
+# edited over and over must not hold an answer (and its slot) forever.
+MAX_SETTLE_SECONDS = 10
 MAX_REGENERATIONS = 3
 # Each answer runs a Claude CLI of about 230 MB, and the production host has no
 # swap. Two is what the relay allowed before it got more threads.
@@ -129,9 +132,14 @@ class Generation:
                 self.task.cancel()
 
     async def settle(self):
-        """Wait until no edit has touched the context for DEBOUNCE_SECONDS."""
+        """Wait until no edit has touched the context for DEBOUNCE_SECONDS.
+
+        Never longer than MAX_SETTLE_SECONDS; the regeneration cap then bounds
+        the whole answer.
+        """
+        deadline = time.monotonic() + MAX_SETTLE_SECONDS
         while True:
-            remaining = self.last_edit + DEBOUNCE_SECONDS - time.monotonic()
+            remaining = min(self.last_edit + DEBOUNCE_SECONDS, deadline) - time.monotonic()
             if remaining <= 0:
                 return
             await asyncio.sleep(remaining)

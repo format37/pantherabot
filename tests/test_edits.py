@@ -2,6 +2,7 @@
 import logging
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -480,3 +481,167 @@ def test_cancelling_an_attempt_ends_its_cli(env, client, monkeypatch, tmp_path):
     assert (state / 'answered').exists()
     assert [e['text'] for e in sent(env, ALICE)] == ['hello from the fake CLI']
     assert time.monotonic() - t0 < 30
+
+
+def test_message_returns_before_the_answer(env, client):
+    """The relay's thread is free while Janet works, so an edit can get through."""
+    async def script(call):
+        await park(call)
+        return 'late answer'
+
+    env.llm.script = script
+    t0 = time.monotonic()
+    response = client.raw.post('/message', json=message(ALICE, 10, 'slow one'))
+    assert response.status_code == 200 and time.monotonic() - t0 < 2
+    call = env.llm.wait_for_calls(1)
+    assert env.events == []
+    client.raw.post('/edited_message', json=edit(ALICE, 10, 'slow one, edited'))
+    assert wait_until(lambda: call.cancelled, timeout=5)
+    env.llm.wait_for_calls(2).release.set()
+    assert wait_until(lambda: env.events, timeout=10)
+    assert [e['text'] for e in env.events] == ['late answer']
+
+
+def test_edit_storm_does_not_hold_an_answer_forever(env, client, monkeypatch):
+    """A message edited again and again: the waits are capped, then the cap on regenerations ends it."""
+    monkeypatch.setattr(env.edits, 'MAX_CONCURRENT_ANSWERS', 1)
+    monkeypatch.setattr(env.edits, '_slots', None)
+    monkeypatch.setattr(env.edits, 'DEBOUNCE_SECONDS', 0.3)
+    monkeypatch.setattr(env.edits, 'MAX_SETTLE_SECONDS', 0.5)
+
+    async def script(call):
+        if call.chat_id == ALICE:
+            await park(call)
+        return f'answer to {call.chat_id}'
+
+    env.llm.script = script
+    stop = threading.Event()
+
+    def storm():
+        n = 0
+        while not stop.is_set():
+            n += 1
+            client.raw.post('/edited_message', json=message(ALICE, 10, f'v{n}', edit_date=EDITED + n))
+            time.sleep(0.05)
+
+    asking = Background(client, '/message', message(ALICE, 10, 'v0'))
+    env.llm.wait_for_calls(1)
+    stormer = threading.Thread(target=storm, daemon=True)
+    stormer.start()
+    try:
+        other = Background(client, '/message', message(BOB, 20, 'ping'))
+        final = env.llm.wait_for_calls(4, timeout=10)
+        assert [c.cancelled for c in env.llm.calls[:3]] == [True, True, True]
+        time.sleep(0.2)
+        assert not final.cancelled
+        final.release.set()
+        asking.join()
+        other.join()
+    finally:
+        stop.set()
+        stormer.join()
+    assert [e['chat_id'] for e in env.events] == [ALICE, BOB]
+
+
+def test_album_captions_stay_current_when_the_album_reads_the_same(env, client, monkeypatch):
+    monkeypatch.setattr(env.server, 'MEDIA_GROUP_WAIT_SECONDS', 0.2)
+    items = [message(OWNER, 61, caption='cat', photo='c1', media_group_id='g4'),
+             message(OWNER, 62, caption='cat', photo='c2', media_group_id='g4')]
+    for item in items:
+        client.post('/message', json=item)
+    assert wait_until(lambda: env.events)
+
+    # 62 loses its caption: the album still reads "cat", but the item is noted.
+    client.post('/edited_message', json=dict(items[1], caption='', edit_date=EDITED))
+    record = records(env, OWNER)[0]
+    assert record['captions'] == {'61': 'cat', '62': ''}
+    assert record['raw_text'] == 'cat' and 'edit_date' not in record
+
+    # 61 loses its caption too: now the album has none.
+    client.post('/edited_message', json=dict(items[0], caption='', edit_date=EDITED))
+    record = records(env, OWNER)[0]
+    assert record['captions'] == {'61': '', '62': ''}
+    assert record['raw_text'] == '' and record['edit_date'] == '2025-09-16 05:21:40'
+    assert 'message_text' not in record['text']
+
+
+def test_group_album_is_answered_when_any_caption_calls_janet(env, client, monkeypatch):
+    monkeypatch.setattr(env.server, 'MEDIA_GROUP_WAIT_SECONDS', 0.2)
+    client.post('/message', json=message(GROUP, 71, caption='look', photo='a1',
+                                         media_group_id='g5', sender=ALICE))
+    client.post('/message', json=message(GROUP, 72, caption='/* what is this?', photo='a2',
+                                         media_group_id='g5', sender=ALICE))
+    assert wait_until(lambda: env.events)
+    assert raw_text(env.llm.calls[0]) == 'look\n/* what is this?'
+    assert [(e['chat_id'], e['reply_to']) for e in env.events] == [(GROUP, 71)]
+
+
+def test_edit_of_a_reply_whose_target_is_gone(env, client):
+    """Telegram drops reply_to_message once that message is deleted; the record keeps it."""
+    replied = message(ALICE, 40, photo='orig')
+    client.post('/message', json=message(ALICE, 41, 'what is on it?', reply_to=replied))
+    before = records(env, ALICE)[0]
+    assert before['images'] == ['/TESTTOKEN/photos/orig.jpg']
+
+    client.post('/edited_message', json=edit(ALICE, 41, 'what is on it?'))    # target deleted
+    assert records(env, ALICE)[0] == before
+
+    client.post('/edited_message', json=edit(ALICE, 41, 'what is in it?'))
+    record = records(env, ALICE)[0]
+    assert record['raw_text'] == 'what is in it?'
+    assert record['images'] == before['images']
+    assert record['file_unique_ids'] == ['u-orig']
+    assert '\nreply_to_message: 40\n' in record['text']
+
+
+def test_a_photo_is_not_sent_twice_after_a_timeout(env, client):
+    import requests
+    import telebot
+
+    attempts = []
+
+    def send_photo(chat_id, photo, **kwargs):
+        attempts.append(kwargs.get('timeout'))
+        if len(attempts) == 1:
+            raise requests.exceptions.ReadTimeout('slow upload')
+        raise telebot.apihelper.ApiTelegramException(
+            'sendPhoto', None, {'error_code': 400, 'description': 'PHOTO_INVALID_DIMENSIONS'})
+
+    env.bot.send_photo = send_photo
+    (env.work / str(ALICE)).mkdir()
+    (env.work / str(ALICE) / 'a.png').write_bytes(b'\x89PNG a')
+    (env.work / str(ALICE) / 'b.png').write_bytes(b'\x89PNG b')
+
+    async def script(call):
+        tools = env.bot_tools.build_tools(call.chat_id, call.message_id, call.kwargs['outbox'])
+        await tools['send_file'].handler({'path': 'a.png'})
+        await tools['send_file'].handler({'path': 'b.png'})
+        return 'two pictures'
+
+    env.llm.script = script
+    client.post('/message', json=message(ALICE, 10, 'send them'))
+    assert attempts == [env.server.UPLOAD_TIMEOUT_SECONDS] * 2
+    # a.png timed out (it may have arrived): not sent again. b.png was refused: sent as a file.
+    assert [(e['kind'], e.get('name')) for e in env.events] == [('document', 'b.png'), ('rich', None)]
+
+
+def test_outbox_has_a_size_limit(env, client, monkeypatch):
+    monkeypatch.setattr(env.bot_tools, 'MAX_OUTBOX_BYTES', 1000)
+    (env.work / str(ALICE)).mkdir()
+    (env.work / str(ALICE) / 'big.bin').write_bytes(b'x' * 700)
+    (env.work / str(ALICE) / 'more.bin').write_bytes(b'y' * 400)
+    results = []
+
+    async def script(call):
+        tools = env.bot_tools.build_tools(call.chat_id, call.message_id, call.kwargs['outbox'])
+        for name in ('big.bin', 'more.bin'):
+            results.append(await tools['send_file'].handler({'path': name}))
+        results.append(await tools['generate_image'].handler({'prompt': 'a cat'}))
+        return 'done'
+
+    env.llm.script = script
+    client.post('/message', json=message(ALICE, 10, 'send both'))
+    assert 'is_error' not in results[0]
+    assert results[1]['is_error'] and 'not sent' in results[1]['content'][0]['text']
+    assert results[2]['is_error']
+    assert [(e['kind'], e.get('name')) for e in env.events] == [('document', 'big.bin'), ('rich', None)]

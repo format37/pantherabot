@@ -271,21 +271,21 @@ class Panthera:
                 pass
             raise
 
-    def find_human_records(self, chat_id, message_id=None, media_group_id=None):
-        """[(path, record)] of the human records for a message_id, or for an album.
+    def find_human_records(self, chat_id, message_ids):
+        """{message_id: [(path, record)]} of the human records filed under these ids.
 
-        An album's record is filed under one of its items, so an edit of any
-        other item is matched by media_group_id (stored since 2026-09-16).
+        Only the files whose name ends in one of the ids are read.
         """
         chat_log_path = self.chat_log_path(chat_id)
         if not os.path.isdir(chat_log_path):
-            return []
-        suffix = f'_{message_id}.json'
-        found = []
+            return {}
+        wanted = {str(message_id) for message_id in message_ids}
+        found = {}
         for name in sorted(os.listdir(chat_log_path)):
             if not name.endswith('.json'):
                 continue
-            if media_group_id is None and not name.endswith(suffix):
+            suffix = name[:-len('.json')].rpartition('_')[2]
+            if suffix not in wanted:
                 continue
             path = os.path.join(chat_log_path, name)
             try:
@@ -295,10 +295,7 @@ class Panthera:
                 continue
             if not isinstance(record, dict) or record.get('type') != 'HumanMessage':
                 continue
-            if name.endswith(suffix) or (
-                    media_group_id is not None
-                    and record.get('media_group_id') == media_group_id):
-                found.append((path, record))
+            found.setdefault(int(suffix), []).append((path, record))
         return found
 
     def attached_file(self, message):

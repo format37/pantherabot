@@ -233,6 +233,11 @@ def reply_parameters(reply_to):
     return telebot.types.ReplyParameters(message_id=reply_to, allow_sending_without_reply=True)
 
 
+# The local Bot API server answers an upload only once Telegram has the file,
+# and 45 MB can take longer than telebot's default 30 s.
+UPLOAD_TIMEOUT_SECONDS = 300
+
+
 def send_outgoing(chat_id, reply_to, item):
     """Send one file a tool produced (bot_tools.Outgoing)."""
     def payload():
@@ -244,13 +249,17 @@ def send_outgoing(chat_id, reply_to, item):
         try:
             sent = bot.send_photo(
                 int(chat_id), payload(), caption=item.caption, parse_mode=item.parse_mode,
-                reply_parameters=reply_parameters(reply_to),
+                reply_parameters=reply_parameters(reply_to), timeout=UPLOAD_TIMEOUT_SECONDS,
             )
-        except Exception as e:
+        except telebot.apihelper.ApiTelegramException as e:
             # The tool can no longer report it, so a photo Telegram refuses
-            # (size, proportions) gets a second chance as a document.
-            logger.error(f'Could not send {item.filename} to chat {chat_id} as a photo, '
+            # (size, proportions) gets a second chance as a document. Only a
+            # refusal: after a timeout the photo may well have arrived.
+            logger.error(f'Telegram refused {item.filename} for chat {chat_id} as a photo, '
                          f'sending it as a document: {e}')
+        except Exception as e:
+            logger.error(f'Could not send {item.filename} to chat {chat_id}: {e}')
+            return
         else:
             if item.cache_inline:
                 try:
@@ -262,6 +271,7 @@ def send_outgoing(chat_id, reply_to, item):
         bot.send_document(
             int(chat_id), payload(), caption=item.caption, parse_mode=item.parse_mode,
             visible_file_name=item.filename, reply_parameters=reply_parameters(reply_to),
+            timeout=UPLOAD_TIMEOUT_SECONDS,
         )
     except Exception as e:
         logger.error(f'Could not send {item.filename} to chat {chat_id}: {e}')
@@ -375,10 +385,28 @@ async def call_llm_response(chat_id, message_id, message_text, reply, tools_enab
         )
 
     await edits.answer(chat_id, message_id, attempt, commit)
-    return JSONResponse(content={
-        "type": "empty",
-        "body": ''
-    })
+
+
+# Answers run as tasks of their own. The request that brought a message
+# returns once the message is saved, so the relay's worker threads stay free to
+# forward edits while answers are generated or wait for a slot (edits.py).
+answer_tasks = {}
+
+
+def answer_in_background(chat_id, message_id, message_text, reply, **kwargs):
+    """Start answering a message; do not wait for the answer."""
+    task = asyncio.create_task(
+        call_llm_response(chat_id, message_id, message_text, reply, **kwargs)
+    )
+    answer_tasks[task] = (chat_id, message_id)
+    task.add_done_callback(_answer_finished)
+
+
+def _answer_finished(task):
+    chat_id, message_id = answer_tasks.pop(task)
+    if not task.cancelled() and task.exception() is not None:
+        logger.error(f'Answering message {message_id} in chat {chat_id} failed',
+                     exc_info=task.exception())
 
 
 async def flush_media_group(media_group_id: str):
@@ -427,12 +455,12 @@ async def flush_media_group(media_group_id: str):
 
     # Process the complete media group only if conditions are met
     # (same conditions as in main message handler: private chat, prefix, or reply to bot)
+    # The prefix may be on any item's caption.
     if chat_type == 'private' \
-        or text.startswith('/*') \
-        or text.startswith('/.') \
+        or any(caption.startswith(('/*', '/.')) for caption in captions.values()) \
         or panthera.is_reply_to_ai_message(original_message):
-        await call_llm_response(chat_id, message_id, message_text, True,
-                                tools_enabled=tools_enabled)
+        answer_in_background(chat_id, message_id, message_text, True,
+                             tools_enabled=tools_enabled)
 
 @app.post("/message")
 async def call_message(request: Request, authorization: str = Header(None)):
@@ -676,8 +704,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
             message_text = ''
             # The message_id is this private message's, not the group's: there is
             # no history record behind it.
-            await call_llm_response(chat_id, message["message_id"], message_text, False,
-                                    tools_enabled=tools_enabled, from_history=False)
+            answer_in_background(chat_id, message["message_id"], message_text, False,
+                                 tools_enabled=tools_enabled, from_history=False)
             return JSONResponse(content={
                 "type": "empty",
                 "body": ''
@@ -765,9 +793,8 @@ Commands:
         or text.startswith('/*') \
         or text.startswith('/.') \
         or panthera.is_reply_to_ai_message(message):
-        # await call_llm_response(message, message_text, message['chat']['id'], True)
-        await call_llm_response(chat_id, message["message_id"], message_text, True,
-                                tools_enabled=tools_enabled)
+        answer_in_background(chat_id, message["message_id"], message_text, True,
+                             tools_enabled=tools_enabled)
         
     return JSONResponse(content={
         "type": "empty",
@@ -789,50 +816,65 @@ def attached_unique_ids(message):
 
 
 def edited_record(message, path, old):
-    """The record an edited message rewrites `old` to, or None if nothing Janet reads changed.
+    """What an edit does to the record `old`: (record, whether Janet's input changed), or None.
 
     Telegram also reports edits of what the bot does not use (a link preview,
     a live location), so an edit counts only when the text or caption, or the
-    files, differ from the record's.
+    files, differ from the record's. An album item's own caption is kept up to
+    date even when the album reads the same; that alone does not count.
     """
     text = message.get('text', message.get('caption', ''))
     old_text = record_raw_text(old)
     old_images = old.get('images') or []
+    old_ids = old.get('file_unique_ids')
+    old_files = list(zip(old_images, old_ids or [None] * len(old_images)))
+    edit_date = message.get('edit_date') or int(time.time())
     media_group_id = message.get('media_group_id')
-    captions = None
+
     if media_group_id is not None:
         # An album keeps the images it was saved with; the edit carries only
         # its own item, and only that item's caption can change.
-        files = list(zip(old_images, old.get('file_unique_ids') or [None] * len(old_images)))
         captions = old.get('captions')
         if captions is not None:
             captions = dict(captions)
             captions[str(message['message_id'])] = text
             text = album_text(captions)
-        elif not text:
+            if text == old_text:
+                if captions == old['captions']:
+                    return None
+                return dict(old, captions=captions), False
+        elif not text or text == old_text:
             # Saved before items kept their own captions: an item without one
             # says nothing about the album's.
-            text = old_text
-        files_changed = False
-    else:
-        old_ids = old.get('file_unique_ids')
-        if old_ids is not None and attached_unique_ids(message) == old_ids:
-            # The same files: keep their paths rather than ask the Bot API again.
-            files = list(zip(old_images, old_ids))
-            files_changed = False
-        else:
-            files = attached_files(message)
-            files_changed = old_ids is not None or [p for p, _ in files] != old_images
-    if not files_changed and text == old_text:
-        return None
-
-    record = human_record(message, record_message_id(path, old), text, files,
-                          edit_date=message.get('edit_date') or int(time.time()))
-    if media_group_id is not None:
+            return None
+        record = human_record(message, record_message_id(path, old), text, old_files,
+                              edit_date=edit_date)
         record['media_group_id'] = media_group_id
         if captions is not None:
             record['captions'] = captions
-    return record
+        return record, True
+
+    kept_reply = []
+    if 'reply_to_message' not in message:
+        replied = re.search(r'\nreply_to_message: (\d+)\n', old.get('text', ''))
+        if replied:
+            # Telegram leaves the reply out once the replied-to message is gone,
+            # and an edit cannot change what a message replies to: keep it. A
+            # message's own file comes first in the record.
+            message = dict(message, reply_to_message={'message_id': int(replied.group(1))})
+            kept_reply = old_files[1:] if panthera.attached_file(message) else old_files
+    new_ids = attached_unique_ids(message) + [unique_id for _, unique_id in kept_reply]
+    if old_ids is not None and new_ids == old_ids:
+        # The same files: keep their paths rather than ask the Bot API again.
+        files = old_files
+        files_changed = False
+    else:
+        files = attached_files(message) + kept_reply
+        files_changed = old_ids is not None or [p for p, _ in files] != old_images
+    if not files_changed and text == old_text:
+        return None
+    return human_record(message, record_message_id(path, old), text, files,
+                        edit_date=edit_date), True
 
 
 @app.post("/edited_message")
@@ -870,20 +912,32 @@ async def call_edited_message(request: Request):
                         f'being collected, caption updated')
         return empty
 
-    found = panthera.find_human_records(chat_id, message_id)
-    if not found and media_group_id is not None:
-        found = panthera.find_human_records(chat_id, media_group_id=media_group_id)
-    if not found:
+    # An album is filed under its first item, and an album's items have
+    # consecutive ids, ten at most.
+    neighbours = range(message_id - 1, message_id - 10, -1) if media_group_id is not None else ()
+    found = panthera.find_human_records(chat_id, [message_id, *neighbours])
+    matches = found.get(message_id, [])
+    for first_item in neighbours:
+        if matches:
+            break
+        matches = [(path, record) for path, record in found.get(first_item, [])
+                   if record.get('media_group_id') == media_group_id]
+    if not matches:
         logger.info(f'edit of message {message_id} in chat {chat_id}: not in the history '
                     f'(a command, pruned, or before a /reset)')
         return empty
 
-    for path, old in found:
-        record = edited_record(message, path, old)
-        if record is None:
+    for path, old in matches:
+        result = edited_record(message, path, old)
+        if result is None:
             logger.info(f'edit of message {message_id} in chat {chat_id}: nothing Janet reads changed')
             continue
+        record, changed = result
         panthera.rewrite_record(path, record)
+        if not changed:
+            logger.info(f'edit of message {message_id} in chat {chat_id}: album caption noted, '
+                        f'the album reads the same')
+            continue
         logger.info(f'edit of message {message_id} in chat {chat_id}: rewrote {os.path.basename(path)}')
         edits.record_edit(chat_id, record['message_id'])
     return empty

@@ -30,9 +30,9 @@ includes the edited message, she starts over, so what she sends reflects the edi
 sent together with the answer.
 
 The relay forwards edits only for bots with `"forward_edits": 1` in its
-`bots.json`. GPT_AID_BOT runs there with `"num_threads": 8`, so that an edit gets
-through while answers are running. The bot itself runs at most two answers at a
-time (`MAX_CONCURRENT_ANSWERS`).
+`bots.json`; GPT_AID_BOT has it, with `"num_threads": 8`. The bot answers in the
+background, so the relay's threads are only busy for a moment per message, and
+it runs at most two answers at a time (`MAX_CONCURRENT_ANSWERS`).
 
 # tests
 `tests/` runs the real app with a fake Telegram bot and a fake model: no Docker,

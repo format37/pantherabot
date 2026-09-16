@@ -12,7 +12,7 @@ import os
 import signal
 import time
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
@@ -57,8 +57,24 @@ async def health():
     return {'status': 'ok'}
 
 
+def _kill_group(proc):
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            pass
+
+
+async def _hung_up(request: Request):
+    """Return once the head hangs up: the answer this command was for is gone."""
+    while (await request.receive())['type'] != 'http.disconnect':
+        pass
+
+
 @app.post('/exec')
-async def execute(req: ExecRequest, x_sandbox_token: str = Header(default='')):
+async def execute(req: ExecRequest, request: Request, x_sandbox_token: str = Header(default='')):
     if TOKEN and x_sandbox_token != TOKEN:
         raise HTTPException(status_code=403, detail='bad sandbox token')
 
@@ -76,16 +92,29 @@ async def execute(req: ExecRequest, x_sandbox_token: str = Header(default='')):
         start_new_session=True,
     )
 
-    timed_out = False
+    output = asyncio.ensure_future(proc.communicate())
+    hung_up = asyncio.ensure_future(_hung_up(request))
     try:
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-    except asyncio.TimeoutError:
-        timed_out = True
-        try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        except (ProcessLookupError, PermissionError):
-            proc.kill()
-        stdout, stderr = await proc.communicate()
+        done, _ = await asyncio.wait({output, hung_up}, timeout=timeout,
+                                     return_when=asyncio.FIRST_COMPLETED)
+    except asyncio.CancelledError:
+        _kill_group(proc)
+        raise
+    finally:
+        hung_up.cancel()
+
+    timed_out = False
+    if output not in done:
+        # A cancelled answer (the head was told of an edit) must not leave its
+        # command running: it would still write to the directory the next
+        # attempt works in.
+        if hung_up in done:
+            print(f'exec: the head hung up after {time.monotonic() - started:.1f}s, '
+                  f'killing the command in {cwd}', flush=True)
+        else:
+            timed_out = True
+        _kill_group(proc)
+    stdout, stderr = await output
 
     out, out_cut = _truncate((stdout or b'').decode('utf-8', 'replace'))
     err, err_cut = _truncate((stderr or b'').decode('utf-8', 'replace'))

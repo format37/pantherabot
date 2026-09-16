@@ -191,15 +191,38 @@ def env(tmp_path, monkeypatch):
     assert wait_until(lambda: not edits._running, timeout=15), f'generations left running: {edits._running}'
 
 
+class AnsweringClient:
+    """A TestClient whose POST /message returns once the answer it started is sent.
+
+    The app answers in the background (the relay's threads must stay free), so
+    a test that checks what was sent waits for the answer explicitly. `raw` is
+    the plain client.
+    """
+
+    def __init__(self, raw, server):
+        self.raw = raw
+        self.server = server
+
+    def post(self, path, json):
+        response = self.raw.post(path, json=json)
+        if path == '/message':
+            message_id = json['message_id']
+            assert wait_until(lambda: all(mid != message_id for _, mid in
+                                          list(self.server.answer_tasks.values())),
+                              timeout=20), f'the answer to message {message_id} did not finish'
+        return response
+
+
 @pytest.fixture
 def client(env):
     from fastapi.testclient import TestClient
     # One portal, so every request runs on the same event loop, as in uvicorn.
     with TestClient(env.server.app) as c:
-        yield c
+        yield AnsweringClient(c, env.server)
         # The portal waits for its tasks on exit: let parked attempts finish.
         for call in env.llm.calls:
             call.release.set()
+        assert wait_until(lambda: not env.server.answer_tasks, timeout=15)
 
 
 class Background:
