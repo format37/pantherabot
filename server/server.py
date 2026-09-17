@@ -413,6 +413,48 @@ def _answer_finished(task):
                      exc_info=task.exception())
 
 
+# Bot-to-bot loop guard. Another bot's message is history like anyone's, but it
+# can summon Janet only by replying to her (never by /* or a command), and only
+# BOT_REPLY_CHAIN_LIMIT times in a row: any human message in the chat starts the
+# count again. BOT_REPLY_WINDOW_LIMIT bounds the answers to bots per chat in
+# BOT_REPLY_WINDOW_SECONDS whatever resets the chain. Over a limit she stays
+# silent: a notice would be one more message for the other bot to answer.
+# In memory only; a restart forgets the counts.
+BOT_REPLY_CHAIN_LIMIT = 3
+BOT_REPLY_WINDOW_LIMIT = 10
+BOT_REPLY_WINDOW_SECONDS = 600
+bot_reply_chain = {}  # chat_id -> answers to bots since the last human message
+bot_reply_times = {}  # chat_id -> times of the recent answers to bots
+
+
+def is_bot_sender(message):
+    return bool(message.get('from', {}).get('is_bot', False))
+
+
+def bot_reply_allowed(chat_id):
+    """Count one more answer to a bot in this chat, unless a limit is reached."""
+    now = time.time()
+    recent = [t for t in bot_reply_times.get(chat_id, []) if now - t < BOT_REPLY_WINDOW_SECONDS]
+    chain = bot_reply_chain.get(chat_id, 0)
+    if chain >= BOT_REPLY_CHAIN_LIMIT or len(recent) >= BOT_REPLY_WINDOW_LIMIT:
+        bot_reply_times[chat_id] = recent
+        logger.info(f'bot loop guard: silent in chat {chat_id} '
+                    f'(chain {chain}, {len(recent)} answers in the window)')
+        return False
+    bot_reply_chain[chat_id] = chain + 1
+    bot_reply_times[chat_id] = recent + [now]
+    return True
+
+
+def should_answer(message, chat_type, prefixed):
+    """Whether Janet answers this message; it is in the history either way."""
+    chat_id = message['chat']['id']
+    if not is_bot_sender(message):
+        bot_reply_chain.pop(chat_id, None)
+        return chat_type == 'private' or prefixed or panthera.is_reply_to_ai_message(message)
+    return panthera.is_reply_to_ai_message(message) and bot_reply_allowed(chat_id)
+
+
 async def flush_media_group(media_group_id: str):
     """
     Flush accumulated media group messages after a timeout.
@@ -460,9 +502,8 @@ async def flush_media_group(media_group_id: str):
     # Process the complete media group only if conditions are met
     # (same conditions as in main message handler: private chat, prefix, or reply to bot)
     # The prefix may be on any item's caption.
-    if chat_type == 'private' \
-        or any(caption.startswith(('/*', '/.')) for caption in captions.values()) \
-        or panthera.is_reply_to_ai_message(original_message):
+    prefixed = any(caption.startswith(('/*', '/.')) for caption in captions.values())
+    if should_answer(original_message, chat_type, prefixed):
         answer_in_background(chat_id, message_id, message_text, True,
                              tools_enabled=tools_enabled)
 
@@ -520,8 +561,12 @@ async def call_message(request: Request, authorization: str = Header(None)):
     with open(data_path + 'users.txt', 'r') as f:
         user_list = f.read().splitlines()
 
+    # A bot's message is never a command: an answer to one is a message the
+    # other bot may answer in turn, outside the loop guard.
+    command_text = '' if is_bot_sender(message) else text
+
     # Add user CMD
-    if text.startswith('/add'):
+    if command_text.startswith('/add'):
         logger.info(f'Add user CMD: {text}')
         # Check is current user in atdmins.txt
         admins = []
@@ -554,7 +599,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
             })
 
     # Remove user CMD
-    elif text.startswith('/remove'):
+    elif command_text.startswith('/remove'):
         logger.info(f'Remove user CMD: {text}')
         # Check is current user in atdmins.txt
         admins = []
@@ -587,7 +632,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
             })
 
     # Help command
-    elif text == '/help':
+    elif command_text == '/help':
         logger.info('Help CMD')
         help_text = """🤖 *Bot Features*
 
@@ -629,8 +674,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
     answer = 'empty'
 
     if 'text' in message:
-        command, command_args = parse_command(text)
-        if text == '/reset' and message['chat']['type'] == 'private':
+        command, command_args = parse_command(command_text)
+        if command_text == '/reset' and message['chat']['type'] == 'private':
             panthera.reset_chat(message['chat']['id'])
             answer = 'Chat messages memory has been cleaned'
             return JSONResponse(content={
@@ -638,7 +683,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
                 "body": str(answer)
                 })
         # if chat type not private
-        elif text.startswith('/reset@') and message['chat']['type'] != 'private':
+        elif command_text.startswith('/reset@') and message['chat']['type'] != 'private':
             panthera.reset_chat(message['chat']['id'])
             answer = 'Chat messages memory has been cleaned'
             return JSONResponse(content={
@@ -679,7 +724,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
                 "type": "text",
                 "body": str(answer)
                 })
-        elif text.startswith('response:'):
+        elif command_text.startswith('response:'):
             logger.info(f"response: {text}")
             # example: text == "response:-888407449"
             chat_id = text.split(':')[1]
@@ -722,7 +767,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
     logger.info(f'user_session: {user_session}')
 
     # if message text is /start
-    if text == '/start':
+    if command_text == '/start':
         answer = """Hi. I am Janet, your AI assistant.
 
 Commands:
@@ -793,10 +838,7 @@ Commands:
             "body": ''
             })
 
-    if message['chat']['type'] == 'private' \
-        or text.startswith('/*') \
-        or text.startswith('/.') \
-        or panthera.is_reply_to_ai_message(message):
+    if should_answer(message, message['chat']['type'], text.startswith(('/*', '/.'))):
         answer_in_background(chat_id, message["message_id"], message_text, True,
                              tools_enabled=tools_enabled)
         
