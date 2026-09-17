@@ -154,6 +154,10 @@ def user_access(message):
     # Check if user is in the list
     if str(message['from']['id']) in users:
         return True
+    # A chat id in users.txt (/add <chat_id>) opens that group to every member,
+    # bots included. It grants the conversation only: tools still go by sender.
+    elif str(message['chat']['id']) in users:
+        return True
     # If chat is not private
     elif message['chat']['type'] != 'private':
         # Create folder ./data/granted_groups if it doesn't exist
