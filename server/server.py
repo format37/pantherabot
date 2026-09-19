@@ -4,8 +4,10 @@ import os
 import logging
 import json
 from panthera import Panthera, record_message_id, record_raw_text
+import bot_tools
 import edits
 import memory
+import research
 import tools_cli
 import re
 import time
@@ -411,6 +413,58 @@ def _answer_finished(task):
     if not task.cancelled() and task.exception() is not None:
         logger.error(f'Answering message {message_id} in chat {chat_id} failed',
                      exc_info=task.exception())
+
+
+# The report's record carries at most this much; the file has all of it.
+RESEARCH_RECORD_CHARS = 40000
+
+
+def research_report(job):
+    """The report as a Markdown document."""
+    parts = [f'# Deep research\n\n**Request:** {job.request}\n\n{job.text}']
+    if job.sources:
+        parts.append('## Sources\n\n' + '\n'.join(
+            f'{i}. {title} — {url}' if title else f'{i}. {url}'
+            for i, (title, url) in enumerate(job.sources, 1)))
+    return '\n\n'.join(parts) + '\n'
+
+
+async def research_done(job):
+    """A deep research job ended: post its report and have Janet present it.
+
+    The report goes to the chat as a file, as a reply to the message that asked
+    for it. Its text is filed in the history as a message from the tool (under
+    a suffix no Telegram message has, so an edit never rewrites it), and an
+    answer to it is started like the answer to any message. On a failure the
+    same message says what went wrong, and Janet tells the user.
+    """
+    chat_id, message_id = job.chat_id, job.message_id
+    if job.error:
+        text = (f'The deep research you started for message {message_id} '
+                f'("{job.request[:200]}") failed: {job.error}. Tell the user.')
+    else:
+        document = bot_tools.Outgoing(
+            'document', research_report(job).encode('utf-8'),
+            f'research-{message_id}.md', caption='Deep research report',
+        )
+        await asyncio.to_thread(send_outgoing, chat_id, message_id, document)
+        body = research.with_sources(job.text, job.sources)
+        if len(body) > RESEARCH_RECORD_CHARS:
+            body = body[:RESEARCH_RECORD_CHARS] + '\n[... the rest is in the file]'
+        text = (f'The deep research you started for message {message_id} '
+                f'("{job.request[:200]}") is complete. Its full report, with the sources, '
+                f'has just been posted in this chat as a file. Present the findings to the '
+                f'user now: the key points, each with the source links that back it.\n\n{body}')
+    record_text = f'user_name: deep_research (tool)\nmessage_text: {text}'
+    panthera.save_record(chat_id, f'research-{message_id}', {
+        'type': 'HumanMessage', 'text': record_text, 'images': [],
+        'message_id': None, 'research_for': message_id, 'raw_text': text,
+    })
+    answer_in_background(chat_id, message_id, record_text, True,
+                         tools_enabled=True, from_history=False)
+
+
+research.on_done = research_done
 
 
 # Bot-to-bot loop guard. Another bot's message is history like anyone's, but it

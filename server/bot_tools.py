@@ -24,6 +24,7 @@ import httpx
 from claude_agent_sdk import create_sdk_mcp_server, tool
 
 import memory
+import research
 import tools_cli
 
 SANDBOX_SOCKET = os.environ.get('SANDBOX_SOCKET', '/run/sandbox/exec.sock')
@@ -50,6 +51,8 @@ TOOL_NAMES = [
     'send_file',
     'generate_image',
     'wolfram_alpha',
+    'web_search',
+    'deep_research',
     'render_math',
     'remember',
     'forget',
@@ -348,6 +351,65 @@ def build_tools(chat_id, message_id, outbox):
         ))
 
     @tool(
+        'web_search',
+        'Search the web and get a grounded answer with its sources (Perplexity '
+        'sonar-pro, a few seconds). Use it for recent events, current prices, '
+        'news, documentation, or anything that needs up-to-date facts. Cite the '
+        'sources it returns as links in your reply.',
+        {
+            'type': 'object',
+            'properties': {
+                'query': {'type': 'string', 'description': 'The question or search, as a full sentence.'},
+            },
+            'required': ['query'],
+        },
+    )
+    async def web_search(args):
+        if not research.enabled():
+            return _error('web search is not configured (no PERPLEXITY_API_KEY)')
+        query = (args.get('query') or '').strip()
+        if not query:
+            return _error('the query is empty')
+        try:
+            return _text(await asyncio.to_thread(research.search, query))
+        except Exception as e:
+            return _error(f'web search failed: {type(e).__name__}: {e}')
+
+    @tool(
+        'deep_research',
+        'Start an exhaustive web research (Perplexity sonar-deep-research: dozens '
+        'of sources, a long cited report). It takes 3-10 minutes and runs on its '
+        'own after your reply ends: the report is posted in this chat as a file '
+        'and you are then asked to present it. Do not wait or poll for it. Use it '
+        'only when the user asks for research, a report, or a thorough '
+        'comparison; a question needs web_search.',
+        {
+            'type': 'object',
+            'properties': {
+                'request': {
+                    'type': 'string',
+                    'description': 'What to research, in full: the question, the scope, '
+                                   'the angles to cover, the language of the report.',
+                },
+                'reasoning_effort': {
+                    'type': 'string',
+                    'enum': list(research.EFFORTS),
+                    'description': 'low, medium (default) or high: depth against time and cost.',
+                },
+            },
+            'required': ['request'],
+        },
+    )
+    async def deep_research(args):
+        try:
+            return _text(research.start(
+                chat_id, message_id, args.get('request'),
+                args.get('reasoning_effort') or 'medium',
+            ))
+        except ValueError as e:
+            return _error(str(e))
+
+    @tool(
         'reset_system_prompt',
         'Restore this chat\'s default system prompt.',
         {'type': 'object', 'properties': {}, 'required': []},
@@ -357,7 +419,7 @@ def build_tools(chat_id, message_id, outbox):
 
     tools = [
         run_command, view_image, send_file, generate_image, wolfram_alpha,
-        render_math, remember, forget, replace_memory,
+        web_search, deep_research, render_math, remember, forget, replace_memory,
         update_system_prompt, reset_system_prompt,
     ]
     return {t.name: t for t in tools}

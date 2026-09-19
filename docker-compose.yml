@@ -84,7 +84,10 @@ services:
       - GEMINI_IMAGE_MODEL=${GEMINI_IMAGE_MODEL:-}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - BOT_USERNAME=${BOT_USERNAME}
-      - PERPLEXITY_MCP_URL=${PERPLEXITY_MCP_URL}
+      # web_search/deep_research call Perplexity directly with the key; the
+      # MCP server is the fallback when the key is absent.
+      - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY:-}
+      - PERPLEXITY_MCP_URL=${PERPLEXITY_MCP_URL:-}
       # Lets the head allow view_image/send_file on the Telegram file store.
       - BOT_TOKEN_WITHOUT_PREFIX=${BOT_TOKEN_WITHOUT_PREFIX}
       - SANDBOX_TOKEN=${SANDBOX_TOKEN}

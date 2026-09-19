@@ -16,6 +16,7 @@ from claude_agent_sdk import (
 
 import bot_tools
 import memory
+import research
 
 with open('config.json') as config_file:
     config = json.load(config_file)
@@ -105,8 +106,15 @@ notes appear under "## Memory" in your instructions on every request; prefer the
 older conversation history.
 
 ## Web Search
-You have access to Perplexity web search tools. Use them when the user asks about recent events, current prices, news, or anything requiring up-to-date information.
-perplexity_sonar_deep_research starts a background job (3-10 minutes) and returns a job_id; the result comes from get_research_result(job_id), which returns at once with "running" or the result. You cannot wait that long within one answer: give the user the job_id, tell them to ask again in a few minutes, and on their next message poll get_research_result with that job_id (results are kept for 2 hours).
+Use web_search when the user asks about recent events, current prices, news, or anything
+requiring up-to-date information; it answers in seconds with sources. Put the sources in
+your reply as links, so the user can check them.
+deep_research is for an explicit request for research, a report, or a thorough comparison.
+It takes 3-10 minutes and runs on its own: tell the user it has started and end your reply.
+When it is done, its report is posted in this chat as a file, and you get a message from
+"deep_research (tool)" with the report: present it then, in the language of the chat, with
+the key findings and the links that back them. The user does not need to ask for it.
+If the tools are named perplexity_* instead, the same applies: they are the same search.
 Only use tools when the user's request requires them. For normal conversation, respond directly."""
 
 
@@ -488,14 +496,15 @@ You can determine the current date from the message_date field in the current me
             # tool takes a chat_id and none can be pointed at another chat.
             mcp_servers["bot"] = bot_tools.create_bot_server(chat_id, message_id, outbox)
             allowed_tools.extend(f"mcp__bot__{name}" for name in bot_tools.TOOL_NAMES)
-        if tools_enabled and perplexity_url:
+        # Search is the bot's own web_search/deep_research when the bot has a
+        # Perplexity key; the Perplexity MCP server is the fallback without one.
+        if tools_enabled and perplexity_url and not research.enabled():
             mcp_servers["perplexity"] = {
                 "type": "http",
                 "url": perplexity_url,
             }
             # The bare server name is a permission rule that allows every tool
-            # the server offers (search, sonar, sonar_pro, deep research and its
-            # get_research_result poll, ...). Listing the tools by name left
+            # the server offers. Listing the tools by name left
             # get_research_result asking for permission, which no one can grant
             # from a chat (seen 2026-09-19).
             allowed_tools.append("mcp__perplexity")
