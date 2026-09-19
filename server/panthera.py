@@ -106,6 +106,7 @@ older conversation history.
 
 ## Web Search
 You have access to Perplexity web search tools. Use them when the user asks about recent events, current prices, news, or anything requiring up-to-date information.
+perplexity_sonar_deep_research starts a background job (3-10 minutes) and returns a job_id; the result comes from get_research_result(job_id), which returns at once with "running" or the result. You cannot wait that long within one answer: give the user the job_id, tell them to ask again in a few minutes, and on their next message poll get_research_result with that job_id (results are kept for 2 hours).
 Only use tools when the user's request requires them. For normal conversation, respond directly."""
 
 
@@ -492,11 +493,12 @@ You can determine the current date from the message_date field in the current me
                 "type": "http",
                 "url": perplexity_url,
             }
-            allowed_tools.extend([
-                "mcp__perplexity__perplexity_sonar",
-                "mcp__perplexity__perplexity_sonar_pro",
-                "mcp__perplexity__perplexity_sonar_deep_research",
-            ])
+            # The bare server name is a permission rule that allows every tool
+            # the server offers (search, sonar, sonar_pro, deep research and its
+            # get_research_result poll, ...). Listing the tools by name left
+            # get_research_result asking for permission, which no one can grant
+            # from a chat (seen 2026-09-19).
+            allowed_tools.append("mcp__perplexity")
 
         # Vestigial but cheap: tools_cli.py can still be run by an operator, and
         # refuses any chat_id that does not match this turn.
