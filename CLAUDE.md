@@ -70,7 +70,7 @@ Configured in `config.json`:
 ```json
 {
     "TOKEN": "TELEGRAM-BOT-TOKEN",
-    "primary_model": "claude-fable-5-1",
+    "primary_model": "claude-opus-5-5",
     "token_limit": 50000
 }
 ```

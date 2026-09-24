@@ -128,7 +128,7 @@ class Panthera:
 
         self.config = json.load(open('./data/users/default.json', 'r'))
         # Force model from config.json
-        self.config['model'] = config.get('primary_model', 'claude-fable-5-1')
+        self.config['model'] = config.get('primary_model', 'claude-opus-5-5')
         self.logger.info(f'Using model: {self.config["model"]}')
         # Override token_limit from config.json if present
         if 'token_limit' in config:
