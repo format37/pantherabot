@@ -529,7 +529,7 @@ You can determine the current date from the message_date field in the current me
             # by a chat user must never be honoured by the next query.
             # (`[]` -> `--setting-sources=`; only `None` broke older SDKs.)
             setting_sources=[],
-            effort="low",  # thinking is always on; fixed budgets are rejected
+            effort="high",  # thinking is always on; fixed budgets are rejected
             env=tool_env,
             stderr=_stderr_callback,
         )
