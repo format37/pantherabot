@@ -16,6 +16,8 @@ its images with it.
 """
 import asyncio
 import base64
+import io
+import logging
 import mimetypes
 import os
 from dataclasses import dataclass
@@ -26,6 +28,8 @@ from claude_agent_sdk import create_sdk_mcp_server, tool
 import memory
 import research
 import tools_cli
+
+logger = logging.getLogger(__name__)
 
 SANDBOX_SOCKET = os.environ.get('SANDBOX_SOCKET', '/run/sandbox/exec.sock')
 SANDBOX_TOKEN = os.environ.get('SANDBOX_TOKEN', '')
@@ -38,8 +42,28 @@ TELEGRAM_FILES_ROOT = (
     if os.environ.get('BOT_TOKEN_WITHOUT_PREFIX') else ''
 )
 
-# Max image bytes handed to the model as a base64 block (~5 MB of file).
+# What view_image reads from disk, and what it decodes: a small file can hold a
+# huge picture, and its pixels are unpacked in memory at up to four bytes each,
+# on a host with no swap.
 MAX_IMAGE_BYTES = 5 * 1024 * 1024
+MAX_IMAGE_PIXELS = 25_000_000
+# What reaches the model of an image. The CLI scales a tool result's image to
+# 2000 px a side and re-encodes it (measured, CLI of SDK 0.2.159); the model
+# reads about 3.75 megapixels (the Claude 5 family: 2576 px on the long edge).
+# An image within both passes the CLI as it is, so it is encoded only once.
+VIEW_MAX_SIDE = 2000
+VIEW_MAX_PIXELS = 3_750_000
+# The CLI passes a tool result on as one line of JSON that holds the image
+# twice, as base64, and the SDK ends the answer when a line is over its buffer,
+# 1 MB by default. A 930 KB photo, 500 KB after the CLI's own scaling, made a
+# line of 1.33 MB (2026-10-06). 360 KB of image is 0.98 MB of line, so
+# view_image fits the default by itself; panthera.SDK_MAX_BUFFER_BYTES raises
+# the buffer as well.
+VIEW_MAX_BYTES = 360 * 1024
+# The formats the API takes, and the only decoders opened on a user's file.
+VIEW_FORMATS = {
+    'JPEG': 'image/jpeg', 'PNG': 'image/png', 'GIF': 'image/gif', 'WEBP': 'image/webp',
+}
 MAX_SEND_BYTES = 45 * 1024 * 1024
 # What one attempt may hold for the chat: the outbox stays in memory until the
 # answer is sent, and the production host has no swap.
@@ -110,6 +134,90 @@ def _resolve(path, chat_id):
     raise PermissionError(
         f'path is outside this chat\'s files: {path} (allowed: {", ".join(roots)})'
     )
+
+
+class CannotView(Exception):
+    """An image file view_image cannot show; the message is for the model."""
+
+
+def image_for_model(path):
+    """(bytes, mime type, note) of an image file as the model should get it.
+
+    A file within the VIEW_* limits goes through untouched. One with more
+    pixels than reach the model, or more bytes than fit a tool result, is
+    scaled down and re-encoded as JPEG; `note` then tells the model the size it
+    sees and the size of the file. Decoding takes a moment: call this in a
+    thread. Raises CannotView for a file that cannot be shown.
+    """
+    from PIL import Image, ImageOps
+
+    with open(path, 'rb') as f:
+        raw = f.read()
+    try:
+        im = Image.open(io.BytesIO(raw), formats=list(VIEW_FORMATS))
+    except Exception as e:
+        raise CannotView('not a JPEG, PNG, GIF or WebP image') from e
+    try:
+        with im:
+            # MPO is the JPEG decoder's name for a JPEG with a second picture
+            # after the first, as phones write them; it reads as a JPEG.
+            mime = VIEW_FORMATS['JPEG' if im.format == 'MPO' else im.format]
+            width, height = im.size
+            if _view_scale(width, height) == 1 and len(raw) <= VIEW_MAX_BYTES:
+                return raw, mime, None
+            if mime == 'image/jpeg':
+                # Decode a big JPEG at 1/2, 1/4 or 1/8: less memory, same result.
+                scale = _view_scale(width, height)
+                im.draft('RGB', (round(width * scale), round(height * scale)))
+            if im.width * im.height > MAX_IMAGE_PIXELS:
+                raise CannotView(f'{width}x{height} is too many pixels to decode')
+            if im.getexif().get(0x0112, 1) in (5, 6, 7, 8):    # stored on its side
+                width, height = height, width
+            data, size = _view_jpeg(ImageOps.exif_transpose(im))
+    except CannotView:
+        raise
+    except Exception as e:
+        logger.warning('view_image: cannot decode %s: %r', path, e)
+        raise CannotView('the image is damaged or cannot be decoded') from e
+    note = None
+    if size != (width, height):
+        note = f'Shown at {size[0]}x{size[1]}; the file is {width}x{height}.'
+    return data, 'image/jpeg', note
+
+
+def _view_scale(width, height):
+    """The factor that brings an image within what reaches the model (1: it fits)."""
+    return min(1, VIEW_MAX_SIDE / max(width, height),
+               (VIEW_MAX_PIXELS / (width * height)) ** 0.5)
+
+
+def _view_jpeg(im):
+    """(JPEG bytes within VIEW_MAX_BYTES, (width, height)) of a decoded image."""
+    from PIL import Image
+
+    lanczos = Image.Resampling.LANCZOS
+    if im.mode not in ('RGB', 'RGBA', 'L'):
+        im = im.convert('RGBA' if 'transparency' in im.info or im.mode == 'LA' else 'RGB')
+    scale = _view_scale(*im.size)
+    if scale < 1:
+        im = im.resize((max(1, round(im.width * scale)), max(1, round(im.height * scale))), lanczos)
+    if im.mode == 'RGBA':                    # JPEG has no alpha: onto white
+        flat = Image.new('RGB', im.size, 'white')
+        flat.paste(im, mask=im.getchannel('A'))
+        im = flat
+    # Pixels tell the model more than JPEG quality does: give up quality first,
+    # down to 65, then as many pixels as the bytes over the budget call for.
+    quality = 85
+    while True:
+        buf = io.BytesIO()
+        im.save(buf, format='JPEG', quality=quality, optimize=True)
+        if buf.tell() <= VIEW_MAX_BYTES:
+            return buf.getvalue(), im.size
+        if quality > 65:
+            quality -= 10
+        else:
+            shrink = max(0.5, 0.95 * (VIEW_MAX_BYTES / buf.tell()) ** 0.5)
+            im = im.resize((max(1, round(im.width * shrink)), max(1, round(im.height * shrink))), lanczos)
 
 
 async def sandbox_exec(chat_id, command, timeout):
@@ -194,12 +302,17 @@ def build_tools(chat_id, message_id, outbox):
         if size > MAX_IMAGE_BYTES:
             return _error(f'image is too large to view ({size} bytes, limit {MAX_IMAGE_BYTES})')
 
-        mime, _ = mimetypes.guess_type(path)
-        if not mime or not mime.startswith('image/'):
-            mime = 'image/jpeg'
-        with open(path, 'rb') as f:
-            data = base64.standard_b64encode(f.read()).decode('ascii')
-        return {'content': [{'type': 'image', 'data': data, 'mimeType': mime}]}
+        try:
+            data, mime, note = await asyncio.to_thread(image_for_model, path)
+        except CannotView as e:
+            return _error(f'cannot view {args["path"]}: {e}')
+        content = [{
+            'type': 'image', 'mimeType': mime,
+            'data': base64.standard_b64encode(data).decode('ascii'),
+        }]
+        if note:
+            content.append({'type': 'text', 'text': note})
+        return {'content': content}
 
     @tool(
         'send_file',

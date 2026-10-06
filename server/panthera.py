@@ -29,6 +29,13 @@ with open('config.json') as config_file:
 # names the model also uses, e.g. "[perplexity_sonar_pro]" (seen 2026-09-03).
 TOOL_ARTIFACT_RE = re.compile(r'^\s*(?:\[(?:Bash|Read|mcp__\w+|\w+_\w+)\]\s*)+')
 
+# The longest line the SDK reads from the CLI. A tool result arrives as one line
+# of JSON, with an image in it twice, and the default of 1 MB ended the answer
+# to a 930 KB photo, whose line was 1.33 MB (2026-10-06). bot_tools.view_image
+# now keeps its images under the default; this is the margin for that and for
+# every other tool. It is a limit, not an allocation.
+SDK_MAX_BUFFER_BYTES = 16 * 1024 * 1024
+
 
 def record_message_id(path, record):
     """The Telegram message_id a history record is filed under.
@@ -530,6 +537,7 @@ You can determine the current date from the message_date field in the current me
             # (`[]` -> `--setting-sources=`; only `None` broke older SDKs.)
             setting_sources=[],
             effort="high",  # thinking is always on; fixed budgets are rejected
+            max_buffer_size=SDK_MAX_BUFFER_BYTES,
             env=tool_env,
             stderr=_stderr_callback,
         )
