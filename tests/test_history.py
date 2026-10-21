@@ -83,7 +83,7 @@ def test_message_record_carries_id_raw_text_and_files(env, client):
     assert record['file_unique_ids'] == ['u-own-photo', 'u-replied-photo']
     assert 'edit_date' not in record
     assert record['text'] == (
-        'user_name: user5001\nchat_id: 5001\nmessage_id: 41\nreply_to_message: 40\n'
+        'user_name: (no username)\nfull_name: user5001\nchat_id: 5001\nmessage_id: 41\nreply_to_message: 40\n'
         'message_date: 2025-09-16 05:20:00\n'
         "file_list: ['/TESTTOKEN/photos/own-photo.jpg', '/TESTTOKEN/photos/replied-photo.jpg']\n"
         'message_text: what is this?\nsecond line')
@@ -120,3 +120,12 @@ def test_group_message_is_saved_but_not_answered(env, client):
     assert client.post('/message', json=msg).status_code == 200
     assert [r['raw_text'] for r in records(env, GROUP)] == ['just chatting']
     assert env.llm.calls == [] and env.events == []
+
+
+def test_record_names_the_sender_by_login_and_full_name(env, client):
+    """The model gets the Telegram name too, so it never guesses one from a login."""
+    msg = message(GROUP, 6, 'hello', sender=ALICE)
+    msg['from'].update(username='menshikov_av', first_name='Александр', last_name='Меньщиков')
+    client.post('/message', json=msg)
+    assert records(env, GROUP)[0]['text'].startswith(
+        'user_name: menshikov_av\nfull_name: Александр Меньщиков\nchat_id: ')

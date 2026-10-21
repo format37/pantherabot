@@ -82,7 +82,7 @@ def human_record(message, message_id, text, files, edit_date=None):
     [(path, file_unique_id)], and `edit_date` is Telegram's unix time.
     """
     image_paths = [path for path, _ in files]
-    message_text = f"user_name: {panthera.get_first_name(message)}"
+    message_text = panthera.get_sender(message)
     message_text += f"\nchat_id: {message['chat']['id']}"
     message_text += f"\nmessage_id: {message_id}"
     if "reply_to_message" in message:

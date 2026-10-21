@@ -97,7 +97,7 @@ Stored per chat in `data/users/{chat_id}/chats/{chat_id}/`, one JSON file per re
 {"type": "HumanMessage", "text": "user_name: ...\nmessage_text: ...", "images": [],
  "message_id": 123, "raw_text": "...", "file_unique_ids": []}
 ```
-- `text` is what the model sees; `raw_text` is the text or caption as sent. An edited record also has `edit_date` (UTC), shown as an `edit_date:` line in `text`. An album record adds `media_group_id` and `captions` (per item) and is filed under its first item. Records older than 2026-09-16 have only `type`, `text` and `images`; their id comes from the file name.
+- `text` is what the model sees; `raw_text` is the text or caption as sent. `text` starts with the sender: `user_name:` (the Telegram login) and `full_name:` (first and last name), with `(no username)` / `(no name)` when Telegram has none (`panthera.get_sender()`); records older than 2026-10-22 have only `user_name:`, the login in groups and the first name in private chats. An edited record also has `edit_date` (UTC), shown as an `edit_date:` line in `text`. An album record adds `media_group_id` and `captions` (per item) and is filed under its first item. Records older than 2026-09-16 have only `type`, `text` and `images`; their id comes from the file name.
 - **Order is file mtime.** A record is written once (`save_record()`), and only `rewrite_record()` changes it afterwards, keeping its mtime. Never sort by ctime: a `chown -R` or any rewrite changes it.
 - `read_chat_history()` loads the newest records that fit the token limit and 2040 messages, deletes the rest, and returns the human records it loaded (the context).
 

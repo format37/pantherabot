@@ -433,16 +433,16 @@ class Panthera:
         self.logger.info(f'Loaded {message_count} messages with {token_count} tokens for chat {chat_id}')
         return context
 
-    def get_first_name(self, message):
-        if 'first_name' in message['chat']:
-            first_name = message['from']['first_name']
-        elif 'username' in message['from']:
-            first_name = message['from']['username']
-        elif 'id' in message['from']:
-            first_name = message['from']['id']
-        else:
-            first_name = 'Unknown'
-        return first_name
+    def get_sender(self, message):
+        """The sender's lines of a history record: login, then Telegram name.
+
+        Both are always there, and a missing one says so, so that the model
+        never has to guess a name from a login or a login from a name.
+        """
+        sender = message.get('from', {})
+        login = sender.get('username') or '(no username)'
+        name = ' '.join(part for part in (sender.get('first_name'), sender.get('last_name')) if part)
+        return f"user_name: {login}\nfull_name: {name or '(no name)'}"
 
     def get_system_prompt(self, chat_id, tools_enabled=True):
         """Base prompt + formatting rules, plus tool docs and memory when allowed."""

@@ -68,7 +68,7 @@ def test_edit_after_the_answer_only_rewrites_the_history(env, client):
     assert record['raw_text'] == 'first question, fixed'
     assert record['edit_date'] == '2025-09-16 05:21:40'
     assert record['text'] == (
-        'user_name: user5001\nchat_id: 5001\nmessage_id: 10\n'
+        'user_name: (no username)\nfull_name: user5001\nchat_id: 5001\nmessage_id: 10\n'
         'message_date: 2025-09-16 05:20:00\nedit_date: 2025-09-16 05:21:40\n'
         'message_text: first question, fixed')
     assert after[1:] == before[1:]            # the answer it got stays
