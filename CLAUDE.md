@@ -58,7 +58,7 @@ Two containers: `panthera_gptaidbot` (the head: FastAPI, the Claude CLI, every s
 
 **tools_cli.py** — implementations behind several tools (Gemini images, Wolfram|Alpha, formula PNGs, prompt files) and an operator CLI: `python3 tools_cli.py <tool> '<json_args>'`.
 
-**research.py** — Perplexity through its API: `search()` (sonar-pro, synchronous, run in a thread) and `start()`, which runs a deep research job as a task of the event loop, independent of the answer that started it. When the job ends it calls `server.research_done()`: the report goes to the chat as a `.md` document, its text is filed as a history record from `deep_research (tool)` (suffix `research-{message_id}`, so an edit never touches it), and an answer to it starts as for any message. One job per message, `MAX_RESEARCH_JOBS` per process. Needs `PERPLEXITY_API_KEY`; without it the Perplexity MCP server (`PERPLEXITY_MCP_URL`) is attached instead.
+**research.py** — Perplexity through its Agent API (`/v1/agent`; Sonar chat completions ended 2026-09-27): `search()` (Pro Search, preset `low`, synchronous, run in a thread) and `start()`, which runs a deep research job (preset `medium`/`high` by effort, an API background run polled every `POLL_SECONDS`) as a task of the event loop, independent of the answer that started it. When the job ends it calls `server.research_done()`: the report goes to the chat as a `.md` document, its text is filed as a history record from `deep_research (tool)` (suffix `research-{message_id}`, so an edit never touches it), and an answer to it starts as for any message. One job per message, `MAX_RESEARCH_JOBS` per process. Needs `PERPLEXITY_API_KEY`; without it both tools return an error. No Perplexity MCP server is attached.
 
 **memory.py** — per-chat long-term notes in `data/users/{chat_id}/CLAUDE.md`, injected into the system prompt and kept across `/reset`.
 
@@ -79,7 +79,7 @@ The `primary_model` is passed to `claude_agent_sdk` as the model parameter. The 
 
 ### How Tools Work
 
-`_claude_agent_query()` passes `tools=[]`: the model has no Bash, Read or Write. Everything it can do is an MCP tool: the `bot` server from `bot_tools.py` (`mcp__bot__*`) and, only without `PERPLEXITY_API_KEY`, the Perplexity MCP server (`mcp__perplexity`, the whole server; with the key, search is the bot's own `web_search` / `deep_research`). `strict_mcp_config=True` and `setting_sources=[]` keep out anything written into the config dir. Code runs in the sandbox through `run_command`. Senders not in `data/users.txt` (guests in a granted group) get no tools at all. Tool usage is described in `TOOL_INSTRUCTIONS` in `panthera.py`, appended to the system prompt for authorized senders only.
+`_claude_agent_query()` passes `tools=[]`: the model has no Bash, Read or Write. Everything it can do is an MCP tool: the `bot` server from `bot_tools.py` (`mcp__bot__*`), search included (`web_search` / `deep_research`). `strict_mcp_config=True` and `setting_sources=[]` keep out anything written into the config dir. Code runs in the sandbox through `run_command`. Senders not in `data/users.txt` (guests in a granted group) get no tools at all. Tool usage is described in `TOOL_INSTRUCTIONS` in `panthera.py`, appended to the system prompt for authorized senders only.
 
 Tools never send to the chat themselves. `send_file`, `generate_image` and `render_math` append a `bot_tools.Outgoing` (the bytes, taken when the tool runs) to the attempt's outbox, up to `MAX_OUTBOX_BYTES`. The outbox is sent just before the answer's text, and only for the attempt that is sent.
 

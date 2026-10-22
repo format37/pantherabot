@@ -1,6 +1,5 @@
 """Deep research: started by a tool, delivered by the bot itself when it is done."""
 import asyncio
-import time
 
 import pytest
 
@@ -9,10 +8,17 @@ from conftest import ALICE, message, records, wait_until
 import research
 
 RESPONSE = {
-    'choices': [{'message': {'content': '<think>hidden</think>Report body [1][2].'}}],
-    'citations': ['https://a.example/1', 'https://b.example/2'],
-    'search_results': [{'title': 'A', 'url': 'https://a.example/1'},
-                       {'title': 'C', 'url': 'https://c.example/3'}],
+    'id': 'resp_1', 'status': 'completed',
+    'output': [
+        {'type': 'search_results', 'results': [
+            {'id': 1, 'title': 'A', 'url': 'https://a.example/1'},
+            {'id': 2, 'title': '', 'url': 'https://b.example/2'},
+            {'id': 3, 'title': 'C', 'url': 'https://c.example/3'},
+        ]},
+        {'type': 'message', 'role': 'assistant', 'content': [
+            {'type': 'output_text', 'text': 'Report body [web:3][web:1] and [web:3]. [web:9]'},
+        ]},
+    ],
 }
 
 
@@ -22,17 +28,34 @@ def configured(monkeypatch):
     research._jobs.clear()
 
 
-def test_parse_strips_thinking_and_merges_sources():
+def test_parse_renumbers_citations_to_the_sources_cited():
     text, sources = research.parse(RESPONSE)
-    assert text == 'Report body [1][2].'
-    assert sources == [('A', 'https://a.example/1'), ('', 'https://b.example/2'),
-                       ('C', 'https://c.example/3')]
-    assert research.with_sources(text, sources).endswith('[3] C — https://c.example/3')
+    assert text == 'Report body [1][2] and [1].'
+    assert sources == [('C', 'https://c.example/3'), ('A', 'https://a.example/1')]
+    assert research.with_sources(text, sources).endswith('[2] A — https://a.example/1')
 
 
-def start_research(env, monkeypatch, post):
+def test_parse_without_citations_keeps_every_result():
+    response = {'output': [RESPONSE['output'][0], {'type': 'message', 'content': [
+        {'type': 'output_text', 'text': 'Nothing cited.'}]}]}
+    text, sources = research.parse(response)
+    assert text == 'Nothing cited.'
+    assert [url for _, url in sources] == ['https://a.example/1', 'https://b.example/2',
+                                           'https://c.example/3']
+
+
+def test_search_is_pro_search(monkeypatch):
+    payloads = []
+    monkeypatch.setattr(research, '_create', lambda payload, timeout=None: payloads.append(payload) or RESPONSE)
+    assert research.search('q').startswith('Report body [1][2] and [1].\n\nSources:\n[1] C')
+    assert payloads == [{'preset': 'low', 'input': 'q'}]
+
+
+def start_research(env, monkeypatch, create, retrieve=None):
     """The LLM's first call runs the deep_research tool, as the model would."""
-    monkeypatch.setattr(research, '_post', post)
+    monkeypatch.setattr(research, '_create', create)
+    monkeypatch.setattr(research, '_retrieve', retrieve)
+    monkeypatch.setattr(research, 'POLL_SECONDS', 0.05)
     results = []
 
     async def script(call):
@@ -48,12 +71,18 @@ def start_research(env, monkeypatch, post):
 
 
 def test_the_report_comes_back_on_its_own(env, client, monkeypatch):
-    def post(model, request, reasoning_effort=None, timeout=None):
-        assert model == research.RESEARCH_MODEL and reasoning_effort == 'medium'
-        time.sleep(0.2)
-        return RESPONSE
+    polls = []
 
-    results = start_research(env, monkeypatch, post)
+    def create(payload, timeout=None):
+        assert payload == {'preset': 'high', 'input': 'the market', 'background': True}
+        return {'id': 'resp_1', 'status': 'queued'}
+
+    def retrieve(response_id):
+        assert response_id == 'resp_1'
+        polls.append(response_id)
+        return RESPONSE if len(polls) >= 3 else {'id': 'resp_1', 'status': 'in_progress'}
+
+    results = start_research(env, monkeypatch, create, retrieve)
     client.post('/message', json=message(ALICE, 10, 'research the market'))
     assert 'started' in results[0]['content'][0]['text']
     assert 'already running' in results[1]['content'][0]['text']
@@ -64,11 +93,12 @@ def test_the_report_comes_back_on_its_own(env, client, monkeypatch):
     assert document['kind'] == 'document' and document['reply_to'] == 10
     assert document['name'] == 'research-10.md'
     report = document['data'].decode()
-    assert 'Report body' in report and '3. C — https://c.example/3' in report
+    assert 'Report body [1][2]' in report and '2. A — https://a.example/1' in report
 
     call = env.llm.wait_for_calls(2)
-    assert 'deep_research (tool)' in call.prompt and 'Report body [1][2].' in call.prompt
-    assert '[2] https://b.example/2' in call.prompt
+    assert 'deep_research (tool)' in call.prompt and 'Report body [1][2] and [1].' in call.prompt
+    assert '[2] A — https://a.example/1' in call.prompt
+    assert len(polls) == 3
     assert answer['kind'] == 'rich' and answer['reply_to'] == 10
     assert answer['text'].startswith('presenting:')
     assert not research.running()
@@ -85,10 +115,10 @@ def test_the_report_comes_back_on_its_own(env, client, monkeypatch):
 
 
 def test_a_failure_is_reported(env, client, monkeypatch):
-    def post(*args, **kwargs):
+    def create(*args, **kwargs):
         raise RuntimeError('401 Unauthorized')
 
-    start_research(env, monkeypatch, post)
+    start_research(env, monkeypatch, create)
     client.post('/message', json=message(ALICE, 20, 'research the market'))
     assert wait_until(lambda: len(env.events) == 2, timeout=10), env.events
     call = env.llm.wait_for_calls(2)

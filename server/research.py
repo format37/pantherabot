@@ -1,13 +1,17 @@
-"""Web search and deep research through the Perplexity API, without an MCP server.
+"""Web search and deep research through the Perplexity Agent API, without an MCP server.
 
-`search()` is one synchronous call (sonar-pro, seconds). `start()` runs a deep
-research job (sonar-deep-research, minutes) as a task of the head's event loop,
-independent of the answer that started it: the answer says "started" and ends,
-and when the job is done the task calls `on_done` (set by server.py), which
-posts the report to the chat and has Janet present it. Nobody has to ask.
+Perplexity ended Sonar chat completions on 2026-09-27; both tools now call
+the Agent API (`/v1/agent`) with a preset. `search()` is Pro Search (preset
+`low`, formerly `pro-search`: a few search steps, seconds), one synchronous
+call. `start()` runs a deep research job (preset `medium` or `high`,
+minutes) as a background run of the API, polled by a task of the head's event
+loop, independent of the answer that started it: the answer says "started"
+and ends, and when the job is done the task calls `on_done` (set by
+server.py), which posts the report to the chat and has Janet present it.
+Nobody has to ask.
 
 Both return the model's text and the sources as a compact text, never the raw
-API response: the raw JSON of a deep research report (reasoning, search result
+API response: the raw JSON of a deep research report (search result
 snippets) was larger than what the CLI hands the model as a tool result.
 """
 import asyncio
@@ -20,15 +24,22 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-API_URL = 'https://api.perplexity.ai/chat/completions'
-SEARCH_MODEL = 'sonar-pro'
-RESEARCH_MODEL = 'sonar-deep-research'
+API_URL = 'https://api.perplexity.ai/v1/agent'
+SEARCH_PRESET = 'low'            # Pro Search
 SEARCH_TIMEOUT = 120
-RESEARCH_TIMEOUT = 1500          # the API itself takes up to ~20 min at high effort
+RESEARCH_TIMEOUT = 1800          # a background run; high can take ~20 min
+POLL_SECONDS = 10
 MAX_RESEARCH_JOBS = 2            # per process; a job costs real money
-EFFORTS = ('low', 'medium', 'high')
+# The deep_research tool's effort -> (preset, reasoning effort override).
+EFFORTS = {
+    'low': ('medium', None),
+    'medium': ('high', None),
+    'high': ('high', 'high'),
+}
+TERMINAL = ('completed', 'failed', 'cancelled', 'incomplete')
 
-_THINK_RE = re.compile(r'<think>.*?</think>\s*', re.DOTALL)
+# Presets cite as [web:3] (`fast` as [3]), the 3 being a search result's id.
+_CITE_RE = re.compile(r'\[(web:)?(\d+)\]')
 
 
 def api_key():
@@ -36,17 +47,24 @@ def api_key():
 
 
 def enabled():
-    """True when the bot can reach Perplexity itself (PERPLEXITY_API_KEY is set)."""
+    """True when the bot can reach Perplexity (PERPLEXITY_API_KEY is set)."""
     return bool(api_key())
 
 
-def _post(model, request, reasoning_effort=None, timeout=SEARCH_TIMEOUT):
-    """One chat completion; the API's JSON."""
-    payload = {'model': model, 'messages': [{'role': 'user', 'content': request}]}
-    if reasoning_effort is not None:
-        payload['reasoning_effort'] = reasoning_effort
-    headers = {'Authorization': f'Bearer {api_key()}', 'Content-Type': 'application/json'}
-    response = requests.post(API_URL, json=payload, headers=headers, timeout=timeout)
+def _headers():
+    return {'Authorization': f'Bearer {api_key()}', 'Content-Type': 'application/json'}
+
+
+def _create(payload, timeout=SEARCH_TIMEOUT):
+    """POST one run; the API's response object."""
+    response = requests.post(API_URL, json=payload, headers=_headers(), timeout=timeout)
+    response.raise_for_status()
+    return response.json()
+
+
+def _retrieve(response_id):
+    """GET a (background) run by id."""
+    response = requests.get(f'{API_URL}/{response_id}', headers=_headers(), timeout=60)
     response.raise_for_status()
     return response.json()
 
@@ -55,22 +73,48 @@ def parse(response):
     """(text, sources) of an API response.
 
     `sources` is a list of (title, url); the text cites them as [1], [2], ...
-    in that order.
+    in that order. The API's own markers ([web:7]) point at search result ids
+    across the whole run; they are renumbered to the sources the text cites,
+    in the order it first cites them. A text that cites nothing gets every
+    result, so the links are not lost.
     """
-    choices = response.get('choices') or []
-    content = (choices[0].get('message') or {}).get('content', '') if choices else ''
-    text = _THINK_RE.sub('', content or '').strip()
+    output = response.get('output') or []
+    text = ''.join(
+        part.get('text') or ''
+        for item in output if item.get('type') == 'message'
+        for part in item.get('content') or [] if part.get('type') == 'output_text'
+    )
 
-    titles = {}
-    for item in response.get('search_results') or []:
-        if isinstance(item, dict) and item.get('url'):
-            titles.setdefault(item['url'], item.get('title') or '')
-    urls = [u for u in (response.get('citations') or []) if isinstance(u, str)]
-    for url in titles:
-        if url not in urls:
-            urls.append(url)
-    sources = [(titles.get(url, ''), url) for url in urls]
+    results = {}
+    for item in output:
+        if item.get('type') != 'search_results':
+            continue
+        for result in item.get('results') or []:
+            if isinstance(result, dict) and result.get('url') and result.get('id') is not None:
+                results.setdefault(int(result['id']), (result.get('title') or '', result['url']))
+
+    order = {}
+
+    def renumber(match):
+        prefixed, number = match.group(1), int(match.group(2))
+        if number not in results:
+            return '' if prefixed else match.group(0)
+        return f'[{order.setdefault(number, len(order) + 1)}]'
+
+    text = _CITE_RE.sub(renumber, text).strip()
+    if not order:
+        order = {number: i for i, number in enumerate(sorted(results), 1)}
+    sources = [results[number] for number in sorted(order, key=order.get)]
     return text, sources
+
+
+def error_of(response):
+    """Why a run that is not `completed` has no usable answer."""
+    status = response.get('status')
+    detail = response.get('error') or response.get('incomplete_details') or ''
+    if isinstance(detail, dict):
+        detail = detail.get('message') or detail.get('reason') or detail
+    return f'the run ended as {status}' + (f': {detail}' if detail else '')
 
 
 def format_sources(sources):
@@ -89,7 +133,10 @@ def with_sources(text, sources):
 
 def search(query):
     """A grounded answer with its sources, as text. Synchronous: run it in a thread."""
-    text, sources = parse(_post(SEARCH_MODEL, query))
+    response = _create({'preset': SEARCH_PRESET, 'input': query})
+    text, sources = parse(response)
+    if response.get('status') not in (None, 'completed') and not text:
+        raise RuntimeError(error_of(response))
     return with_sources(text, sources)
 
 
@@ -105,6 +152,7 @@ class Job:
         self.text = ''
         self.sources = []
         self.error = None
+        self.response_id = None
         self.task = None
 
     def __repr__(self):
@@ -153,22 +201,36 @@ def start(chat_id, message_id, request, reasoning_effort='medium'):
     _jobs[key] = job
     job.task = asyncio.get_running_loop().create_task(_run(job, key))
     logger.info(f'{job}: started (effort {reasoning_effort}, {len(request)} chars)')
-    return ('Deep research started. It takes about 3-10 minutes (up to 20 at high effort) '
+    return ('Deep research started. It takes several minutes (up to 20 at high effort) '
             'and runs on its own: the full report will be posted in this chat as a file, '
             'and you will be asked to present it, when it is ready. Do not poll for it; '
             'tell the user it has started and finish your reply.')
 
 
 async def _run(job, key):
+    preset, effort = EFFORTS[job.reasoning_effort]
+    payload = {'preset': preset, 'input': job.request, 'background': True}
+    if effort:
+        payload['reasoning'] = {'effort': effort}
     try:
         try:
-            response = await asyncio.to_thread(
-                _post, RESEARCH_MODEL, job.request, job.reasoning_effort, RESEARCH_TIMEOUT)
+            response = await asyncio.to_thread(_create, payload)
+            job.response_id = response.get('id')
+            logger.info(f'{job}: run {job.response_id} ({response.get("preset")}) '
+                        f'{response.get("status")}')
+            while response.get('status') not in TERMINAL:
+                if job.elapsed > RESEARCH_TIMEOUT:
+                    raise TimeoutError(f'no result after {job.elapsed}s')
+                await asyncio.sleep(POLL_SECONDS)
+                response = await asyncio.to_thread(_retrieve, job.response_id)
             job.text, job.sources = parse(response)
-            if not job.text:
+            if response.get('status') != 'completed' and not job.text:
+                job.error = error_of(response)
+            elif not job.text:
                 job.error = 'the API returned an empty report'
-            logger.info(f'{job}: done in {job.elapsed}s, {len(job.text)} chars, '
-                        f'{len(job.sources)} sources')
+            cost = ((response.get('usage') or {}).get('cost') or {}).get('total_cost')
+            logger.info(f'{job}: {response.get("status")} in {job.elapsed}s, '
+                        f'{len(job.text)} chars, {len(job.sources)} sources, cost {cost}')
         except Exception as e:
             job.error = f'{type(e).__name__}: {e}'
             logger.error(f'{job}: failed after {job.elapsed}s: {job.error}')

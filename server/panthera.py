@@ -16,7 +16,6 @@ from claude_agent_sdk import (
 
 import bot_tools
 import memory
-import research
 
 with open('config.json') as config_file:
     config = json.load(config_file)
@@ -121,7 +120,6 @@ It takes 3-10 minutes and runs on its own: tell the user it has started and end 
 When it is done, its report is posted in this chat as a file, and you get a message from
 "deep_research (tool)" with the report: present it then, in the language of the chat, with
 the key findings and the links that back them. The user does not need to ask for it.
-If the tools are named perplexity_* instead, the same applies: they are the same search.
 Only use tools when the user's request requires them. For normal conversation, respond directly."""
 
 
@@ -489,8 +487,6 @@ You can determine the current date from the message_date field in the current me
             stderr_lines.append(line)
             self.logger.info(f"Claude CLI stderr: {line}")
 
-        perplexity_url = os.environ.get("PERPLEXITY_MCP_URL", "")
-
         # No built-in tools at all (`tools=[]` -> `--tools ""`): no Bash, no Read,
         # no Write. Everything the model can do is an in-process MCP tool in
         # bot_tools, which keeps the secrets here and sends code to the sandbox
@@ -503,19 +499,6 @@ You can determine the current date from the message_date field in the current me
             # tool takes a chat_id and none can be pointed at another chat.
             mcp_servers["bot"] = bot_tools.create_bot_server(chat_id, message_id, outbox)
             allowed_tools.extend(f"mcp__bot__{name}" for name in bot_tools.TOOL_NAMES)
-        # Search is the bot's own web_search/deep_research when the bot has a
-        # Perplexity key; the Perplexity MCP server is the fallback without one.
-        if tools_enabled and perplexity_url and not research.enabled():
-            mcp_servers["perplexity"] = {
-                "type": "http",
-                "url": perplexity_url,
-            }
-            # The bare server name is a permission rule that allows every tool
-            # the server offers. Listing the tools by name left
-            # get_research_result asking for permission, which no one can grant
-            # from a chat (seen 2026-09-19).
-            allowed_tools.append("mcp__perplexity")
-
         # Vestigial but cheap: tools_cli.py can still be run by an operator, and
         # refuses any chat_id that does not match this turn.
         tool_env = {}

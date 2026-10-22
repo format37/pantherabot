@@ -466,7 +466,7 @@ def build_tools(chat_id, message_id, outbox):
     @tool(
         'web_search',
         'Search the web and get a grounded answer with its sources (Perplexity '
-        'sonar-pro, a few seconds). Use it for recent events, current prices, '
+        'Pro Search, a few seconds). Use it for recent events, current prices, '
         'news, documentation, or anything that needs up-to-date facts. Cite the '
         'sources it returns as links in your reply.',
         {
@@ -490,7 +490,7 @@ def build_tools(chat_id, message_id, outbox):
 
     @tool(
         'deep_research',
-        'Start an exhaustive web research (Perplexity sonar-deep-research: dozens '
+        'Start an exhaustive web research (Perplexity deep research: dozens '
         'of sources, a long cited report). It takes 3-10 minutes and runs on its '
         'own after your reply ends: the report is posted in this chat as a file '
         'and you are then asked to present it. Do not wait or poll for it. Use it '
