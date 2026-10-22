@@ -84,6 +84,7 @@ TOOL_NAMES = [
     'update_system_prompt',
     'reset_system_prompt',
     'set_effort',
+    'set_model',
 ]
 
 
@@ -543,7 +544,30 @@ def build_tools(chat_id, message_id, outbox):
         except ValueError as e:
             return _error(str(e))
         return _text(f'Effort in this chat: {effort} (was {old}), from the next message on; '
-                     f'this reply still runs at {old}. Model: {tools_cli.primary_model()}.')
+                     f'this reply still runs at {old}. Model: {tools_cli.get_model(chat_id)}.')
+
+    @tool(
+        'set_model',
+        'Switch the model you run on in this chat, from the next message on. '
+        'Only when the user asks for it. The models: '
+        + '; '.join(f'{model} ({about})' for model, about in tools_cli.MODELS.items())
+        + '. Then tell the user the model and the effort the result names.',
+        {
+            'type': 'object',
+            'properties': {
+                'model': {'type': 'string', 'enum': list(tools_cli.MODELS)},
+            },
+            'required': ['model'],
+        },
+    )
+    async def set_model(args):
+        old = tools_cli.get_model(chat_id)
+        try:
+            model = tools_cli.set_model(chat_id, args.get('model'))
+        except ValueError as e:
+            return _error(str(e))
+        return _text(f'Model in this chat: {model} (was {old}), from the next message on; '
+                     f'this reply still runs on {old}. Effort: {tools_cli.get_effort(chat_id)}.')
 
     @tool(
         'reset_system_prompt',
@@ -556,7 +580,7 @@ def build_tools(chat_id, message_id, outbox):
     tools = [
         run_command, view_image, send_file, generate_image, wolfram_alpha,
         web_search, deep_research, render_math, remember, forget, replace_memory,
-        update_system_prompt, reset_system_prompt, set_effort,
+        update_system_prompt, reset_system_prompt, set_effort, set_model,
     ]
     return {t.name: t for t in tools}
 

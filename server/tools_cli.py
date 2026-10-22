@@ -313,37 +313,64 @@ async def reset_system_prompt(chat_id):
     return "System prompt reset: ok"
 
 
-# Effort levels the CLI takes (`--effort`); claude-fable-5-1 runs all five
-# (checked 2026-10-22 with the CLI of sdk 0.2.159).
+# Models a chat can switch to (the set_model tool), and what each is for.
+# All four run on the CLI of sdk 0.2.159 (checked 2026-10-22); it does not
+# know the 5.5 Sonnet and Haiku by name and says so on stderr, harmlessly.
+MODELS = {
+    'claude-opus-5-5': 'Opus 5.5: for complex work and everyday tasks',
+    'claude-fable-5-1': 'Fable 5.1: for your toughest challenges',
+    'claude-sonnet-5-5': 'Sonnet 5.5: most efficient for simpler tasks',
+    'claude-haiku-5-5': 'Haiku 5.5: fastest for quick answers',
+}
+# Effort levels the CLI takes (`--effort`); every model above runs all five
+# (checked 2026-10-22).
 EFFORTS = ('low', 'medium', 'high', 'xhigh', 'max')
 DEFAULT_EFFORT = 'high'
 
 
 def primary_model():
-    """The model every chat runs on: `primary_model` in config.json."""
+    """The default model: `primary_model` in config.json."""
     return config.get('primary_model', 'claude-fable-5-1')
+
+
+def _chat_setting(kind, chat_id, allowed):
+    """data/{kind}/{chat_id}.txt if it holds an allowed value, else None."""
+    try:
+        with open(f'./data/{kind}/{chat_id}.txt') as f:
+            value = f.read().strip()
+    except FileNotFoundError:
+        return None
+    return value if value in allowed else None
+
+
+def _set_chat_setting(kind, chat_id, value, allowed):
+    """Store one of `allowed` for this chat; it applies from the next answer on."""
+    check_chat_id(chat_id)
+    value = (value or '').strip().lower()
+    if value not in allowed:
+        raise ValueError(f'{kind} must be one of {", ".join(allowed)}')
+    os.makedirs(f'./data/{kind}', exist_ok=True)
+    with open(f'./data/{kind}/{chat_id}.txt', 'w') as f:
+        f.write(value)
+    return value
+
+
+def get_model(chat_id):
+    """This chat's model (data/model/{chat_id}.txt), or the default."""
+    return _chat_setting('model', chat_id, MODELS) or primary_model()
+
+
+def set_model(chat_id, model):
+    return _set_chat_setting('model', chat_id, model, MODELS)
 
 
 def get_effort(chat_id):
     """This chat's effort level (data/effort/{chat_id}.txt), or DEFAULT_EFFORT."""
-    try:
-        with open(f'./data/effort/{chat_id}.txt') as f:
-            effort = f.read().strip()
-    except FileNotFoundError:
-        return DEFAULT_EFFORT
-    return effort if effort in EFFORTS else DEFAULT_EFFORT
+    return _chat_setting('effort', chat_id, EFFORTS) or DEFAULT_EFFORT
 
 
 def set_effort(chat_id, effort):
-    """Set this chat's effort level; it applies from the next answer on."""
-    check_chat_id(chat_id)
-    effort = (effort or '').strip().lower()
-    if effort not in EFFORTS:
-        raise ValueError(f'effort must be one of {", ".join(EFFORTS)}')
-    os.makedirs('./data/effort', exist_ok=True)
-    with open(f'./data/effort/{chat_id}.txt', 'w') as f:
-        f.write(effort)
-    return effort
+    return _set_chat_setting('effort', chat_id, effort, EFFORTS)
 
 
 async def remember(chat_id, note):

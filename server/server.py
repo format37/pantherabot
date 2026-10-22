@@ -421,7 +421,7 @@ def reset_reply(chat_id):
     bot_name = f'Janet (@{username})' if username else 'Janet'
     return (f'Chat messages memory has been cleaned.\n'
             f'Bot: {bot_name}\n'
-            f'Model: {panthera.config["model"]}\n'
+            f'Model: {tools_cli.get_model(chat_id)}\n'
             f'Effort: {tools_cli.get_effort(chat_id)}')
 
 

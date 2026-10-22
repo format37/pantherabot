@@ -54,9 +54,9 @@ Two containers: `panthera_gptaidbot` (the head: FastAPI, the Claude CLI, every s
 
 **edits.py** — the edit rule: attempts, cancellation, the pre-send check, the regeneration cap, and the limit of `MAX_CONCURRENT_ANSWERS` answers at once.
 
-**bot_tools.py** — the model's tools, as an in-process MCP server built per attempt (`create_bot_server()` / `build_tools()`), with chat_id and message_id in closures: `run_command` (sandbox), `view_image`, `send_file`, `generate_image`, `wolfram_alpha`, `web_search` / `deep_research` (Perplexity), `render_math`, `remember` / `forget` / `replace_memory`, `update_system_prompt` / `reset_system_prompt`, `set_effort`.
+**bot_tools.py** — the model's tools, as an in-process MCP server built per attempt (`create_bot_server()` / `build_tools()`), with chat_id and message_id in closures: `run_command` (sandbox), `view_image`, `send_file`, `generate_image`, `wolfram_alpha`, `web_search` / `deep_research` (Perplexity), `render_math`, `remember` / `forget` / `replace_memory`, `update_system_prompt` / `reset_system_prompt`, `set_model` / `set_effort`.
 
-**tools_cli.py** — implementations behind several tools (Gemini images, Wolfram|Alpha, formula PNGs, prompt files, per-chat effort, `primary_model()`) and an operator CLI: `python3 tools_cli.py <tool> '<json_args>'`.
+**tools_cli.py** — implementations behind several tools (Gemini images, Wolfram|Alpha, formula PNGs, prompt files, per-chat model and effort) and an operator CLI: `python3 tools_cli.py <tool> '<json_args>'`.
 
 **research.py** — Perplexity through its Agent API (`/v1/agent`; Sonar chat completions ended 2026-09-27): `search()` (Pro Search, preset `low`, synchronous, run in a thread) and `start()`, which runs a deep research job (preset `medium`/`high` by effort, an API background run polled every `POLL_SECONDS`) as a task of the event loop, independent of the answer that started it. When the job ends it calls `server.research_done()`: the report goes to the chat as a `.md` document, its text is filed as a history record from `deep_research (tool)` (suffix `research-{message_id}`, so an edit never touches it), and an answer to it starts as for any message. One job per message, `MAX_RESEARCH_JOBS` per process. Needs `PERPLEXITY_API_KEY`; without it both tools return an error. No Perplexity MCP server is attached.
 
@@ -75,9 +75,9 @@ Configured in `config.json`:
 }
 ```
 
-The `primary_model` is passed to `claude_agent_sdk` as the model parameter. The `token_limit` controls chat history pruning.
+The `primary_model` is the default model, passed to `claude_agent_sdk` as the model parameter. The `token_limit` controls chat history pruning.
 
-Effort is per chat: `data/effort/{chat_id}.txt` (`tools_cli.get_effort()`, default `high`; `low`, `medium`, `high`, `xhigh`, `max` all run on claude-fable-5-1). The model sets it with the `set_effort` tool when a user asks, from the next answer on (the running answer keeps its effort). It survives `/reset`, which replies with the bot's name, the model and the effort. The system prompt states the model and the effort.
+Model and effort are per chat: `data/model/{chat_id}.txt` (`tools_cli.get_model()`, one of `tools_cli.MODELS`: claude-opus-5-5, claude-fable-5-1, claude-sonnet-5-5, claude-haiku-5-5; default `primary_model`) and `data/effort/{chat_id}.txt` (`tools_cli.get_effort()`: `low`, `medium`, `high`, `xhigh`, `max`; default `high`). Every model runs every effort. The model sets them with the `set_model` / `set_effort` tools when a user asks, from the next answer on (the running answer keeps its own). They survive `/reset`, which replies with the bot's name, the model and the effort. The system prompt states the model and the effort. The CLI of sdk 0.2.159 logs `unrecognized_model` on stderr for the 5.5 Sonnet and Haiku but runs them.
 
 ### How Tools Work
 
@@ -163,7 +163,7 @@ Default prompt defined in `Panthera.get_system_prompt()`. Per-chat custom prompt
 
 - Group chat IDs are negative, user IDs are positive. `chat_id` and `user_id` are used interchangeably for private chats.
 - Image file_ids are stored as empty files in `data/users/{chat_id}/images/` for inline query caching (written when a generated image is sent).
-- `config.json` is the source of truth for model selection — never rely on user session `model` field.
+- The model is `tools_cli.get_model(chat_id)`: the chat's choice, else `primary_model` in `config.json`. Never rely on the user session `model` field.
 - The `data/` directory is volume-mounted from the host; `config.json` is separately mounted.
 - `server/panthera.py` and `server/server.py` use CRLF line endings; keep them.
 - A new module in `server/` needs its own `COPY` line in `server/Dockerfile`.

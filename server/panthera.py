@@ -112,10 +112,11 @@ you to forget something (забудь). Do not store secrets, passwords, or toke
 notes appear under "## Memory" in your instructions on every request; prefer them over
 older conversation history.
 
-## Effort
-When the user asks you to think harder or faster, or names an effort level (low, medium,
-high, xhigh, max), call set_effort. It applies from the next message on, in this chat
-only; reply with the model and the effort it reports.
+## Model and effort
+When the user asks to switch the model (Opus 5.5, Fable 5.1, Sonnet 5.5, Haiku 5.5), call
+set_model. When they ask you to think harder or faster, or name an effort level (low,
+medium, high, xhigh, max), call set_effort. Both apply from the next message on, in this
+chat only; reply with the model and the effort the tool reports.
 
 ## Web Search
 Use web_search when the user asks about recent events, current prices, news, or anything
@@ -138,7 +139,7 @@ class Panthera:
         self.logger.setLevel(logging.INFO)
 
         self.config = json.load(open('./data/users/default.json', 'r'))
-        # Force model from config.json
+        # The default model, from config.json; a chat can switch (tools_cli.get_model).
         self.config['model'] = tools_cli.primary_model()
         self.logger.info(f'Using model: {self.config["model"]}')
         # Override token_limit from config.json if present
@@ -457,11 +458,10 @@ class Panthera:
         else:
             base_prompt = f"""Your name is Janet.
 You are Artificial Intelligence and the participant in the multi-user or personal telegram chat.
-Your model is {self.config['model']}.
 You can determine the current date from the message_date field in the current message."""
 
         prompt = (base_prompt
-                  + f"\n\nIn this chat you run on {self.config['model']} at effort "
+                  + f"\n\nIn this chat you run on {tools_cli.get_model(chat_id)} at effort "
                     f"{tools_cli.get_effort(chat_id)}."
                   + FORMATTING_INSTRUCTIONS)
         if tools_enabled:
@@ -516,7 +516,8 @@ You can determine the current date from the message_date field in the current me
 
         options = ClaudeAgentOptions(
             system_prompt=system_prompt,
-            model=self.config['model'],
+            # Per chat (the set_model tool); config.json's primary_model by default.
+            model=tools_cli.get_model(chat_id) if chat_id is not None else self.config['model'],
             max_turns=10,
             tools=[],
             allowed_tools=allowed_tools,
