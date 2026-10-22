@@ -415,6 +415,16 @@ def _answer_finished(task):
                      exc_info=task.exception())
 
 
+def reset_reply(chat_id):
+    """What /reset answers: that the history is gone, and who answers here, on what."""
+    username = os.environ.get('BOT_USERNAME', '')
+    bot_name = f'Janet (@{username})' if username else 'Janet'
+    return (f'Chat messages memory has been cleaned.\n'
+            f'Bot: {bot_name}\n'
+            f'Model: {panthera.config["model"]}\n'
+            f'Effort: {tools_cli.get_effort(chat_id)}')
+
+
 # The report's record carries at most this much; the file has all of it.
 RESEARCH_RECORD_CHARS = 40000
 
@@ -731,7 +741,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         command, command_args = parse_command(command_text)
         if command_text == '/reset' and message['chat']['type'] == 'private':
             panthera.reset_chat(message['chat']['id'])
-            answer = 'Chat messages memory has been cleaned'
+            answer = reset_reply(message['chat']['id'])
             return JSONResponse(content={
                 "type": "text",
                 "body": str(answer)
@@ -739,7 +749,7 @@ async def call_message(request: Request, authorization: str = Header(None)):
         # if chat type not private
         elif command_text.startswith('/reset@') and message['chat']['type'] != 'private':
             panthera.reset_chat(message['chat']['id'])
-            answer = 'Chat messages memory has been cleaned'
+            answer = reset_reply(message['chat']['id'])
             return JSONResponse(content={
                 "type": "text",
                 "body": str(answer)

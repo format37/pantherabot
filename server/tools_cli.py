@@ -313,6 +313,39 @@ async def reset_system_prompt(chat_id):
     return "System prompt reset: ok"
 
 
+# Effort levels the CLI takes (`--effort`); claude-fable-5-1 runs all five
+# (checked 2026-10-22 with the CLI of sdk 0.2.159).
+EFFORTS = ('low', 'medium', 'high', 'xhigh', 'max')
+DEFAULT_EFFORT = 'high'
+
+
+def primary_model():
+    """The model every chat runs on: `primary_model` in config.json."""
+    return config.get('primary_model', 'claude-fable-5-1')
+
+
+def get_effort(chat_id):
+    """This chat's effort level (data/effort/{chat_id}.txt), or DEFAULT_EFFORT."""
+    try:
+        with open(f'./data/effort/{chat_id}.txt') as f:
+            effort = f.read().strip()
+    except FileNotFoundError:
+        return DEFAULT_EFFORT
+    return effort if effort in EFFORTS else DEFAULT_EFFORT
+
+
+def set_effort(chat_id, effort):
+    """Set this chat's effort level; it applies from the next answer on."""
+    check_chat_id(chat_id)
+    effort = (effort or '').strip().lower()
+    if effort not in EFFORTS:
+        raise ValueError(f'effort must be one of {", ".join(EFFORTS)}')
+    os.makedirs('./data/effort', exist_ok=True)
+    with open(f'./data/effort/{chat_id}.txt', 'w') as f:
+        f.write(effort)
+    return effort
+
+
 async def remember(chat_id, note):
     """Append one note to this chat's long-term memory."""
     check_chat_id(chat_id)

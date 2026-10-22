@@ -16,6 +16,7 @@ from claude_agent_sdk import (
 
 import bot_tools
 import memory
+import tools_cli
 
 with open('config.json') as config_file:
     config = json.load(config_file)
@@ -111,6 +112,11 @@ you to forget something (забудь). Do not store secrets, passwords, or toke
 notes appear under "## Memory" in your instructions on every request; prefer them over
 older conversation history.
 
+## Effort
+When the user asks you to think harder or faster, or names an effort level (low, medium,
+high, xhigh, max), call set_effort. It applies from the next message on, in this chat
+only; reply with the model and the effort it reports.
+
 ## Web Search
 Use web_search when the user asks about recent events, current prices, news, or anything
 requiring up-to-date information; it answers in seconds with sources. Put the sources in
@@ -133,7 +139,7 @@ class Panthera:
 
         self.config = json.load(open('./data/users/default.json', 'r'))
         # Force model from config.json
-        self.config['model'] = config.get('primary_model', 'claude-fable-5-1')
+        self.config['model'] = tools_cli.primary_model()
         self.logger.info(f'Using model: {self.config["model"]}')
         # Override token_limit from config.json if present
         if 'token_limit' in config:
@@ -454,7 +460,10 @@ You are Artificial Intelligence and the participant in the multi-user or persona
 Your model is {self.config['model']}.
 You can determine the current date from the message_date field in the current message."""
 
-        prompt = base_prompt + FORMATTING_INSTRUCTIONS
+        prompt = (base_prompt
+                  + f"\n\nIn this chat you run on {self.config['model']} at effort "
+                    f"{tools_cli.get_effort(chat_id)}."
+                  + FORMATTING_INSTRUCTIONS)
         if tools_enabled:
             prompt += TOOL_INSTRUCTIONS
         prompt += memory.render_for_prompt(chat_id)
@@ -519,7 +528,9 @@ You can determine the current date from the message_date field in the current me
             # by a chat user must never be honoured by the next query.
             # (`[]` -> `--setting-sources=`; only `None` broke older SDKs.)
             setting_sources=[],
-            effort="high",  # thinking is always on; fixed budgets are rejected
+            # Per chat (the set_effort tool); thinking is always on and fixed
+            # budgets are rejected.
+            effort=tools_cli.get_effort(chat_id) if chat_id is not None else tools_cli.DEFAULT_EFFORT,
             max_buffer_size=SDK_MAX_BUFFER_BYTES,
             env=tool_env,
             stderr=_stderr_callback,

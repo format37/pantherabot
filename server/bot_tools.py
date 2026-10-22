@@ -83,6 +83,7 @@ TOOL_NAMES = [
     'replace_memory',
     'update_system_prompt',
     'reset_system_prompt',
+    'set_effort',
 ]
 
 
@@ -523,6 +524,28 @@ def build_tools(chat_id, message_id, outbox):
             return _error(str(e))
 
     @tool(
+        'set_effort',
+        'Set how hard you think in this chat, from the next message on: low, '
+        'medium, high (the default), xhigh or max. Only when the user asks for '
+        'it. Then tell the user the model and the effort the result names.',
+        {
+            'type': 'object',
+            'properties': {
+                'effort': {'type': 'string', 'enum': list(tools_cli.EFFORTS)},
+            },
+            'required': ['effort'],
+        },
+    )
+    async def set_effort(args):
+        old = tools_cli.get_effort(chat_id)
+        try:
+            effort = tools_cli.set_effort(chat_id, args.get('effort'))
+        except ValueError as e:
+            return _error(str(e))
+        return _text(f'Effort in this chat: {effort} (was {old}), from the next message on; '
+                     f'this reply still runs at {old}. Model: {tools_cli.primary_model()}.')
+
+    @tool(
         'reset_system_prompt',
         'Restore this chat\'s default system prompt.',
         {'type': 'object', 'properties': {}, 'required': []},
@@ -533,7 +556,7 @@ def build_tools(chat_id, message_id, outbox):
     tools = [
         run_command, view_image, send_file, generate_image, wolfram_alpha,
         web_search, deep_research, render_math, remember, forget, replace_memory,
-        update_system_prompt, reset_system_prompt,
+        update_system_prompt, reset_system_prompt, set_effort,
     ]
     return {t.name: t for t in tools}
 
