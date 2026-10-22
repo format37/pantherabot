@@ -88,3 +88,15 @@ def test_the_cli_gets_the_chats_model_and_effort(env, client, monkeypatch, tmp_p
 
     runs = [line for line in argv.read_text().splitlines() if '--effort' in line]
     assert runs and '--effort xhigh' in runs[-1] and '--model claude-sonnet-5-5' in runs[-1]
+
+
+def test_help_lists_the_models_and_efforts(env, client):
+    set_model(env, ALICE, 'claude-opus-5-5')
+    client.raw.post('/message', json=message(ALICE, 6, '/help'))
+    text = [e['text'] for e in env.events if e['kind'] == 'message'][-1]
+    # MarkdownV2: every - . ( ) outside markup is escaped.
+    assert '*Model & Effort*\n• This chat: claude\\-opus\\-5\\-5, effort high\n' in text
+    for model in env.tools_cli.MODELS:
+        assert model.replace('-', '\\-') in text
+    assert 'Haiku 5\\.5: fastest for quick answers \\(claude\\-haiku\\-5\\-5\\)' in text
+    assert 'low, medium, high, xhigh, max \\(default high\\)' in text

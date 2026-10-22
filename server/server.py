@@ -425,6 +425,18 @@ def reset_reply(chat_id):
             f'Effort: {tools_cli.get_effort(chat_id)}')
 
 
+def model_help(chat_id):
+    """The /help section on models and effort, in MarkdownV2, with this chat's choice."""
+    lines = ['*Model & Effort*',
+             f'• This chat: {tools_cli.get_model(chat_id)}, effort {tools_cli.get_effort(chat_id)}',
+             '• Ask me to switch the model:']
+    lines += [f'  – {about} ({model})' for model, about in tools_cli.MODELS.items()]
+    lines += [f'• Ask me to change the effort: {", ".join(tools_cli.EFFORTS)} '
+              f'(default {tools_cli.DEFAULT_EFFORT})',
+              '• Both apply in this chat only, from the next message on, and survive /reset']
+    return '\n'.join(escape_markdown(line) if i else line for i, line in enumerate(lines))
+
+
 # The report's record carries at most this much; the file has all of it.
 RESEARCH_RECORD_CHARS = 40000
 
@@ -712,6 +724,8 @@ async def call_message(request: Request, authorization: str = Header(None)):
 • Image understanding & analysis
 • Python code execution
 • Math formula rendering
+
+""" + model_help(message['chat']['id']) + """
 
 *Memory & Context*
 • Maintains conversation history
