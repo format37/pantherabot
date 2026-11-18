@@ -113,10 +113,10 @@ notes appear under "## Memory" in your instructions on every request; prefer the
 older conversation history.
 
 ## Model and effort
-When the user asks to switch the model (Opus 5.5, Fable 5.1, Sonnet 5.5, Haiku 5.5), call
-set_model. When they ask you to think harder or faster, or name an effort level (low,
-medium, high, xhigh, max), call set_effort. Both apply from the next message on, in this
-chat only; reply with the model and the effort the tool reports.
+When the user asks to switch the model (Opus 5.5, Fable 5.2, Fable 5.1, Sonnet 5.5,
+Haiku 5.5), call set_model. When they ask you to think harder or faster, or name an
+effort level (low, medium, high, xhigh, max), call set_effort. Both apply from the next
+message on, in this chat only; reply with the model and the effort the tool reports.
 
 ## Web Search
 Use web_search when the user asks about recent events, current prices, news, or anything

@@ -314,16 +314,18 @@ async def reset_system_prompt(chat_id):
 
 
 # Models a chat can switch to (the set_model tool), and what each is for.
-# All four run on the CLI of sdk 0.2.159 (checked 2026-10-22); it does not
-# know the 5.5 Sonnet and Haiku by name and says so on stderr, harmlessly.
+# All five run on the CLI of sdk 0.2.184 (2.1.327, checked 2026-11-18).
+# Fable 5.2 needs CLI 2.1.290 or newer: sdk 0.2.159 (2.1.281) answers it with
+# an API error 400, so do not lower the pin in requirements.txt below that.
 MODELS = {
     'claude-opus-5-5': 'Opus 5.5: for complex work and everyday tasks',
-    'claude-fable-5-1': 'Fable 5.1: for your toughest challenges',
+    'claude-fable-5-2': 'Fable 5.2: the newest and most capable, for your toughest challenges',
+    'claude-fable-5-1': 'Fable 5.1: the previous Fable',
     'claude-sonnet-5-5': 'Sonnet 5.5: most efficient for simpler tasks',
     'claude-haiku-5-5': 'Haiku 5.5: fastest for quick answers',
 }
 # Effort levels the CLI takes (`--effort`); every model above runs all five
-# (checked 2026-10-22).
+# (Fable 5.2 checked at each, 2026-11-18).
 EFFORTS = ('low', 'medium', 'high', 'xhigh', 'max')
 DEFAULT_EFFORT = 'high'
 
